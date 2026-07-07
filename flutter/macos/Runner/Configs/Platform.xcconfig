@@ -1,0 +1,3 @@
+// Shared macOS platform settings — single place to bump deployment target.
+MACOSX_DEPLOYMENT_TARGET = 15.0
+SWIFT_VERSION = 5.0

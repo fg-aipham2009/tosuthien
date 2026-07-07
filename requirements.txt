@@ -1,0 +1,10 @@
+anthropic
+pymupdf
+tqdm
+python-dotenv
+python-docx
+psycopg[binary]
+# Local embedding server (scripts/embed_server.py) — bge-m3, no API key
+fastembed
+fastapi
+uvicorn

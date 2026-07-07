@@ -1,0 +1,1 @@
+{"root":["./src/main.ts","./src/api/centers.ts","./src/api/files.ts","./src/api/http.ts","./src/api/media.ts","./src/router/index.ts","./src/types/models.ts","./src/app.vue","./src/layouts/adminlayout.vue","./src/views/centereditview.vue","./src/views/centersview.vue","./src/views/filesview.vue","./src/views/youtubeview.vue"],"version":"5.7.3"}

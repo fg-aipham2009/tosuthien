@@ -1,0 +1,74 @@
+# Demo: docker compose up -d --build
+#   API:   http://localhost:8000
+#   Admin: http://localhost:5173
+# Flutter: chạy local — flutter run -d macos hoặc -d ios (cần Xcode)
+#
+# Trước khi hỏi đáp hybrid: python3 scripts/embed_server.py  (port 7997)
+
+name: tosuthien
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: tosu_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tosuthien}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-thamthien}
+      POSTGRES_DB: ${POSTGRES_DB:-tosuthien}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tosuthien} -d ${POSTGRES_DB:-tosuthien}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./nestjs
+      dockerfile: Dockerfile
+    container_name: tosu_api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tosuthien}:${POSTGRES_PASSWORD:-thamthien}@db:5432/${POSTGRES_DB:-tosuthien}
+      DATA_ROOT: /data
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
+      PORT: 8000
+      # host.docker.internal → embed_server.py on the Mac host (port 7997)
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL_DOCKER:-http://host.docker.internal:7997/v1}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  admin:
+    build:
+      context: ./vuejs
+      dockerfile: Dockerfile
+    container_name: tosu_admin
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORT:-5173}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

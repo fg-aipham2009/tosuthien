@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PdfFile {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug          String   @unique
+  title         String
+  volume        String?
+  author        String   @default("Hòa thượng Thích Duy Lực")
+  filename      String
+  folderPath    String   @default("pdf/") @map("folder_path")
+  storagePath   String   @unique @map("storage_path")
+  publicUrl     String   @map("public_url")
+  pageCount     Int?     @map("page_count")
+  fileSizeBytes BigInt?  @map("file_size_bytes")
+  sortOrder     Int      @default(0) @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  readingProgress ReadingProgress[]
+
+  @@index([sortOrder], map: "idx_pdf_files_sort")
+  @@map("pdf_files")
+}
+
+model ReadingProgress {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deviceId  String   @map("device_id")
+  pdfFileId String   @map("pdf_file_id") @db.Uuid
+  lastPage  Int      @default(1) @map("last_page")
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  pdfFile PdfFile @relation(fields: [pdfFileId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, pdfFileId])
+  @@index([deviceId], map: "idx_reading_progress_device")
+  @@index([pdfFileId], map: "idx_reading_progress_pdf")
+  @@map("reading_progress")
+}
+
+model RagSource {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String          @unique
+  title       String
+  volume      String?
+  author      String          @default("Hòa thượng Thích Duy Lực")
+  sourceFile  String          @unique @map("source_file")
+  folderPath  String          @default("text/") @map("folder_path")
+  status      String   @default("pending")
+  chunkCount  Int             @default(0) @map("chunk_count")
+  ingestedAt  DateTime?       @map("ingested_at") @db.Timestamptz(6)
+  embeddedAt  DateTime?       @map("embedded_at") @db.Timestamptz(6)
+  sortOrder   Int             @default(0) @map("sort_order")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  passages Passage[]
+
+  @@index([status], map: "idx_rag_sources_status")
+  @@index([sortOrder], map: "idx_rag_sources_sort")
+  @@map("rag_sources")
+}
+
+model Passage {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ragSourceId String           @map("rag_source_id") @db.Uuid
+  pageNum     Int?             @map("page_num")
+  chunkType   String   @default("prose") @map("chunk_type")
+  questionNum Int?             @map("question_num")
+  content     String
+  metadata    Json             @default("{}")
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  ragSource  RagSource          @relation(fields: [ragSourceId], references: [id], onDelete: Cascade)
+  embedding  PassageEmbedding?
+
+  @@index([ragSourceId, pageNum], map: "idx_passages_rag_page")
+  @@index([chunkType], map: "idx_passages_chunk_type")
+  @@map("passages")
+}
+
+model PassageEmbedding {
+  passageId String                      @id @map("passage_id") @db.Uuid
+  embedding Unsupported("vector(384)")
+  model     String?
+  createdAt DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  passage Passage @relation(fields: [passageId], references: [id], onDelete: Cascade)
+
+  @@map("passage_embeddings")
+}
+
+model MediaCategory {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique
+  name        String
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  mp3Tracks      Mp3Track[]
+  youtubeVideos  YoutubeVideo[]
+
+  @@map("media_categories")
+}
+
+model Mp3Track {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId    String    @map("category_id") @db.Uuid
+  title         String
+  year          Int
+  recordedAt    DateTime? @map("recorded_at") @db.Date
+  location      String?
+  description   String?
+  folderPath    String    @map("folder_path")
+  filename      String
+  storagePath   String    @unique @map("storage_path")
+  publicUrl     String    @map("public_url")
+  durationSec   Int?      @map("duration_sec")
+  fileSizeBytes BigInt?   @map("file_size_bytes")
+  sortOrder     Int       @default(0) @map("sort_order")
+  isPublished   Boolean   @default(true) @map("is_published")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  category MediaCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([categoryId], map: "idx_mp3_tracks_category")
+  @@index([year], map: "idx_mp3_tracks_year")
+  @@index([categoryId, year(sort: Desc)], map: "idx_mp3_tracks_category_year")
+  @@index([folderPath], map: "idx_mp3_tracks_folder")
+  @@map("mp3_tracks")
+}
+
+model YoutubeVideo {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId  String    @map("category_id") @db.Uuid
+  title       String
+  youtubeId   String    @map("youtube_id")
+  channel     String    @default("Hoà thượng Thích Duy Lực")
+  year        Int?
+  publishedAt DateTime? @map("published_at") @db.Date
+  description String?
+  sortOrder   Int       @default(0) @map("sort_order")
+  isPublished Boolean   @default(true) @map("is_published")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  category MediaCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([categoryId], map: "idx_youtube_videos_category")
+  @@index([year], map: "idx_youtube_videos_year")
+  @@index([categoryId, year(sort: Desc)], map: "idx_youtube_videos_category_year")
+  @@map("youtube_videos")
+}
+
+model Center {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug           String?  @unique
+  templeName     String   @map("temple_name")
+  abbotName      String?  @map("abbot_name")
+  address        String
+  phone          String?
+  abbotPhone     String?  @map("abbot_phone")
+  googleMapsUrl  String?  @map("google_maps_url")
+  lat            Float?
+  lng            Float?
+  activityHours  String?  @map("activity_hours")
+  rules          String?
+  customs        String?
+  mainImageUrl   String?  @map("main_image_url")
+  galleryImages  Json     @default("[]") @map("gallery_images")
+  detailContent  String?  @map("detail_content")
+  sortOrder      Int      @default(0) @map("sort_order")
+  isPublished    Boolean  @default(true) @map("is_published")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  courses Course[]
+
+  @@index([sortOrder], map: "idx_centers_sort")
+  @@map("centers")
+}
+
+model Course {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  startDate   DateTime? @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  centerId    String?   @map("center_id") @db.Uuid
+  contact     String?
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  center Center? @relation(fields: [centerId], references: [id], onDelete: SetNull)
+
+  @@map("courses")
+}

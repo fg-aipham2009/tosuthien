@@ -1,0 +1,428 @@
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import type { FormInstance, FormRules, UploadUserFile } from 'element-plus';
+import {
+  fetchCenter,
+  createCenter,
+  updateCenter,
+  uploadCenterMain,
+  uploadCenterGallery,
+  removeGalleryImage,
+  fetchCourses,
+  createCourse,
+  updateCourse,
+  deleteCourse,
+} from '@/api/centers';
+import type { Course, CourseFormData, GalleryImage } from '@/types/models';
+
+const route = useRoute();
+const router = useRouter();
+
+const isNew = computed(() => route.name === 'center-new');
+const centerId = computed(() => (isNew.value ? null : String(route.params.id)));
+
+const saving = ref(false);
+const loading = ref(false);
+const formRef = ref<FormInstance>();
+
+const form = reactive({
+  templeName: '',
+  slug: '',
+  abbotName: '',
+  address: '',
+  phone: '',
+  abbotPhone: '',
+  googleMapsUrl: '',
+  lat: null as number | null,
+  lng: null as number | null,
+  activityHours: '',
+  rules: '',
+  customs: '',
+  detailContent: '',
+  sortOrder: 0,
+  isPublished: true,
+});
+
+const mainImageUrl = ref<string | null>(null);
+const gallery = ref<GalleryImage[]>([]);
+const courses = ref<Course[]>([]);
+
+const courseDialog = ref(false);
+const editingCourse = ref<Course | null>(null);
+const courseForm = reactive<CourseFormData>({
+  title: '',
+  startDate: '',
+  endDate: '',
+  contact: '',
+  description: '',
+});
+
+const rules: FormRules = {
+  templeName: [{ required: true, message: 'Nhập tên thiền viện', trigger: 'blur' }],
+  address: [{ required: true, message: 'Nhập địa chỉ', trigger: 'blur' }],
+};
+
+function parseGallery(raw: unknown): GalleryImage[] {
+  if (Array.isArray(raw)) return raw as GalleryImage[];
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw) as GalleryImage[];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+async function loadCenter() {
+  if (!centerId.value) return;
+  loading.value = true;
+  try {
+    const c = await fetchCenter(centerId.value);
+    form.templeName = c.templeName;
+    form.slug = c.slug ?? '';
+    form.abbotName = c.abbotName ?? '';
+    form.address = c.address;
+    form.phone = c.phone ?? '';
+    form.abbotPhone = c.abbotPhone ?? '';
+    form.googleMapsUrl = c.googleMapsUrl ?? '';
+    form.lat = c.lat;
+    form.lng = c.lng;
+    form.activityHours = c.activityHours ?? '';
+    form.rules = c.rules ?? '';
+    form.customs = c.customs ?? '';
+    form.detailContent = c.detailContent ?? '';
+    form.sortOrder = c.sortOrder;
+    form.isPublished = c.isPublished;
+    mainImageUrl.value = c.mainImageUrl;
+    gallery.value = parseGallery(c.galleryImages);
+    courses.value = c.courses ?? await fetchCourses(centerId.value);
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Không tải được dữ liệu');
+  } finally {
+    loading.value = false;
+  }
+}
+
+function buildPayload() {
+  return {
+    templeName: form.templeName.trim(),
+    slug: form.slug.trim() || undefined,
+    abbotName: form.abbotName.trim() || undefined,
+    address: form.address.trim(),
+    phone: form.phone.trim() || undefined,
+    abbotPhone: form.abbotPhone.trim() || undefined,
+    googleMapsUrl: form.googleMapsUrl.trim() || undefined,
+    lat: form.lat ?? undefined,
+    lng: form.lng ?? undefined,
+    activityHours: form.activityHours.trim() || undefined,
+    rules: form.rules.trim() || undefined,
+    customs: form.customs.trim() || undefined,
+    detailContent: form.detailContent.trim() || undefined,
+    sortOrder: form.sortOrder,
+    isPublished: form.isPublished,
+  };
+}
+
+async function save() {
+  const valid = await formRef.value?.validate().catch(() => false);
+  if (!valid) return;
+
+  saving.value = true;
+  try {
+    if (isNew.value) {
+      const created = await createCenter(buildPayload());
+      ElMessage.success('Đã tạo thiền viện');
+      router.replace(`/centers/${created.id}`);
+    } else if (centerId.value) {
+      await updateCenter(centerId.value, buildPayload());
+      ElMessage.success('Đã lưu');
+      await loadCenter();
+    }
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Lưu thất bại');
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function onMainUpload(file: UploadUserFile) {
+  if (!centerId.value || !file.raw) return false;
+  try {
+    const updated = await uploadCenterMain(centerId.value, file.raw);
+    mainImageUrl.value = updated.mainImageUrl;
+    ElMessage.success('Đã cập nhật ảnh chính');
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Upload thất bại');
+  }
+  return false;
+}
+
+async function onGalleryUpload(file: UploadUserFile) {
+  if (!centerId.value || !file.raw) return false;
+  try {
+    await uploadCenterGallery(centerId.value, [file.raw]);
+    await loadCenter();
+    ElMessage.success('Đã thêm ảnh');
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Upload thất bại');
+  }
+  return false;
+}
+
+async function onRemoveGallery(url: string) {
+  if (!centerId.value) return;
+  try {
+    await ElMessageBox.confirm('Xóa ảnh này?', 'Xác nhận', { type: 'warning' });
+    await removeGalleryImage(centerId.value, url);
+    gallery.value = gallery.value.filter((g) => g.url !== url);
+    ElMessage.success('Đã xóa ảnh');
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') {
+      ElMessage.error(e instanceof Error ? e.message : 'Xóa thất bại');
+    }
+  }
+}
+
+function openCourseDialog(course?: Course) {
+  editingCourse.value = course ?? null;
+  courseForm.title = course?.title ?? '';
+  courseForm.startDate = course?.startDate?.slice(0, 10) ?? '';
+  courseForm.endDate = course?.endDate?.slice(0, 10) ?? '';
+  courseForm.contact = course?.contact ?? '';
+  courseForm.description = course?.description ?? '';
+  courseDialog.value = true;
+}
+
+async function saveCourse() {
+  if (!centerId.value || !courseForm.title.trim()) {
+    ElMessage.warning('Nhập tên khoá tu');
+    return;
+  }
+  try {
+    const payload: CourseFormData = {
+      title: courseForm.title.trim(),
+      centerId: centerId.value,
+      startDate: courseForm.startDate || undefined,
+      endDate: courseForm.endDate || undefined,
+      contact: courseForm.contact?.trim() || undefined,
+      description: courseForm.description?.trim() || undefined,
+    };
+    if (editingCourse.value) {
+      await updateCourse(editingCourse.value.id, payload);
+    } else {
+      await createCourse(payload);
+    }
+    courseDialog.value = false;
+    courses.value = await fetchCourses(centerId.value);
+    ElMessage.success('Đã lưu khoá tu');
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Lưu khoá tu thất bại');
+  }
+}
+
+async function onDeleteCourse(course: Course) {
+  try {
+    await ElMessageBox.confirm(`Xóa khoá "${course.title}"?`, 'Xác nhận', { type: 'warning' });
+    await deleteCourse(course.id);
+    courses.value = courses.value.filter((c) => c.id !== course.id);
+    ElMessage.success('Đã xóa khoá tu');
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') {
+      ElMessage.error(e instanceof Error ? e.message : 'Xóa thất bại');
+    }
+  }
+}
+
+function goBack() {
+  router.push('/centers');
+}
+
+onMounted(loadCenter);
+watch(() => route.params.id, loadCenter);
+</script>
+
+<template>
+  <div v-loading="loading">
+    <div class="page-header">
+      <h1>{{ isNew ? 'Thêm thiền viện / thiền đường' : 'Chỉnh sửa nội dung' }}</h1>
+      <div>
+        <el-button @click="goBack">Quay lại</el-button>
+        <el-button type="primary" :loading="saving" @click="save">Lưu</el-button>
+      </div>
+    </div>
+
+    <el-card shadow="never">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="140px" label-position="top">
+        <el-row :gutter="20">
+          <el-col :xs="24" :md="12">
+            <el-form-item label="Tên thiền viện / thiền đường" prop="templeName">
+              <el-input v-model="form.templeName" placeholder="VD: Thiền viện Trúc Lâm..." />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :md="12">
+            <el-form-item label="Slug (URL)">
+              <el-input v-model="form.slug" placeholder="Tự tạo nếu để trống" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :md="12">
+            <el-form-item label="Trụ trì / liên hệ">
+              <el-input v-model="form.abbotName" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :md="12">
+            <el-form-item label="Điện thoại">
+              <el-input v-model="form.phone" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="Địa chỉ" prop="address">
+          <el-input v-model="form.address" type="textarea" :rows="2" />
+        </el-form-item>
+
+        <el-row :gutter="20">
+          <el-col :xs="24" :md="12">
+            <el-form-item label="Google Maps URL">
+              <el-input v-model="form.googleMapsUrl" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="12" :md="6">
+            <el-form-item label="Vĩ độ (lat)">
+              <el-input-number v-model="form.lat" :controls="false" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="12" :md="6">
+            <el-form-item label="Kinh độ (lng)">
+              <el-input-number v-model="form.lng" :controls="false" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="Giờ sinh hoạt">
+          <el-input v-model="form.activityHours" type="textarea" :rows="2" />
+        </el-form-item>
+
+        <el-form-item label="Nội quy">
+          <el-input v-model="form.rules" type="textarea" :rows="4" />
+        </el-form-item>
+
+        <el-form-item label="Tập tục / lưu ý">
+          <el-input v-model="form.customs" type="textarea" :rows="3" />
+        </el-form-item>
+
+        <el-form-item label="Nội dung chi tiết (thiền đường)">
+          <el-input
+            v-model="form.detailContent"
+            type="textarea"
+            :rows="8"
+            placeholder="Giới thiệu, hướng dẫn tham quan, lịch tu..."
+          />
+        </el-form-item>
+
+        <el-row :gutter="20">
+          <el-col :xs="12" :md="6">
+            <el-form-item label="Thứ tự hiển thị">
+              <el-input-number v-model="form.sortOrder" :min="0" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="12" :md="6">
+            <el-form-item label="Công khai">
+              <el-switch v-model="form.isPublished" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+
+      <template v-if="!isNew && centerId">
+        <div class="form-section-title">Ảnh đại diện</div>
+        <div style="display: flex; gap: 16px; align-items: flex-start">
+          <el-image
+            v-if="mainImageUrl"
+            :src="mainImageUrl"
+            fit="cover"
+            style="width: 160px; height: 120px; border-radius: 8px"
+          />
+          <el-upload :show-file-list="false" :auto-upload="true" accept="image/*" :before-upload="onMainUpload">
+            <el-button>{{ mainImageUrl ? 'Đổi ảnh chính' : 'Upload ảnh chính' }}</el-button>
+          </el-upload>
+        </div>
+
+        <div class="form-section-title">Thư viện ảnh</div>
+        <el-upload
+          :show-file-list="false"
+          :auto-upload="true"
+          accept="image/*"
+          multiple
+          :before-upload="onGalleryUpload"
+        >
+          <el-button type="primary" plain>Thêm ảnh gallery</el-button>
+        </el-upload>
+        <div v-if="gallery.length" class="gallery-grid">
+          <div v-for="img in gallery" :key="img.url" class="gallery-item">
+            <img :src="img.url" :alt="img.caption ?? ''">
+            <div class="actions">
+              <el-button size="small" type="danger" link @click="onRemoveGallery(img.url)">Xóa</el-button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section-title">Khoá tu / hoạt động</div>
+        <el-button type="primary" plain size="small" @click="openCourseDialog()">Thêm khoá tu</el-button>
+        <el-table :data="courses" size="small" style="margin-top: 12px">
+          <el-table-column prop="title" label="Tên khoá" />
+          <el-table-column prop="startDate" label="Bắt đầu" width="120" />
+          <el-table-column prop="endDate" label="Kết thúc" width="120" />
+          <el-table-column prop="contact" label="Liên hệ" show-overflow-tooltip />
+          <el-table-column label="" width="120">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openCourseDialog(row)">Sửa</el-button>
+              <el-button link type="danger" @click="onDeleteCourse(row)">Xóa</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </template>
+
+      <el-alert
+        v-else
+        type="info"
+        :closable="false"
+        show-icon
+        title="Lưu thông tin cơ bản trước, sau đó upload ảnh và thêm khoá tu."
+        style="margin-top: 16px"
+      />
+    </el-card>
+
+    <el-dialog v-model="courseDialog" :title="editingCourse ? 'Sửa khoá tu' : 'Thêm khoá tu'" width="520px">
+      <el-form label-position="top">
+        <el-form-item label="Tên khoá tu" required>
+          <el-input v-model="courseForm.title" />
+        </el-form-item>
+        <el-row :gutter="12">
+          <el-col :span="12">
+            <el-form-item label="Ngày bắt đầu">
+              <el-date-picker v-model="courseForm.startDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="Ngày kết thúc">
+              <el-date-picker v-model="courseForm.endDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="Liên hệ">
+          <el-input v-model="courseForm.contact" />
+        </el-form-item>
+        <el-form-item label="Mô tả">
+          <el-input v-model="courseForm.description" type="textarea" :rows="3" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="courseDialog = false">Huỷ</el-button>
+        <el-button type="primary" @click="saveCourse">Lưu</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>

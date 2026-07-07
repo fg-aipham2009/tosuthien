@@ -1,0 +1,3 @@
+// Shared iOS platform settings — Xcode 16.x on macOS 15 (iOS 18 SDK)
+IPHONEOS_DEPLOYMENT_TARGET = 18.0
+SWIFT_VERSION = 5.0

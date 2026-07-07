@@ -1,0 +1,13 @@
+Human: Trang tiếp theo:
+
+Nếu ảnh trống, trả về chuỗi rỗng. 
+
+Không giải thích. 
+
+Yêu cầu bắt buộc:
+- Giữ nguyên tiếng Việt có dấu
+- Giữ xuống dòng, đoạn văn
+- Giữ chữ Hán nếu có
+- CHỈ trả về text thuần trên trang
+- KHÔNG từ chối, KHÔNG hỏi user gửi ảnh, KHÔNG giải thích 
+[Image #2]
