@@ -1,7 +1,7 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-export type ChatProvider = 'shopaikey' | 'nexus';
+export type ChatProvider = 'shopaikey' | 'nexus' | 'hhtech';
 
 export interface AiConfig {
   embeddingApiKey: string;
@@ -52,7 +52,22 @@ export class AiConfigService {
     let chatBaseUrl: string;
     let chatModel: string;
 
-    if (provider === 'nexus') {
+    if (provider === 'hhtech') {
+      chatApiKey = this.config.get<string>('HHTECH_API_KEY') ?? '';
+      chatBaseUrl = (
+        this.config.get<string>('HHTECH_BASE_URL') || 'https://hhtechapi.com/v1'
+      ).replace(/\/$/, '');
+      chatModel =
+        this.config.get<string>('HHTECH_CHAT_MODEL') ||
+        this.config.get<string>('ANTHROPIC_MODEL') ||
+        defaultModel;
+
+      if (!chatApiKey) {
+        throw new ServiceUnavailableException(
+          'CHAT_PROVIDER=hhtech nhưng thiếu HHTECH_API_KEY trong .env',
+        );
+      }
+    } else if (provider === 'nexus') {
       chatApiKey = this.config.get<string>('NEXUS_API_KEY') ?? '';
       chatBaseUrl = (
         this.config.get<string>('NEXUS_BASE_URL') || 'https://nexusmmo.store/api/v1'
@@ -88,7 +103,8 @@ export class AiConfigService {
       chatApiKey,
       chatBaseUrl,
       chatModel,
-      chatProvider: provider === 'nexus' ? 'nexus' : 'shopaikey',
+      chatProvider:
+        provider === 'hhtech' ? 'hhtech' : provider === 'nexus' ? 'nexus' : 'shopaikey',
     };
 
     return this.cached;

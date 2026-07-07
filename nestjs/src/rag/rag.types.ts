@@ -52,7 +52,7 @@ export interface ChatMeta {
   /** kinh_long | mixed | brief */
   answerStyle?: 'kinh_long' | 'mixed' | 'brief';
   /** shopaikey | nexus */
-  chatProvider?: 'shopaikey' | 'nexus';
+  chatProvider?: 'shopaikey' | 'nexus' | 'hhtech';
 }
 
 export interface ChatResult {

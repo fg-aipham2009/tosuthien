@@ -37,11 +37,17 @@ NEXUS_BASE_URL = os.environ.get("NEXUS_BASE_URL", "https://nexusmmo.store/api/v1
 NEXUS_API_KEY = os.environ.get("NEXUS_API_KEY")
 TAPHOA_BASE_URL = os.environ.get("TAPHOA_BASE_URL", "https://taphoaapi.info.vn").rstrip("/")
 TAPHOA_API_KEY = os.environ.get("TAPHOA_API_KEY")
+HHTECH_BASE_URL = os.environ.get("HHTECH_BASE_URL", "https://hhtechapi.com/v1").rstrip("/")
+HHTECH_API_KEY = os.environ.get("HHTECH_API_KEY")
 OCR_PROVIDER = (os.environ.get("OCR_PROVIDER") or "shopaikey").strip().lower()
 OCR_MODEL = os.environ.get("OCR_MODEL") or os.environ.get("CHAT_MODEL") or "claude-opus-4-8"
 
 
 def build_ocr_client() -> anthropic.Anthropic:
+    if OCR_PROVIDER == "hhtech":
+        if not HHTECH_API_KEY:
+            raise SystemExit("❌ OCR_PROVIDER=hhtech nhưng thiếu HHTECH_API_KEY trong .env")
+        return anthropic.Anthropic(api_key=HHTECH_API_KEY, base_url=HHTECH_BASE_URL)
     if OCR_PROVIDER == "taphoa":
         if not TAPHOA_API_KEY:
             raise SystemExit("❌ OCR_PROVIDER=taphoa nhưng thiếu TAPHOA_API_KEY trong .env")
@@ -57,6 +63,7 @@ def build_ocr_client() -> anthropic.Anthropic:
 
 client = build_ocr_client()
 OCR_PROVIDER_LABEL = {
+    "hhtech": "HHTechAPI",
     "taphoa": "TaphoaAPI",
     "nexus": "Nexus",
 }.get(OCR_PROVIDER, "ShopAIKey")
@@ -316,7 +323,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if OCR_PROVIDER not in ("nexus", "taphoa") and not SHOPAIKEY_API_KEY:
+    if OCR_PROVIDER not in ("nexus", "taphoa", "hhtech") and not SHOPAIKEY_API_KEY:
         raise SystemExit("❌ Thiếu SHOPAIKEY_API_KEY trong .env")
 
     if args.files:
