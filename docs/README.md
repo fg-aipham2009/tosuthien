@@ -1,8 +1,15 @@
 # App Tổ Sư Thiền — Hoà thượng Thích Duy Lực
 
-Tài liệu **duy nhất** cho toàn bộ dự án: app Flutter (Google Play) + backend VPS + PostgreSQL RAG.
+Tài liệu tổng quan dự án: app Flutter (Google Play) + backend VPS + PostgreSQL RAG.
+
+**Repository:** https://github.com/fg-aipham2009/tosuthien
 
 **Phạm vi:** Chỉ **Hoà thượng Thích Duy Lực (1923–2000)** và phương pháp **Tổ Sư Thiền**.
+
+**Tài liệu khác:**
+
+- Chạy local / API RAG: [`HUONG-DAN-CO-BAN.md`](./HUONG-DAN-CO-BAN.md)
+- Deploy VPS Ubuntu: [`VPS-SETUP.md`](./VPS-SETUP.md)
 
 ---
 
@@ -60,21 +67,26 @@ SQL đầy đủ: [`schema.sql`](../schema.sql)
 └──────────────┬──────────────────────┘
                │ HTTPS
 ┌──────────────▼──────────────────────┐
-│  VPS (Docker)                        │
-│  nginx  →  /api/*  /pdf/*  /audio/* │
-│  FastAPI (hoặc NestJS)               │
-│  PostgreSQL + pgvector (1 DB)        │
+│  VPS (Docker Compose)                │
+│  nginx (host) → /api/* /files/*      │
+│  NestJS API (:8000)                  │
+│  Vue Admin (:5173)                   │
+│  PostgreSQL + pgvector (db)          │
+│  embed_server.py trên host (:7997)   │
 └─────────────────────────────────────┘
 
 ingest.py + embed.py  →  chạy tay 1 lần (Python, ngoài container)
+pdf_to_text.py        →  OCR PDF → text/*.txt
 ```
 
 | Quyết định | Chọn |
 |------------|------|
 | DB | PostgreSQL + **pgvector** (text + vector cùng 1 DB) |
-| PDF / MP3 | Host **VPS** (không S3) |
-| Backend | **FastAPI** (tái dùng Python OCR) hoặc NestJS + script Python |
+| PDF / MP3 | Host **VPS** (`data/pdf`, `data/mp3`) — không S3 |
+| Backend | **NestJS** + Prisma |
+| Admin | **Vue** (Docker) |
 | Mobile | **Flutter** → Google Play |
+| Chat / OCR LLM | Claude — **HHTechAPI** / Nexus / ShopAIKey |
 
 ---
 
@@ -104,10 +116,10 @@ ingest.py + embed.py  →  chạy tay 1 lần (Python, ngoài container)
 ### RAG pipeline
 
 ```
-POST /chat
-  → embed câu hỏi
-  → SELECT top 8 passages (pgvector <=>)
-  → Claude qua ShopAIKey + system prompt
+POST /api/rag/chat
+  → embed câu hỏi (local MiniLM, port 7997)
+  → hybrid retrieval: FTS + vector (RRF)
+  → Claude (HHTechAPI / Nexus / ShopAIKey) + system prompt
   → answer + citations (quyển, trang)
 ```
 
@@ -122,38 +134,31 @@ POST /chat
 ## 4. Cấu trúc thư mục
 
 ```
-kínhsạch/
-├── pdf/                    # PDF gốc
+tosuthien/
+├── flutter/                # App mobile
+├── nestjs/                 # API NestJS
+├── vuejs/                  # Admin Vue
+├── kinhsach/               # PDF gốc (OCR)
 ├── text/                   # OCR → RAG
 ├── data/                   # Mount VPS
 │   ├── pdf/
-│   │   ├── 13.pdf
-│   │   └── 14.pdf
-│   └── audio/
-│       └── duy-luc/        # Chỉ HT. Duy Lực
-│           ├── phap-thoai-to-su-thien/
-│           │   ├── 1993/
-│           │   ├── 1994/
-│           │   └── 1999/
-│           ├── thien-huong-dan/
-│           │   └── 2020/
-│           └── phap-hoi/
-│               └── 2023/
+│   └── mp3/
 ├── scripts/
 │   ├── ingest.py
-│   └── embed.py
-├── backend/                # API (sau)
+│   ├── embed.py
+│   └── embed_server.py
+├── pdf_to_text.py          # OCR PDF
 ├── schema.sql
 └── docker-compose.yml
 ```
 
-**URL VPS:**
+**URL VPS (qua API):**
 
 ```
-https://domain.com/pdf/13.pdf
-https://domain.com/audio/duy-luc/phap-thoai-to-su-thien/1993/1993-10-20-tu-an.mp3
-https://domain.com/api/books
-https://domain.com/api/chat
+https://domain.com/files/pdf/13.pdf
+https://domain.com/files/mp3/...
+https://domain.com/api/pdfs
+https://domain.com/api/rag/chat
 ```
 
 **Đặt tên MP3:** `{YYYY}-{MM}-{DD}-{noi-rut-gon}.mp3` — chữ thường, không dấu.
@@ -166,30 +171,56 @@ https://domain.com/api/chat
 
 ## 5. Docker local & VPS
 
-### Local (chỉ cần DB lúc đầu)
+### Local
 
 ```bash
+git clone https://github.com/fg-aipham2009/tosuthien.git
+cd tosuthien
 cp .env.example .env
-docker compose up -d
-psql "postgresql://tosuthien:thamthien@localhost:5432/tosuthien" -f schema.sql
-```
+# Sửa HHTECH_API_KEY / CHAT_PROVIDER trong .env
 
-Khi có API/nginx, thêm lại service vào `docker-compose.yml` rồi:
-
-```bash
 docker compose up -d --build
-curl http://localhost/health
-curl http://localhost/api/health
 ```
 
-### VPS (hiện chỉ DB)
-
-**→ Hướng dẫn đầy đủ từng bước:** [`docs/VPS-SETUP.md`](./VPS-SETUP.md)
+Embed server (bắt buộc cho RAG hybrid):
 
 ```bash
-git clone ... /opt/tosu-thien && cd /opt/tosu-thien
-cp .env.example .env && nano .env
-docker compose up -d
+pip3 install -r requirements.txt
+python3 scripts/embed_server.py    # port 7997
+```
+
+Ingest + embed (lần đầu):
+
+```bash
+python3 scripts/ingest.py
+python3 scripts/embed.py --all --create-index
+```
+
+Kiểm tra:
+
+```bash
+curl http://localhost:8000/api/health
+curl http://localhost:7997/health
+curl http://localhost:5173          # admin Vue
+```
+
+### VPS production
+
+**→ Hướng dẫn đầy đủ từng bước:** [`VPS-SETUP.md`](./VPS-SETUP.md)
+
+```bash
+git clone https://github.com/fg-aipham2009/tosuthien.git /opt/tosu-thien
+cd /opt/tosu-thien
+# .env đã có sẵn — sửa PUBLIC_BASE_URL khi có domain
+docker compose up -d --build
+```
+
+Cập nhật code trên VPS:
+
+```bash
+cd /opt/tosu-thien
+git pull origin main
+docker compose up -d --build
 ```
 
 **Backup DB:**
@@ -201,9 +232,13 @@ docker compose exec db pg_dump -U tosuthien tosuthien > backup.sql
 **`.env` quan trọng:**
 
 ```env
-DATABASE_URL=postgresql://tosuthien:thamthien@db:5432/tosuthien
-SHOPAIKEY_API_KEY=...
+DATABASE_URL=postgresql://tosuthien:thamthien@localhost:5432/tosuthien
+CHAT_PROVIDER=hhtech
+HHTECH_API_KEY=sk-...
+HHTECH_BASE_URL=https://hhtechapi.com/v1
+CHAT_MODEL=claude-opus-4-6
 PUBLIC_BASE_URL=https://domain.com
+EMBEDDING_BASE_URL_DOCKER=http://host.docker.internal:7997/v1
 ```
 
 ---
@@ -213,7 +248,7 @@ PUBLIC_BASE_URL=https://domain.com
 | Tab | User làm gì | API |
 |-----|---------------|-----|
 | **Kinh sách** | Chọn quyển → xem PDF, nhớ trang đã đọc | `GET /pdfs?device_id=`, `PUT /reading-progress` |
-| **Hỏi đáp** | Hỏi tiếng Việt → AI + nguồn trang | `POST /chat` |
+| **Hỏi đáp** | Hỏi tiếng Việt → AI + nguồn trang | `POST /api/rag/chat` |
 | **MP3** | Mục → Năm → Nghe | `GET /media/categories`, `GET /mp3/tracks?category=&year=` |
 | **Video** | Danh sách → YouTube | `GET /media/categories`, `GET /youtube/videos?category=` |
 | **Thiền đường** | Xem chùa: địa chỉ, Maps, gọi chùa/trụ trì, giờ sinh hoạt, nội quy, quy củ | `GET /centers`, `GET /courses` |

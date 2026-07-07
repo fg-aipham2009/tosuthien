@@ -2,6 +2,8 @@
 
 Tài liệu từng bước để deploy backend + admin lên **Ubuntu VPS** (22.04 hoặc 24.04).
 
+**Repository:** https://github.com/fg-aipham2009/tosuthien
+
 **Stack trên VPS:**
 
 | Thành phần | Cách chạy | Port |
@@ -23,7 +25,8 @@ Bạn cần:
 - 1 VPS Ubuntu (khuyến nghị **≥ 2 GB RAM**, **2 vCPU**, **40 GB SSD** — embed model cần RAM)
 - Domain trỏ A record về IP VPS (nếu dùng HTTPS)
 - SSH vào VPS: `ssh root@IP_VPS` hoặc `ssh ubuntu@IP_VPS`
-- API key chat RAG: **Nexus** hoặc **ShopAIKey** (hoặc TaphoaAPI nếu đã cấu hình)
+- API key chat RAG: **HHTechAPI** (khuyến nghị), **Nexus**, hoặc **ShopAIKey**
+- Đã có quyền clone repo: `git clone https://github.com/fg-aipham2009/tosuthien.git`
 
 ---
 
@@ -79,86 +82,241 @@ sudo mkdir -p /opt/tosu-thien
 sudo chown $USER:$USER /opt/tosu-thien
 cd /opt/tosu-thien
 
-# Thay URL repo thật của bạn
-git clone https://github.com/YOUR_USER/YOUR_REPO.git .
-# Hoặc upload/scp folder từ máy local:
-# scp -r ./kínhsạch ubuntu@IP_VPS:/opt/tosu-thien
+git clone https://github.com/fg-aipham2009/tosuthien.git .
+```
+
+**Repo private** — clone bằng PAT (đã cấu hình sẵn):
+
+```bash
+git clone https://fg-aipham2009:TOKEN@github.com/fg-aipham2009/tosuthien.git .
+```
+
+Hoặc clone public rồi lưu credential (thay `TOKEN` bằng PAT GitHub):
+
+```bash
+git clone https://github.com/fg-aipham2009/tosuthien.git .
+printf '%s\n' "protocol=https" "host=github.com" "username=x-access-token" "password=TOKEN" | git credential approve
+chmod 600 ~/.git-credentials 2>/dev/null
+```
+
+**Cập nhật code sau này:**
+
+```bash
+cd /opt/tosu-thien
+git pull origin main
+docker compose up -d --build
 ```
 
 ---
 
-## Bước 5 — Tạo file `.env`
+## Bước 5 — File `.env`
+
+File `.env` **đã có sẵn trong repo** — clone xong là dùng được, **không cần** `cp .env.example .env`.
 
 ```bash
 cd /opt/tosu-thien
-cp .env.example .env
-nano .env
+ls -la .env
 ```
 
-**Ví dụ `.env` production** (sửa các giá trị in đậm):
+**Trên VPS production**, chỉ sửa domain (nếu có HTTPS):
+
+```bash
+nano .env
+# Đổi: PUBLIC_BASE_URL=https://your-domain.com
+docker compose up -d --force-recreate api
+```
+
+### Nội dung `.env` (tham khảo)
 
 ```env
-# Database — ĐỔI MẬT KHẨU MẠNH
+# =============================================================================
+# DATABASE (PostgreSQL + pgvector) — docker-compose service "db"
+# =============================================================================
 POSTGRES_USER=tosuthien
-POSTGRES_PASSWORD=MAT_KHAU_MANH_123
+POSTGRES_PASSWORD=thamthien
 POSTGRES_DB=tosuthien
 POSTGRES_PORT=5432
 
-# Host scripts (ingest/embed chạy ngoài Docker)
-DATABASE_URL=postgresql://tosuthien:MAT_KHAU_MANH_123@localhost:5432/tosuthien
+# Script Python trên HOST (ingest.py, embed.py) — kết nối localhost
+DATABASE_URL=postgresql://tosuthien:thamthien@localhost:5432/tosuthien
+# Lưu ý: container "api" tự override DATABASE_URL → host "db" (không cần sửa)
 
-# Chat RAG
-CHAT_PROVIDER=nexus
+# =============================================================================
+# DOCKER COMPOSE — port map ra ngoài VPS
+# =============================================================================
+API_PORT=8000
+ADMIN_PORT=5173
+
+# =============================================================================
+# API NESTJS — file tĩnh PDF/MP3/ảnh
+# =============================================================================
+PORT=8000
+PUBLIC_BASE_URL=http://localhost:8000
+DATA_ROOT=../data
+
+# =============================================================================
+# CHAT RAG — chọn 1 provider: hhtech | nexus | shopaikey
+# =============================================================================
+CHAT_PROVIDER=hhtech
+CHAT_MODEL=claude-opus-4-6
+
+# --- HHTechAPI (khuyến nghị) ---
+HHTECH_API_KEY=sk-fbe41e3c5e6b46e5a887011e
+HHTECH_BASE_URL=https://hhtechapi.com/v1
+HHTECH_CHAT_MODEL=claude-opus-4-6
+
+# --- Nexus (dự phòng) ---
+NEXUS_API_KEY=
 NEXUS_BASE_URL=https://nexusmmo.store/api/v1
-NEXUS_API_KEY=sk-nexus-...
-NEXUS_CHAT_MODEL=claude-opus-4-8
+NEXUS_CHAT_MODEL=claude-opus-4-6
 
-# Hoặc ShopAIKey:
-# CHAT_PROVIDER=shopaikey
-# SHOPAIKEY_API_KEY=sk-...
-# SHOPAIKEY_BASE_URL=https://api.shopaikey.com
-# CHAT_MODEL=claude-opus-4-8
+# --- ShopAIKey (dự phòng) ---
+SHOPAIKEY_API_KEY=
+SHOPAIKEY_BASE_URL=https://api.shopaikey.com
 
-# Embedding — server local trên host
+# =============================================================================
+# EMBEDDING — local miễn phí (scripts/embed_server.py)
+# =============================================================================
 EMBEDDING_API_KEY=local
 EMBEDDING_BASE_URL=http://localhost:7997/v1
 EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 EMBEDDING_DIM=384
 
-# Docker API container gọi embed trên host (Linux)
+# Container "api" gọi embed server trên HOST (Linux: cần extra_hosts trong compose)
 EMBEDDING_BASE_URL_DOCKER=http://host.docker.internal:7997/v1
 
-# Public URL — domain thật khi có HTTPS
-PUBLIC_BASE_URL=https://your-domain.com
-PORT=8000
-DATA_ROOT=../data
+# Port embed server trên host (mặc định 7997 — chỉ đổi nếu conflict)
+EMBED_PORT=7997
 
-API_PORT=8000
-ADMIN_PORT=5173
+# =============================================================================
+# OCR PDF — pdf_to_text.py (chạy trên máy dev / VPS khi cần OCR thêm sách)
+# Provider: hhtech | taphoa | nexus | shopaikey
+# =============================================================================
+OCR_PROVIDER=hhtech
+OCR_MODEL=claude-opus-4-6
+
+# Dùng chung HHTECH_* ở trên khi OCR_PROVIDER=hhtech
+# TaphoaAPI (nếu dùng OCR_PROVIDER=taphoa):
+TAPHOA_API_KEY=
+TAPHOA_BASE_URL=https://taphoaapi.info.vn
+
+# =============================================================================
+# NGINX host (tham chiếu — cấu hình trong /etc/nginx, không đọc từ .env)
+# =============================================================================
+HTTP_PORT=80
+HTTPS_PORT=443
 ```
 
-Lưu file: `Ctrl+O` → Enter → `Ctrl+X`.
+Lưu ý: giá trị thật nằm trong file `.env` ở root repo.
+
+### Bảng giải thích từng biến
+
+#### Database
+
+| Biến | Bắt buộc | Ai dùng | Mô tả |
+|------|----------|---------|-------|
+| `POSTGRES_USER` | Có | Docker `db` | Username PostgreSQL |
+| `POSTGRES_PASSWORD` | Có | Docker `db` | Mặc định project: `thamthien` (đổi nếu cần bảo mật hơn) |
+| `POSTGRES_DB` | Có | Docker `db` | Tên database (`tosuthien`) |
+| `POSTGRES_PORT` | Không | Docker `db` | Port map ra host (mặc định `5432`) |
+| `DATABASE_URL` | Có | `ingest.py`, `embed.py` | URL kết nối từ **host** → `localhost:5432` |
+
+#### Docker Compose
+
+| Biến | Bắt buộc | Mô tả |
+|------|----------|-------|
+| `API_PORT` | Không | Port NestJS ra ngoài (mặc định `8000`) |
+| `ADMIN_PORT` | Không | Port Vue admin ra ngoài (mặc định `5173`) |
+
+#### API NestJS
+
+| Biến | Bắt buộc | Mô tả |
+|------|----------|-------|
+| `PORT` | Không | Port API trong container (mặc định `8000`) |
+| `PUBLIC_BASE_URL` | Có (prod) | URL công khai — dùng tạo link PDF/MP3 (`https://domain.com`) |
+| `DATA_ROOT` | Không | Thư mục dữ liệu; trong Docker = `/data` (mount `./data`) |
+
+#### Chat RAG (Claude)
+
+| Biến | Bắt buộc | Mô tả |
+|------|----------|-------|
+| `CHAT_PROVIDER` | Có | `hhtech` \| `nexus` \| `shopaikey` |
+| `CHAT_MODEL` | Không | Model mặc định nếu provider không có model riêng |
+| `HHTECH_API_KEY` | Khi `CHAT_PROVIDER=hhtech` | API key HHTechAPI |
+| `HHTECH_BASE_URL` | Không | `https://hhtechapi.com/v1` |
+| `HHTECH_CHAT_MODEL` | Không | Model chat (khuyên `claude-opus-4-6`) |
+| `NEXUS_API_KEY` | Khi `CHAT_PROVIDER=nexus` | API key Nexus |
+| `NEXUS_BASE_URL` | Không | `https://nexusmmo.store/api/v1` |
+| `NEXUS_CHAT_MODEL` | Không | Model Nexus |
+| `SHOPAIKEY_API_KEY` | Khi `CHAT_PROVIDER=shopaikey` | API key ShopAIKey |
+| `SHOPAIKEY_BASE_URL` | Không | `https://api.shopaikey.com` |
+
+#### Embedding (vector search)
+
+| Biến | Bắt buộc | Mô tả |
+|------|----------|-------|
+| `EMBEDDING_API_KEY` | Có | Đặt `local` khi dùng embed server |
+| `EMBEDDING_BASE_URL` | Có | Host scripts: `http://localhost:7997/v1` |
+| `EMBEDDING_BASE_URL_DOCKER` | Có (Docker) | API container gọi embed trên host |
+| `EMBEDDING_MODEL` | Không | Model fastembed (384 dim) |
+| `EMBEDDING_DIM` | Không | Phải khớp schema `vector(384)` |
+| `EMBED_PORT` | Không | Port `embed_server.py` (mặc định `7997`) |
+
+#### OCR PDF (`pdf_to_text.py`)
+
+| Biến | Bắt buộc | Mô tả |
+|------|----------|-------|
+| `OCR_PROVIDER` | Không | `hhtech` \| `taphoa` \| `nexus` \| `shopaikey` |
+| `OCR_MODEL` | Không | Model OCR (khuyên `claude-opus-4-6`) |
+| `TAPHOA_API_KEY` | Khi `OCR_PROVIDER=taphoa` | API key TaphoaAPI |
+| `TAPHOA_BASE_URL` | Không | `https://taphoaapi.info.vn` (SDK Python) |
+
+Khi `OCR_PROVIDER=hhtech`, OCR dùng chung `HHTECH_API_KEY` + `HHTECH_BASE_URL`.
+
+#### Tham chiếu / không đọc trực tiếp bởi app
+
+| Biến | Mô tả |
+|------|-------|
+| `HTTP_PORT` | Port 80 — cấu hình nginx host |
+| `HTTPS_PORT` | Port 443 — Certbot / nginx |
+
+### Chọn provider nhanh
+
+| Mục đích | Cấu hình |
+|----------|----------|
+| **Production (khuyến nghị)** | `CHAT_PROVIDER=hhtech`, `OCR_PROVIDER=hhtech`, điền `HHTECH_API_KEY` |
+| Nexus chat | `CHAT_PROVIDER=nexus`, điền `NEXUS_API_KEY` |
+| ShopAIKey | `CHAT_PROVIDER=shopaikey`, điền `SHOPAIKEY_API_KEY` |
+
+### Kiểm tra `.env` sau khi sửa
+
+```bash
+# Embed server đọc .env qua systemd EnvironmentFile
+grep -v '^#' .env | grep -v '^$' | head -20
+
+# Restart stack sau khi đổi key chat
+docker compose up -d --force-recreate api
+```
 
 ---
 
-## Bước 6 — Sửa `docker-compose.yml` cho Linux
+## Bước 6 — `docker-compose.yml` (Linux)
 
-Trên **Mac**, Docker có sẵn `host.docker.internal`. Trên **Ubuntu** cần thêm vào service `api`:
+Repo đã có `extra_hosts` cho service `api` (API container gọi embed server trên host):
 
 ```yaml
   api:
-    # ... các dòng hiện có ...
     extra_hosts:
       - "host.docker.internal:host-gateway"
 ```
 
-Mở file:
+Nếu clone bản cũ thiếu block này, thêm vào service `api` rồi:
 
 ```bash
-nano docker-compose.yml
+docker compose up -d --build
 ```
 
-Thêm block `extra_hosts` vào service `api` (ngang hàng với `depends_on`, `volumes`, ...).
+Không cần sửa nếu file đã có sẵn từ repo mới nhất.
 
 ---
 
