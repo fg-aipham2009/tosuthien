@@ -66,6 +66,21 @@ docker compose version
 
 ---
 
+## Bước 2b — Swap (RAM ảo từ SSD) — khuyến nghị
+
+VPS **2GB RAM** + SSD **50GB** → tạo **10GB swap** để Docker, embed model và upload MP3 ổn định hơn.
+
+```bash
+cd /opt/tosu-thien   # sau khi clone (bước 4), hoặc chạy script trực tiếp từ repo
+chmod +x deploy/vps/setup-swap.sh
+sudo ./deploy/vps/setup-swap.sh          # mặc định 10G
+free -h
+```
+
+Chi tiết: [deploy/vps/README.md](../deploy/vps/README.md).
+
+---
+
 ## Bước 3 — Cài Python (embed server + ingest)
 
 ```bash
@@ -477,7 +492,9 @@ sudo ufw status
 
 ## Bước 13 — Nginx reverse proxy + HTTPS (production)
 
-Khi đã có domain `your-domain.com` trỏ về IP VPS.
+Domain **tosuthien.net** — DNS A record: `@`, `www`, `api`, `admin` → IP VPS.
+
+Config có sẵn trong repo: **`deploy/nginx/`** (3 subdomain, upload tối đa **1 GiB/file**).
 
 ### Cài Nginx + Certbot
 
@@ -485,61 +502,41 @@ Khi đã có domain `your-domain.com` trỏ về IP VPS.
 sudo apt install -y nginx certbot python3-certbot-nginx
 ```
 
-### Cấu hình site
+### Cài site từ repo
 
 ```bash
-sudo tee /etc/nginx/sites-available/tosu-thien > /dev/null <<'EOF'
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    # API
-    location /api/ {
-        proxy_pass http://127.0.0.1:8000/api/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 120s;
-    }
-
-    # PDF / MP3 / images
-    location /files/ {
-        proxy_pass http://127.0.0.1:8000/files/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-    }
-
-    # Admin Vue (tùy chọn — hoặc dùng subdomain admin.your-domain.com)
-    location / {
-        proxy_pass http://127.0.0.1:5173/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-    }
-}
-EOF
+cd /opt/tosu-thien
+git pull origin main
+chmod +x deploy/nginx/install-on-vps.sh
+./deploy/nginx/install-on-vps.sh
 ```
 
-Sửa `your-domain.com` trong file:
+| Domain | File | Upstream |
+|--------|------|----------|
+| `api.tosuthien.net` | `api.tosuthien.net.conf` | Docker API `:8000` |
+| `admin.tosuthien.net` | `admin.tosuthien.net.conf` | Docker admin `:5173` |
+| `tosuthien.net` | `tosuthien.net.conf` | `/opt/tosu-thien/www` (Flutter web) |
+
+Chi tiết: [deploy/nginx/README.md](../deploy/nginx/README.md).
+
+Sau khi sửa `vuejs/nginx.conf` hoặc API upload:
 
 ```bash
-sudo nano /etc/nginx/sites-available/tosu-thien
-sudo ln -sf /etc/nginx/sites-available/tosu-thien /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+docker compose up -d --build admin api
 ```
 
 ### SSL Let's Encrypt
 
 ```bash
-sudo certbot --nginx -d your-domain.com
+sudo certbot --nginx \
+  -d tosuthien.net -d www.tosuthien.net \
+  -d api.tosuthien.net -d admin.tosuthien.net
 ```
 
 Cập nhật `.env`:
 
 ```env
-PUBLIC_BASE_URL=https://your-domain.com
+PUBLIC_BASE_URL=https://api.tosuthien.net
 ```
 
 Restart API:
@@ -558,7 +555,7 @@ Trên máy dev (có Flutter SDK):
 ```bash
 cd flutter
 flutter build appbundle \
-  --dart-define=API_BASE_URL=https://your-domain.com
+  --dart-define=API_BASE_URL=https://api.tosuthien.net
 ```
 
 File output: `build/app/outputs/bundle/release/app-release.aab` → upload Google Play Console.
@@ -569,16 +566,16 @@ File output: `build/app/outputs/bundle/release/app-release.aab` → upload Googl
 
 ```bash
 # Health
-curl https://your-domain.com/api/health
+curl https://api.tosuthien.net/api/health
 curl http://localhost:7997/health
 
 # RAG chat (thay câu hỏi)
-curl -s -X POST https://your-domain.com/api/rag/chat \
+curl -s -X POST https://api.tosuthien.net/api/rag/chat \
   -H "Content-Type: application/json" \
   -d '{"question":"tòng lâm là gì"}' | head -c 500
 
 # PDF list
-curl https://your-domain.com/api/pdfs
+curl https://api.tosuthien.net/api/pdfs
 ```
 
 ---
