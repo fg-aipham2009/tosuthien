@@ -70,10 +70,12 @@ class ChatCitation {
   final int? pageNum;
 
   factory ChatCitation.fromJson(Map<String, dynamic> json) {
+    final excerpt = json['excerpt'] as String? ?? '';
+    final quote = json['quote'] as String? ?? '';
     return ChatCitation(
       label: json['label'] as String? ?? json['title'] as String? ?? 'Nguồn',
       title: json['title'] as String? ?? '',
-      quote: json['quote'] as String? ?? json['excerpt'] as String? ?? '',
+      quote: excerpt.isNotEmpty ? excerpt : quote,
       pageNum: json['pageNum'] as int?,
     );
   }

@@ -760,8 +760,7 @@ export class ChatService {
         sourceFile: h.sourceFile,
         score: Math.round(h.score * 1000) / 1000,
         quote,
-        excerpt:
-          body.length > EXCERPT_LEN ? `${body.slice(0, EXCERPT_LEN)}…` : body,
+        excerpt: body,
       });
     }
 
