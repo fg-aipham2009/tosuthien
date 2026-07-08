@@ -1,0 +1,11 @@
+YẾU CHỈ TRUNG QUÁN LUẬN
+
+133
+
+Nếu đảo ngược lại, đem quả địa cầu xé 2, xé 4, xé 8, cứ tiếp tục xé qua 130 lần thì trở lại bằng con sâu dép cỏ.
+
+Theo lý luận nay, nếu đem con sâu dép cỏ xé thêm 1 lần 130 nữa, thì đơn vị thịt của con sâu dép cỏ do con số biểu thị đó còn thấy được chăng ? Nếu đem nó xé thêm 10 lần 130, cho đến trăm ngàn lần 130, thì con số vẫn có thể biểu thị được đơn vị thịt của con sâu đó, nhưng thực tế thì thịt của con sâu đó chúng ta còn cảm nhận được không ?
+
+Căn cứ theo toán học, nếu đem 1 con sâu làm 1 đơn vị 1, trước 1 đó thêm một số 0 thì thành 0.1, thêm số không nữa thì thành 0.01, cứ theo đó mà suy, tiếp tục về thêm số 0 cho đến dài bằng vòng quanh một quả đất, rồi 2 quả đất, rồi 3 quả đất... thì vĩnh viễn vô tận. Giả sử khoa học kỹ thuật cải tiến kính hiển vi tốc độ còn nhanh hơn về số 0 thì có thể phát hiện được đơn vị thịt của con sâu đó. Nhưng đơn vị ấy thực sự chưa phải là thực tế vì con sâu còn có thể phân chia mãi mãi cho đến vô cùng...
+
+Việc này Phật Thích Ca gọi là bất khả đắc, cũng là nghĩa vô thủy vô sinh.
