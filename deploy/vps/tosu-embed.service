@@ -1,0 +1,16 @@
+[Unit]
+Description=Tosu Thien Embed Server (fastembed)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/tosu-thien
+Environment=PATH=/opt/tosu-thien/.venv/bin:/usr/bin
+EnvironmentFile=/opt/tosu-thien/.env
+ExecStart=/opt/tosu-thien/.venv/bin/python3 scripts/embed_server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

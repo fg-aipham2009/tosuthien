@@ -22,9 +22,14 @@ sudo ln -sf "$NGINX_DST/admin.tosuthien.net.conf" /etc/nginx/sites-enabled/
 sudo ln -sf "$NGINX_DST/tosuthien.net.conf" /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
-echo "==> Create Flutter web root (if missing)"
-sudo mkdir -p /opt/tosu-thien/www
-sudo chown -R "$USER:$USER" /opt/tosu-thien/www
+echo "==> Flutter web root"
+WWW_ROOT="/opt/tosu-thien/www"
+sudo mkdir -p "$WWW_ROOT"
+if [[ -f "$REPO_ROOT/www/index.html" ]] && [[ ! -f "$WWW_ROOT/index.html" ]]; then
+  sudo cp -a "$REPO_ROOT/www/." "$WWW_ROOT/"
+fi
+sudo chown -R www-data:www-data "$WWW_ROOT"
+sudo chmod -R 755 "$WWW_ROOT"
 
 echo "==> Test and reload nginx"
 sudo nginx -t
