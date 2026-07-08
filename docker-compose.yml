@@ -38,7 +38,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-tosuthien}:${POSTGRES_PASSWORD:-thamthien}@db:5432/${POSTGRES_DB:-tosuthien}
       DATA_ROOT: /data
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://api.tosuthien.net}
       PORT: 8000
       # host.docker.internal → embed_server.py on the Mac host (port 7997)
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL_DOCKER:-http://host.docker.internal:7997/v1}

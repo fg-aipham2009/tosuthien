@@ -6,7 +6,7 @@ export class PublicUrlService {
   constructor(private readonly config: ConfigService) {}
 
   base(): string {
-    return (this.config.get<string>('PUBLIC_BASE_URL') || 'http://localhost:8000').replace(/\/$/, '');
+    return (this.config.get<string>('PUBLIC_BASE_URL') || 'https://api.tosuthien.net').replace(/\/$/, '');
   }
 
   file(path: string): string {
