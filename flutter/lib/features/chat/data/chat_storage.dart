@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_models.dart';
 
 class ChatStorage {
-  static const _key = 'chat_conversations_v1';
+  static const _key = 'chat_conversations_v2';
 
   Future<List<ChatConversation>> load() async {
     final prefs = await SharedPreferences.getInstance();

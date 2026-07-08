@@ -60,22 +60,24 @@ class ChatCitation {
   const ChatCitation({
     required this.label,
     required this.title,
-    required this.quote,
+    required this.body,
     this.pageNum,
   });
 
   final String label;
   final String title;
-  final String quote;
+  /// Full passage text for display (prefers API `excerpt` over short `quote`).
+  final String body;
   final int? pageNum;
 
   factory ChatCitation.fromJson(Map<String, dynamic> json) {
-    final excerpt = json['excerpt'] as String? ?? '';
-    final quote = json['quote'] as String? ?? '';
+    final excerpt = (json['excerpt'] as String? ?? json['body'] as String? ?? '').trim();
+    final quote = (json['quote'] as String? ?? '').trim();
+    final body = excerpt.length >= quote.length ? excerpt : quote;
     return ChatCitation(
       label: json['label'] as String? ?? json['title'] as String? ?? 'Nguồn',
       title: json['title'] as String? ?? '',
-      quote: excerpt.isNotEmpty ? excerpt : quote,
+      body: body,
       pageNum: json['pageNum'] as int?,
     );
   }
@@ -83,7 +85,7 @@ class ChatCitation {
   Map<String, dynamic> toJson() => {
         'label': label,
         'title': title,
-        'quote': quote,
+        'body': body,
         if (pageNum != null) 'pageNum': pageNum,
       };
 }

@@ -144,10 +144,10 @@ class _CitationCard extends StatelessWidget {
                 ),
             ],
           ),
-          if (citation.quote.isNotEmpty) ...[
+          if (citation.body.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              citation.quote,
+              citation.body,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: colors.onSurfaceVariant,
                     height: 1.45,
