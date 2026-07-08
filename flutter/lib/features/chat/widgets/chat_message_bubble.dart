@@ -79,7 +79,15 @@ class ChatMessageBubble extends StatelessWidget {
                   ],
                   if (message.citations.isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    ...message.citations.take(3).map(
+                    Text(
+                      'Nguồn trích dẫn (${message.citations.length})',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...message.citations.map(
                           (c) => _CitationCard(citation: c),
                         ),
                   ],
@@ -140,8 +148,6 @@ class _CitationCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               citation.quote,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: colors.onSurfaceVariant,
                     height: 1.45,
