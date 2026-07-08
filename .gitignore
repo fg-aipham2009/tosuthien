@@ -6,6 +6,9 @@ venv/
 .DS_Store
 nestjs/node_modules/
 nestjs/dist/
+vuejs/node_modules/
+vuejs/dist/
+text/.ocr-*/
 data/pdf/*
 !data/pdf/.gitkeep
 data/mp3/*
