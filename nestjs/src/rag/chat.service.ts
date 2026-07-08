@@ -20,10 +20,10 @@ import {
   type AnswerStyle,
 } from './rag-answer-style';
 
-const MAX_CONTEXT_CHARS = 32_000;
-const EXCERPT_LEN = 800;
+const MAX_CONTEXT_CHARS = 36_000;
 const QUOTE_LEN = 680;
-const MAX_DISPLAY_CITATIONS = 8;
+const MAX_DISPLAY_CITATIONS = 12;
+const SENTENCE_ENDINGS = /[.!?;:…]/;
 /** Reciprocal Rank Fusion constant — dịu ảnh hưởng thứ hạng thấp (chuẩn ~60) */
 const RRF_K = 60;
 /** Minimum keyword/synonym overlap to send a passage to the LLM */
@@ -742,7 +742,7 @@ export class ChatService {
       const header = `[Nguồn ${i + 1} | ${tierLabel(tier)}] ${label} (${h.sourceFile})`;
 
       const maxChars = maxPassageCharsForTier(tier);
-      const body = h.content.trim().slice(0, maxChars);
+      const body = this.trimPassageAtSentence(h.content, maxChars);
       const block = `${header}\n${body}`;
       if (used + block.length > MAX_CONTEXT_CHARS) break;
 
@@ -806,5 +806,34 @@ export class ChatService {
     if (start > 0) quote = `…${quote}`;
     if (end < normalized.length) quote = `${quote}…`;
     return quote;
+  }
+
+  /**
+   * Keep excerpt natural by ending at sentence boundary near maxChars.
+   * If no nearby boundary exists, fall back to hard cut.
+   */
+  private trimPassageAtSentence(content: string, maxChars: number): string {
+    const normalized = content.trim();
+    if (normalized.length <= maxChars) return normalized;
+
+    const hardCut = normalized.slice(0, maxChars).trimEnd();
+
+    // Try to end on the last sentence boundary before maxChars.
+    for (let i = hardCut.length - 1; i >= 0; i--) {
+      const ch = hardCut[i];
+      if (!SENTENCE_ENDINGS.test(ch)) continue;
+      if (i < Math.floor(maxChars * 0.55)) break;
+      return hardCut.slice(0, i + 1).trimEnd();
+    }
+
+    // If the sentence boundary is slightly after maxChars, include it.
+    const lookAhead = normalized.slice(maxChars, Math.min(normalized.length, maxChars + 220));
+    for (let i = 0; i < lookAhead.length; i++) {
+      if (SENTENCE_ENDINGS.test(lookAhead[i])) {
+        return normalized.slice(0, maxChars + i + 1).trimEnd();
+      }
+    }
+
+    return hardCut;
   }
 }
