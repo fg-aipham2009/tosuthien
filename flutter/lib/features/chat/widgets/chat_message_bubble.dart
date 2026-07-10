@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
+import '../../books/data/books_repository.dart';
 import '../../books/models/book_pdf.dart';
 import '../../books/presentation/pdf_flip_reader_screen.dart';
 import '../models/chat_models.dart';
@@ -103,35 +104,76 @@ class ChatMessageBubble extends StatelessWidget {
   }
 }
 
-class _CitationCard extends StatelessWidget {
+class _CitationCard extends StatefulWidget {
   const _CitationCard({required this.citation});
 
   final ChatCitation citation;
 
-  void _openPdf(BuildContext context) {
-    final pdf = citation.pdf;
-    if (pdf == null || !citation.canOpenPdf) return;
+  @override
+  State<_CitationCard> createState() => _CitationCardState();
+}
 
-    final page = citation.pageNum ?? pdf.pageNum ?? 1;
-    final book = BookPdf(
-      id: pdf.pdfFileId,
-      slug: pdf.pdfSlug.isNotEmpty ? pdf.pdfSlug : pdf.pdfFileId,
-      title: pdf.pdfTitle.isNotEmpty ? pdf.pdfTitle : citation.title,
-      volume: citation.volume,
-      author: 'Hòa thượng Thích Duy Lực',
-      filename: _filenameFromUrl(pdf.pdfUrl),
-      storagePath: _storagePathFromUrl(pdf.pdfUrl),
-      publicUrl: pdf.pdfUrl,
-    );
+class _CitationCardState extends State<_CitationCard> {
+  bool _opening = false;
 
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PdfFlipReaderScreen(
-          book: book,
-          initialPage: page,
+  ChatCitation get citation => widget.citation;
+
+  Future<void> _openPdf() async {
+    if (_opening || !citation.canOpenPdf) return;
+
+    setState(() => _opening = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final repository = BooksRepository();
+
+    try {
+      final page = citation.pageNum ?? citation.pdf?.pageNum ?? 1;
+      BookPdf? book;
+
+      final pdf = citation.pdf;
+      if (pdf != null && pdf.pdfFileId.isNotEmpty) {
+        book = BookPdf(
+          id: pdf.pdfFileId,
+          slug: pdf.pdfSlug.isNotEmpty ? pdf.pdfSlug : pdf.pdfFileId,
+          title: pdf.pdfTitle.isNotEmpty ? pdf.pdfTitle : citation.title,
+          volume: citation.volume,
+          author: 'Hòa thượng Thích Duy Lực',
+          filename: _filenameFromUrl(pdf.pdfUrl),
+          storagePath: _storagePathFromUrl(pdf.pdfUrl),
+          publicUrl: pdf.pdfUrl,
+        );
+      } else {
+        book = await repository.findBySourceFile(citation.sourceFile);
+      }
+
+      if (book == null) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Chưa có PDF trên server. Chạy seed pdf_files và copy file vào data/pdf/.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PdfFlipReaderScreen(
+            book: book!,
+            initialPage: page,
+            repository: repository,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Không mở được PDF: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
   }
 
   static String _filenameFromUrl(String url) {
@@ -142,7 +184,7 @@ class _CitationCard extends StatelessWidget {
 
   static String _storagePathFromUrl(String url) {
     final path = Uri.tryParse(url)?.path ?? url;
-    final marker = '/files/';
+    const marker = '/files/';
     final i = path.indexOf(marker);
     if (i >= 0) return path.substring(i + marker.length);
     final name = _filenameFromUrl(url);
@@ -152,68 +194,92 @@ class _CitationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final tappable = citation.canOpenPdf;
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerLow,
+    return Material(
+      color: colors.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        onTap: tappable && !_opening ? _openPdf : null,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.4)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.menu_book_outlined, size: 15, color: colors.primary),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  citation.title.isEmpty ? citation.label : citation.title,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+              Row(
+                children: [
+                  Icon(Icons.menu_book_outlined, size: 15, color: colors.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      citation.title.isEmpty ? citation.label : citation.title,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.primary,
+                          ),
+                    ),
+                  ),
+                  if (_opening)
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
                         color: colors.primary,
                       ),
-                ),
+                    )
+                  else if (citation.pageNum != null)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'tr.${citation.pageNum}',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: colors.onSurfaceVariant,
+                              ),
+                        ),
+                        if (tappable) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.open_in_new_rounded,
+                            size: 14,
+                            color: colors.primary,
+                          ),
+                        ],
+                      ],
+                    ),
+                ],
               ),
-              if (citation.pageNum != null)
+              if (citation.body.isNotEmpty) ...[
+                const SizedBox(height: 8),
                 Text(
-                  'tr.${citation.pageNum}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  citation.body,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: colors.onSurfaceVariant,
+                        height: 1.45,
                       ),
                 ),
+              ],
+              if (tappable && !_opening) ...[
+                const SizedBox(height: 8),
+                Text(
+                  citation.openButtonLabel,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
             ],
           ),
-          if (citation.body.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              citation.body,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                    height: 1.45,
-                  ),
-            ),
-          ],
-          if (citation.canOpenPdf) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => _openPdf(context),
-                icon: const Icon(Icons.menu_book_rounded, size: 18),
-                label: Text(citation.openButtonLabel),
-                style: TextButton.styleFrom(
-                  foregroundColor: colors.primary,
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }

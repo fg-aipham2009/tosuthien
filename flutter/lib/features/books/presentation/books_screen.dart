@@ -45,6 +45,7 @@ class _BooksScreenState extends State<BooksScreen> {
           book: book,
           initialPage: startPage,
           repository: _repository,
+          resumeFromServer: true,
         ),
       ),
     ).then((_) => _reload());

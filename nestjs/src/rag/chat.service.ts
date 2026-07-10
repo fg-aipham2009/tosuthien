@@ -188,7 +188,7 @@ export class ChatService {
     const llmStart = Date.now();
     const answer = await this.llm.answer(q, blocks, styleContext);
     const llmMs = Date.now() - llmStart;
-    const displayCitations = this.prepareDisplayCitations(
+    const displayCitations = await this.prepareDisplayCitations(
       citations,
       keywords,
       sourceHints,
@@ -212,17 +212,17 @@ export class ChatService {
     };
   }
 
-  private prepareDisplayCitations(
+  private async prepareDisplayCitations(
     citations: Omit<ChatCitation, 'pdf' | 'openLabel'>[],
     keywords: string[],
     sourceHints: string[],
-  ): ChatCitation[] {
+  ): Promise<ChatCitation[]> {
     const ranked = [...citations]
       .filter((c) => this.isRelevantCitation(c, keywords, sourceHints))
       .sort((a, b) => this.citationRank(b, keywords) - this.citationRank(a, keywords))
       .slice(0, MAX_DISPLAY_CITATIONS);
 
-    return ranked.map((c) => this.citationLinks.enrichCitation(c));
+    return this.citationLinks.enrichCitations(ranked);
   }
 
   private citationRank(

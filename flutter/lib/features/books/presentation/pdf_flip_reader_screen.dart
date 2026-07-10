@@ -21,11 +21,14 @@ class PdfFlipReaderScreen extends StatefulWidget {
     required this.book,
     this.initialPage = 1,
     this.repository,
+    /// When true (Kinh sách tab), fetch last saved page from server on open.
+    this.resumeFromServer = false,
   });
 
   final BookPdf book;
   final int initialPage;
   final BooksRepository? repository;
+  final bool resumeFromServer;
 
   @override
   State<PdfFlipReaderScreen> createState() => _PdfFlipReaderScreenState();
@@ -42,13 +45,32 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
   int _windowStart = 0;
   int _flipEpoch = 0;
   Timer? _saveDebounce;
+  int? _pendingSavePage;
   Future<String>? _openUrlFuture;
+  bool _resumeApplied = false;
 
   @override
   void initState() {
     super.initState();
     _repository = widget.repository ?? BooksRepository();
     _currentIndex = (widget.initialPage - 1).clamp(0, 9999);
+    if (widget.resumeFromServer) {
+      _applyServerLastPage();
+    }
+  }
+
+  Future<void> _applyServerLastPage() async {
+    final fresh = await _repository.fetchBookById(widget.book.id);
+    if (!mounted || fresh == null) return;
+    final page = fresh.lastPage;
+    if (page == null || page < 1) return;
+    if (_resumeApplied) return;
+    _resumeApplied = true;
+    setState(() {
+      _currentIndex = (page - 1).clamp(0, 9999);
+      _windowStart = 0;
+      _flipEpoch++;
+    });
   }
 
   @override
@@ -68,10 +90,17 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
   @override
   void dispose() {
     _saveDebounce?.cancel();
-    _clearFlipCache();
-    if (widget.repository == null) {
-      _repository.dispose();
+    final pending = _pendingSavePage;
+    if (pending != null) {
+      unawaited(
+        _repository.saveReadingProgress(
+          pdfFileId: widget.book.id,
+          lastPage: pending,
+        ),
+      );
     }
+    _clearFlipCache();
+    _repository.dispose();
     super.dispose();
   }
 
@@ -130,8 +159,10 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
   }
 
   void _scheduleSave(int page) {
+    _pendingSavePage = page;
     _saveDebounce?.cancel();
     _saveDebounce = Timer(const Duration(milliseconds: 600), () {
+      _pendingSavePage = null;
       _repository.saveReadingProgress(
         pdfFileId: widget.book.id,
         lastPage: page,

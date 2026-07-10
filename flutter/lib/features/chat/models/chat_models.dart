@@ -129,8 +129,19 @@ class ChatCitation {
   final ChatCitationPdf? pdf;
   final String? openLabel;
 
+  /// `2.txt` → `2` for matching `2.pdf` in pdf_files.
+  String? get sourceStem {
+    final file = sourceFile;
+    if (file == null || file.isEmpty) return null;
+    final name = file.split('/').last;
+    final m = RegExp(r'^(\d+)\.txt$', caseSensitive: false).firstMatch(name);
+    return m?.group(1);
+  }
+
   bool get canOpenPdf =>
-      pdf != null && pdf!.pdfFileId.isNotEmpty && pdf!.pdfUrl.isNotEmpty;
+      pageNum != null &&
+      (sourceStem != null ||
+          (pdf != null && pdf!.pdfFileId.isNotEmpty && pdf!.pdfUrl.isNotEmpty));
 
   String get openButtonLabel =>
       openLabel ?? pdf?.openLabel ?? (pageNum != null ? 'Mở tr.$pageNum' : 'Mở kinh sách');

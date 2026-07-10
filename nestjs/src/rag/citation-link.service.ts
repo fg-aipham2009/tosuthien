@@ -40,10 +40,7 @@ export class CitationLinkService implements OnModuleInit {
 
     this.byBasename.clear();
     for (const pdf of this.pdfIndex) {
-      const base = basenameNoExt(pdf.filename) || basenameNoExt(pdf.storagePath);
-      if (!base) continue;
-      this.byBasename.set(base, pdf);
-      this.byBasename.set(`${base}.pdf`, pdf);
+      this.cacheBasename(pdf);
     }
   }
 
@@ -58,6 +55,72 @@ export class CitationLinkService implements OnModuleInit {
       pdf: pdfLink,
       openLabel: pdfLink?.openLabel ?? null,
     };
+  }
+
+  async enrichCitations(
+    citations: Omit<ChatCitation, 'pdf' | 'openLabel'>[],
+  ): Promise<ChatCitation[]> {
+    if (!this.pdfIndex.length) {
+      await this.refreshIndex();
+    }
+    const out: ChatCitation[] = [];
+    for (const citation of citations) {
+      out.push(await this.enrichCitationAsync(citation));
+    }
+    return out;
+  }
+
+  private async enrichCitationAsync(
+    citation: Omit<ChatCitation, 'pdf' | 'openLabel'>,
+  ): Promise<ChatCitation> {
+    let pdf =
+      this.findPdf(citation.sourceFile, citation.title, citation.volume) ??
+      (await this.lookupPdfBySourceFile(citation.sourceFile));
+    const pdfLink = pdf ? this.buildPdfLink(pdf, citation.pageNum) : null;
+
+    return {
+      ...citation,
+      pdf: pdfLink,
+      openLabel: pdfLink?.openLabel ?? null,
+    };
+  }
+
+  private async lookupPdfBySourceFile(
+    sourceFile: string,
+  ): Promise<PdfIndexEntry | null> {
+    const base = basenameNoExt(sourceFile);
+    if (!base) return null;
+
+    const cached =
+      this.byBasename.get(base) ?? this.byBasename.get(`${base}.pdf`);
+    if (cached) return cached;
+
+    const row = await this.prisma.pdfFile.findFirst({
+      where: {
+        OR: [{ filename: `${base}.pdf` }, { storagePath: `pdf/${base}.pdf` }],
+      },
+      select: {
+        id: true,
+        title: true,
+        volume: true,
+        publicUrl: true,
+        slug: true,
+        filename: true,
+        storagePath: true,
+      },
+    });
+    if (!row) return null;
+
+    this.pdfIndex.push(row);
+    this.cacheBasename(row);
+    return row;
+  }
+
+  private cacheBasename(pdf: PdfIndexEntry): void {
+    const base = basenameNoExt(pdf.filename) || basenameNoExt(pdf.storagePath);
+    if (!base) return;
+    this.byBasename.set(base, pdf);
+    this.byBasename.set(`${base}.pdf`, pdf);
   }
 
   /**
