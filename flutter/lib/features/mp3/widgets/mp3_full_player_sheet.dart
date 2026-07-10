@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme.dart';
 import '../audio/mp3_audio_scope.dart';
 import '../utils/mp3_format.dart';
+import 'mp3_playback_status.dart';
 
 class Mp3FullPlayerSheet extends StatelessWidget {
   const Mp3FullPlayerSheet({super.key});
@@ -20,7 +21,12 @@ class Mp3FullPlayerSheet extends StatelessWidget {
         final colors = Theme.of(context).colorScheme;
         final total = audio.duration ?? Duration.zero;
         final position = audio.position;
-        final maxMs = total.inMilliseconds > 0 ? total.inMilliseconds.toDouble() : 1.0;
+        final maxMs =
+            total.inMilliseconds > 0 ? total.inMilliseconds.toDouble() : 1.0;
+        final phase = Mp3PlaybackPhaseX.resolve(
+          isActive: true,
+          isPlaying: audio.isPlaying,
+        );
 
         return DraggableScrollableSheet(
           initialChildSize: 0.88,
@@ -30,7 +36,8 @@ class Mp3FullPlayerSheet extends StatelessWidget {
             return Container(
               decoration: BoxDecoration(
                 color: colors.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: ListView(
                 controller: scrollController,
@@ -61,8 +68,8 @@ class Mp3FullPlayerSheet extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.self_improvement,
+                      child: Icon(
+                        phase.artworkIcon,
                         size: 96,
                         color: Colors.white70,
                       ),
@@ -81,8 +88,9 @@ class Mp3FullPlayerSheet extends StatelessWidget {
                   Text(
                     [
                       if (track.categoryName != null) track.categoryName,
-                      '${track.year}',
+                      if (track.year > 0) '${track.year}',
                       if (track.location != null) track.location,
+                      if (phase.statusLabel != null) phase.statusLabel,
                     ].whereType<String>().join(' · '),
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -92,7 +100,9 @@ class Mp3FullPlayerSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 28),
                   Slider(
-                    value: position.inMilliseconds.clamp(0, maxMs.toInt()).toDouble(),
+                    value: position.inMilliseconds
+                        .clamp(0, maxMs.toInt())
+                        .toDouble(),
                     max: maxMs,
                     onChanged: (value) =>
                         audio.seek(Duration(milliseconds: value.round())),
@@ -130,7 +140,7 @@ class Mp3FullPlayerSheet extends StatelessWidget {
                           shape: const CircleBorder(),
                         ),
                         child: Icon(
-                          audio.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                          phase.compactActionIcon,
                           size: 36,
                         ),
                       ),

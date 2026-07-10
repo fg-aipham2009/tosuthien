@@ -77,6 +77,21 @@ class Mp3AudioController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Same track → toggle pause/play; different track → start that queue item.
+  Future<void> playOrToggle(List<Mp3Track> tracks, {required int startIndex}) async {
+    if (tracks.isEmpty) return;
+    final index = startIndex.clamp(0, tracks.length - 1);
+    final target = tracks[index];
+    final current = currentTrack;
+
+    if (current != null && current.id == target.id) {
+      await togglePlayPause();
+      return;
+    }
+
+    await playQueue(tracks, startIndex: index);
+  }
+
   Future<void> togglePlayPause() async {
     if (currentTrack == null) return;
     if (_player.playing) {

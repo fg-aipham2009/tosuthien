@@ -10,15 +10,27 @@ class Mp3TrackList extends StatelessWidget {
     required this.tracks,
     this.onTrackTap,
     this.groupByYear = false,
-    this.playingTrackId,
+    this.activeTrackId,
+    this.isPlaying = false,
     this.shrinkWrap = false,
+    @Deprecated('Use activeTrackId') this.playingTrackId,
   });
 
   final List<Mp3Track> tracks;
   final ValueChanged<Mp3Track>? onTrackTap;
   final bool groupByYear;
-  final String? playingTrackId;
+
+  /// Currently selected / loaded track in the player bar.
+  final String? activeTrackId;
+
+  /// Whether the player is actually playing (not paused).
+  final bool isPlaying;
   final bool shrinkWrap;
+
+  @Deprecated('Use activeTrackId')
+  final String? playingTrackId;
+
+  String? get _resolvedActiveId => activeTrackId ?? playingTrackId;
 
   @override
   Widget build(BuildContext context) {
@@ -41,9 +53,11 @@ class Mp3TrackList extends StatelessWidget {
         itemCount: tracks.length,
         itemBuilder: (context, index) {
           final track = tracks[index];
+          final isActive = _resolvedActiveId == track.id;
           return Mp3TrackTile(
             track: track,
-            isPlaying: playingTrackId == track.id,
+            isActive: isActive,
+            isPlaying: isActive && isPlaying,
             showDivider: index < tracks.length - 1,
             onTap: onTrackTap == null ? null : () => onTrackTap!(track),
           );
@@ -73,9 +87,11 @@ class Mp3TrackList extends StatelessWidget {
           final localIndex = index - cursor;
           if (localIndex < sectionTracks.length) {
             final track = sectionTracks[localIndex];
+            final isActive = _resolvedActiveId == track.id;
             return Mp3TrackTile(
               track: track,
-              isPlaying: playingTrackId == track.id,
+              isActive: isActive,
+              isPlaying: isActive && isPlaying,
               showYear: false,
               showDivider: localIndex < sectionTracks.length - 1,
               onTap: onTrackTap == null ? null : () => onTrackTap!(track),

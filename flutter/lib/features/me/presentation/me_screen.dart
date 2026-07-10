@@ -248,7 +248,8 @@ class _Mp3Section extends StatelessWidget {
             return Mp3TrackList(
               tracks: playable,
               shrinkWrap: true,
-              playingTrackId: audio.currentTrack?.id,
+              activeTrackId: audio.currentTrack?.id,
+              isPlaying: audio.isPlaying,
               onTrackTap: (track) => _play(context, playable, track),
             );
           },
@@ -263,7 +264,7 @@ class _Mp3Section extends StatelessWidget {
     Mp3Track track,
   ) async {
     final index = queue.indexWhere((t) => t.id == track.id);
-    await Mp3AudioScope.of(context).playQueue(
+    await Mp3AudioScope.of(context).playOrToggle(
       queue,
       startIndex: index < 0 ? 0 : index,
     );

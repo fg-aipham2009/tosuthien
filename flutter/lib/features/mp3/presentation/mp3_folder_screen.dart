@@ -73,7 +73,7 @@ class _Mp3FolderScreenState extends State<Mp3FolderScreen> {
 
   Future<void> _onTrackTap(List<Mp3Track> visibleTracks, Mp3Track track) async {
     final index = visibleTracks.indexWhere((t) => t.id == track.id);
-    await Mp3AudioScope.of(context).playQueue(
+    await Mp3AudioScope.of(context).playOrToggle(
       visibleTracks,
       startIndex: index < 0 ? 0 : index,
     );
@@ -209,13 +209,17 @@ class _Mp3FolderScreenState extends State<Mp3FolderScreen> {
               children: [
                 ListenableBuilder(
                   listenable: Mp3AudioScope.of(context),
-                  builder: (context, _) => Mp3TrackList(
-                    tracks: filtered,
-                    shrinkWrap: true,
-                    groupByYear: _selectedYear == null && years.length > 1,
-                    playingTrackId: Mp3AudioScope.of(context).currentTrack?.id,
-                    onTrackTap: (track) => _onTrackTap(filtered, track),
-                  ),
+                  builder: (context, _) {
+                    final audio = Mp3AudioScope.of(context);
+                    return Mp3TrackList(
+                      tracks: filtered,
+                      shrinkWrap: true,
+                      groupByYear: _selectedYear == null && years.length > 1,
+                      activeTrackId: audio.currentTrack?.id,
+                      isPlaying: audio.isPlaying,
+                      onTrackTap: (track) => _onTrackTap(filtered, track),
+                    );
+                  },
                 ),
               ],
             ),

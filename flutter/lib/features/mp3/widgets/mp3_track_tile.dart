@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme.dart';
 import '../../mp3/models/mp3_track.dart';
 import '../../mp3_favorites/state/mp3_favorites_scope.dart';
 import '../../offline_mp3/state/offline_mp3_library.dart';
 import '../../offline_mp3/state/offline_mp3_scope.dart';
 import '../utils/mp3_format.dart';
+import 'mp3_playback_status.dart';
 
 class Mp3TrackTile extends StatelessWidget {
   const Mp3TrackTile({
     super.key,
     required this.track,
     this.onTap,
+    this.isActive = false,
     this.isPlaying = false,
     this.showYear = true,
     this.showDivider = false,
@@ -20,6 +21,7 @@ class Mp3TrackTile extends StatelessWidget {
 
   final Mp3Track track;
   final VoidCallback? onTap;
+  final bool isActive;
   final bool isPlaying;
   final bool showYear;
   final bool showDivider;
@@ -34,17 +36,22 @@ class Mp3TrackTile extends StatelessWidget {
     final downloaded = offline?.isDownloaded(track.id) ?? false;
     final downloading = offline?.isDownloading(track.id) ?? false;
 
-    final meta = [
-      if (!showYear && track.location != null) track.location,
+    final phase = Mp3PlaybackPhaseX.resolve(
+      isActive: isActive,
+      isPlaying: isPlaying,
+    );
+
+    final metaParts = [
+      if (!showYear && track.location != null) track.location!,
       if (showYear && track.year > 0) '${track.year}',
-      if (track.categoryName != null) track.categoryName,
+      if (track.categoryName != null) track.categoryName!,
       if (downloaded) 'Đã tải',
-    ].whereType<String>().join(' · ');
+    ];
 
     return Column(
       children: [
         Material(
-          color: isPlaying
+          color: phase.isActive
               ? colors.primaryContainer.withValues(alpha: 0.35)
               : Colors.transparent,
           child: InkWell(
@@ -54,51 +61,17 @@ class Mp3TrackTile extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: isPlaying
-                          ? AppTheme.mp3HeaderGradient
-                          : AppTheme.mp3AccentGradient,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      isPlaying
-                          ? Icons.graphic_eq_rounded
-                          : Icons.music_note_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
+                  Mp3PlaybackArtwork(phase: phase, size: 48, borderRadius: 14),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          track.title,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight:
-                                    isPlaying ? FontWeight.w700 : FontWeight.w600,
-                                color:
-                                    isPlaying ? colors.primary : colors.onSurface,
-                                height: 1.4,
-                              ),
+                        Mp3PlaybackTitleBlock(
+                          title: track.title,
+                          phase: phase,
+                          metaParts: metaParts,
                         ),
-                        if (meta.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            meta,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: colors.onSurfaceVariant,
-                                  height: 1.35,
-                                ),
-                          ),
-                        ],
                         if (track.duration != null) ...[
                           const SizedBox(height: 6),
                           Text(
@@ -153,20 +126,9 @@ class Mp3TrackTile extends StatelessWidget {
                               visualDensity: VisualDensity.compact,
                             ),
                   ],
-                  IconButton(
+                  Mp3PlaybackActionButton(
+                    phase: phase,
                     onPressed: onTap,
-                    icon: Icon(
-                      isPlaying
-                          ? Icons.pause_circle_filled
-                          : Icons.play_circle_fill,
-                      size: 36,
-                      color: isPlaying
-                          ? colors.primary
-                          : colors.primary.withValues(alpha: 0.75),
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 40, minHeight: 40),
                   ),
                 ],
               ),

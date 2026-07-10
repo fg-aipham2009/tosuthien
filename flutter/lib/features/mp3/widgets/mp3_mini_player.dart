@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme.dart';
 import '../audio/mp3_audio_controller.dart';
 import '../audio/mp3_audio_scope.dart';
-import '../utils/mp3_format.dart';
 import 'mp3_full_player_sheet.dart';
+import 'mp3_playback_status.dart';
 
 class Mp3MiniPlayer extends StatelessWidget {
   const Mp3MiniPlayer({super.key});
@@ -17,6 +16,10 @@ class Mp3MiniPlayer extends StatelessWidget {
 
     final colors = Theme.of(context).colorScheme;
     final progress = _progress(audio);
+    final phase = Mp3PlaybackPhaseX.resolve(
+      isActive: true,
+      isPlaying: audio.isPlaying,
+    );
 
     return Material(
       elevation: 8,
@@ -35,51 +38,31 @@ class Mp3MiniPlayer extends StatelessWidget {
             InkWell(
               onTap: () => showMp3FullPlayerSheet(context),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.mp3AccentGradient,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.graphic_eq, color: Colors.white),
+                    Mp3PlaybackArtwork(
+                      phase: phase,
+                      size: 44,
+                      borderRadius: 10,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            track.title,
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.35,
-                                ),
-                          ),
-                          Text(
-                            [
-                              if (track.categoryName != null) track.categoryName,
-                              '${track.year}',
-                            ].whereType<String>().join(' · '),
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: colors.onSurfaceVariant,
-                                  height: 1.35,
-                                ),
-                          ),
+                      child: Mp3PlaybackTitleBlock(
+                        title: track.title,
+                        phase: phase,
+                        metaParts: [
+                          if (track.categoryName != null) track.categoryName!,
+                          if (track.year > 0) '${track.year}',
                         ],
                       ),
                     ),
-                    IconButton(
+                    Mp3PlaybackActionButton(
+                      phase: phase,
                       onPressed: audio.togglePlayPause,
-                      icon: Icon(audio.isPlaying ? Icons.pause : Icons.play_arrow),
-                      style: IconButton.styleFrom(
-                        backgroundColor: colors.primaryContainer,
-                        foregroundColor: colors.onPrimaryContainer,
-                      ),
+                      compact: true,
                     ),
                   ],
                 ),
