@@ -51,6 +51,7 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
   int? _pendingSavePage;
   Future<String>? _openUrlFuture;
   bool _resumeApplied = false;
+  PageController? _webPageController;
 
   @override
   void initState() {
@@ -74,6 +75,17 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
       _windowStart = 0;
       _flipEpoch++;
     });
+    _syncWebPageController();
+  }
+
+  void _syncWebPageController() {
+    if (!kIsWeb) return;
+    final controller = _webPageController;
+    if (controller == null || !controller.hasClients) return;
+    final target = _currentIndex.clamp(0, _pageCount > 0 ? _pageCount - 1 : _currentIndex);
+    if (controller.page?.round() != target) {
+      controller.jumpToPage(target);
+    }
   }
 
   @override
@@ -105,6 +117,7 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
       }
     }
     _clearFlipCache();
+    _webPageController?.dispose();
     _repository.dispose();
     super.dispose();
   }
@@ -178,6 +191,13 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
 
   void _goPrev() {
     if (_currentIndex <= 0) return;
+    if (kIsWeb) {
+      _webPageController?.previousPage(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOut,
+      );
+      return;
+    }
     if (_localIndex > 0) {
       _flipController.previousPage();
       return;
@@ -189,6 +209,13 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
 
   void _goNext() {
     if (_currentIndex >= _pageCount - 1) return;
+    if (kIsWeb) {
+      _webPageController?.nextPage(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOut,
+      );
+      return;
+    }
     if (_localIndex < _windowLength - 1) {
       _flipController.nextPage();
       return;
@@ -201,9 +228,97 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
   void _jumpTo(int absoluteIndex) {
     final idx = absoluteIndex.clamp(0, _pageCount - 1);
     if (idx == _currentIndex) return;
+    if (kIsWeb) {
+      setState(() => _currentIndex = idx);
+      _scheduleSave(idx + 1);
+      _webPageController?.jumpToPage(idx);
+      return;
+    }
     setState(() => _currentIndex = idx);
     _scheduleSave(idx + 1);
     _syncWindow(remount: true);
+  }
+
+  void _onWebPageChanged(int index) {
+    setState(() => _currentIndex = index);
+    _scheduleSave(index + 1);
+  }
+
+  Widget _buildBottomBar(int count, ColorScheme colors) {
+    return Material(
+      color: colors.surface,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              IconButton.filledTonal(
+                tooltip: 'Trang trước',
+                onPressed: _currentIndex > 0 ? _goPrev : null,
+                icon: const Icon(Icons.chevron_left_rounded),
+              ),
+              Expanded(
+                child: Slider(
+                  value: _currentIndex.clamp(0, count - 1).toDouble(),
+                  min: 0,
+                  max: (count - 1).toDouble(),
+                  divisions: count > 1 ? count - 1 : 1,
+                  label: 'tr.${_currentIndex + 1}',
+                  onChanged: (v) => _jumpTo(v.round()),
+                ),
+              ),
+              IconButton.filledTonal(
+                tooltip: 'Trang sau',
+                onPressed: _currentIndex < count - 1 ? _goNext : null,
+                icon: const Icon(Icons.chevron_right_rounded),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWebPageView(PdfDocument document, int count) {
+    _webPageController ??= PageController(
+      initialPage: _currentIndex.clamp(0, count - 1),
+    );
+
+    return PageView.builder(
+      controller: _webPageController,
+      itemCount: count,
+      onPageChanged: _onWebPageChanged,
+      itemBuilder: (context, index) => PdfFlipPage(
+        document: document,
+        pageNumber: index + 1,
+      ),
+    );
+  }
+
+  Widget _buildMobileFlipbook(
+    PdfDocument document,
+    int count,
+    int start,
+    int end,
+    int localStart,
+  ) {
+    return PageFlipWidget(
+      key: ValueKey(
+        '${widget.book.id}-$count-$_flipEpoch-$start-$end',
+      ),
+      controller: _flipController,
+      initialIndex: localStart,
+      backgroundColor: const Color(0xFFFFF8E7),
+      onPageFlipped: _onPageChanged,
+      children: [
+        for (var i = start; i < end; i++)
+          PdfFlipPage(
+            document: document,
+            pageNumber: i + 1,
+          ),
+      ],
+    );
   }
 
   Widget _documentBuilder(BuildContext context, String openUrl) {
@@ -225,13 +340,32 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
           setState(() {
             _pageCount = count;
             _currentIndex = _currentIndex.clamp(0, count - 1);
-            final len = _windowSize.clamp(1, count);
-            final half = len ~/ 2;
-            _windowStart =
-                (_currentIndex - half).clamp(0, count - len);
+            if (kIsWeb) {
+              _webPageController?.dispose();
+              _webPageController = PageController(initialPage: _currentIndex);
+            } else {
+              final len = _windowSize.clamp(1, count);
+              final half = len ~/ 2;
+              _windowStart =
+                  (_currentIndex - half).clamp(0, count - len);
+            }
           });
         });
         return const LoadingView();
+      }
+
+      if (kIsWeb) {
+        return Column(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                child: _buildWebPageView(document, count),
+              ),
+            ),
+            _buildBottomBar(count, colors),
+          ],
+        );
       }
 
       final start = _windowStart.clamp(0, count - 1);
@@ -243,61 +377,16 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-              child: PageFlipWidget(
-                key: ValueKey(
-                  '${widget.book.id}-$count-$_flipEpoch-$start-$end',
-                ),
-                controller: _flipController,
-                initialIndex: localStart,
-                backgroundColor: const Color(0xFFFFF8E7),
-                onPageFlipped: _onPageChanged,
-                children: [
-                  for (var i = start; i < end; i++)
-                    PdfFlipPage(
-                      document: document,
-                      pageNumber: i + 1,
-                    ),
-                ],
+              child: _buildMobileFlipbook(
+                document,
+                count,
+                start,
+                end,
+                localStart,
               ),
             ),
           ),
-          Material(
-            color: colors.surface,
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                child: Row(
-                  children: [
-                    IconButton.filledTonal(
-                      tooltip: 'Trang trước',
-                      onPressed: _currentIndex > 0 ? _goPrev : null,
-                      icon: const Icon(Icons.chevron_left_rounded),
-                    ),
-                    Expanded(
-                      child: Slider(
-                        value: _currentIndex.clamp(0, count - 1).toDouble(),
-                        min: 0,
-                        max: (count - 1).toDouble(),
-                        divisions: count > 1 ? count - 1 : 1,
-                        label: 'tr.${_currentIndex + 1}',
-                        onChanged: (v) => _jumpTo(v.round()),
-                      ),
-                    ),
-                    IconButton.filledTonal(
-                      tooltip: 'Trang sau',
-                      onPressed:
-                          _currentIndex < count - 1 ? _goNext : null,
-                      icon: const Icon(Icons.chevron_right_rounded),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          _buildBottomBar(count, colors),
         ],
       );
     }

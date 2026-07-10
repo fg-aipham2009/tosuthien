@@ -7,7 +7,8 @@ import 'app/app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await pdfrxFlutterInitialize();  if (!kIsWeb) {
+  await pdfrxFlutterInitialize();
+  if (!kIsWeb) {
     await JustAudioBackground.init(
       androidNotificationChannelId: 'com.tosuthien.tosuthien.audio',
       androidNotificationChannelName: 'Pháp âm',
