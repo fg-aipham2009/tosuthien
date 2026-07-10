@@ -5,14 +5,17 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
+import '../../offline_mp3/state/offline_mp3_library.dart';
 import '../models/mp3_track.dart';
 
 class Mp3AudioController extends ChangeNotifier {
-  Mp3AudioController() {
+  Mp3AudioController({OfflineMp3Library? offlineLibrary})
+      : _offlineLibrary = offlineLibrary {
     _init();
   }
 
   final AudioPlayer _player = AudioPlayer();
+  final OfflineMp3Library? _offlineLibrary;
 
   List<Mp3Track> _queue = [];
   int _index = 0;
@@ -62,11 +65,12 @@ class Mp3AudioController extends ChangeNotifier {
     _queue = List.of(tracks);
     _index = startIndex.clamp(0, _queue.length - 1);
 
-    final playlist = ConcatenatingAudioSource(
-      children: [
-        for (final track in _queue) _sourceFor(track),
-      ],
-    );
+    final children = <AudioSource>[];
+    for (final track in _queue) {
+      children.add(await _sourceFor(track));
+    }
+
+    final playlist = ConcatenatingAudioSource(children: children);
 
     await _player.setAudioSource(playlist, initialIndex: _index);
     await _player.play();
@@ -113,9 +117,14 @@ class Mp3AudioController extends ChangeNotifier {
     notifyListeners();
   }
 
-  AudioSource _sourceFor(Mp3Track track) {
+  Future<AudioSource> _sourceFor(Mp3Track track) async {
+    // Prefer isolated local file when downloaded; otherwise stream online URL.
+    final uri = _offlineLibrary == null
+        ? Uri.parse(track.publicUrl)
+        : await _offlineLibrary.playbackUriFor(track);
+
     return AudioSource.uri(
-      Uri.parse(track.publicUrl),
+      uri,
       tag: MediaItem(
         id: track.id,
         album: track.categoryName ?? 'Pháp âm Tổ Sư Thiền',
@@ -123,7 +132,7 @@ class Mp3AudioController extends ChangeNotifier {
         displayTitle: track.title,
         displaySubtitle: [
           if (track.categoryName != null) track.categoryName,
-          '${track.year}',
+          if (track.year > 0) '${track.year}',
         ].whereType<String>().join(' · '),
       ),
     );

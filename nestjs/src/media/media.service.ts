@@ -7,6 +7,7 @@ import {
   UpdateMp3Dto,
   CreateYoutubeDto,
   UpdateYoutubeDto,
+  ToggleMp3FavoriteDto,
 } from '../dto';
 import { PublicUrlService } from '../common/public-url.service';
 import { mp3PublicPath } from '../common/media-paths';
@@ -109,6 +110,61 @@ export class MediaService {
     if (!row) throw new NotFoundException('MP3 not found');
     await this.prisma.mp3Track.delete({ where: { id } });
     return { deleted: true };
+  }
+
+  /** Favorited tracks for a device — online streaming metadata from DB. */
+  async findFavorites(deviceId: string) {
+    const rows = await this.prisma.mp3Favorite.findMany({
+      where: { deviceId },
+      include: {
+        track: { include: { category: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return rows
+      .filter((r) => r.track.isPublished)
+      .map((r) => ({
+        ...r.track,
+        favoritedAt: r.createdAt,
+      }));
+  }
+
+  async listFavoriteIds(deviceId: string) {
+    const rows = await this.prisma.mp3Favorite.findMany({
+      where: { deviceId },
+      select: { mp3TrackId: true },
+    });
+    return { ids: rows.map((r) => r.mp3TrackId) };
+  }
+
+  async toggleFavorite(dto: ToggleMp3FavoriteDto) {
+    const track = await this.prisma.mp3Track.findUnique({
+      where: { id: dto.mp3TrackId },
+    });
+    if (!track) throw new NotFoundException('MP3 not found');
+
+    const existing = await this.prisma.mp3Favorite.findUnique({
+      where: {
+        deviceId_mp3TrackId: {
+          deviceId: dto.deviceId,
+          mp3TrackId: dto.mp3TrackId,
+        },
+      },
+    });
+
+    if (existing) {
+      await this.prisma.mp3Favorite.delete({ where: { id: existing.id } });
+      return { favorited: false, mp3TrackId: dto.mp3TrackId };
+    }
+
+    await this.prisma.mp3Favorite.create({
+      data: {
+        deviceId: dto.deviceId,
+        mp3TrackId: dto.mp3TrackId,
+      },
+    });
+    return { favorited: true, mp3TrackId: dto.mp3TrackId };
   }
 
   async findYoutube(categorySlug?: string, includeUnpublished = false) {

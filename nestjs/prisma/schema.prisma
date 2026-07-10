@@ -126,13 +126,28 @@ model Mp3Track {
   isPublished   Boolean   @default(true) @map("is_published")
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  category MediaCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  category  MediaCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  favorites Mp3Favorite[]
 
   @@index([categoryId], map: "idx_mp3_tracks_category")
   @@index([year], map: "idx_mp3_tracks_year")
   @@index([categoryId, year(sort: Desc)], map: "idx_mp3_tracks_category_year")
   @@index([folderPath], map: "idx_mp3_tracks_folder")
   @@map("mp3_tracks")
+}
+
+model Mp3Favorite {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deviceId   String   @map("device_id")
+  mp3TrackId String   @map("mp3_track_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  track Mp3Track @relation(fields: [mp3TrackId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, mp3TrackId])
+  @@index([deviceId], map: "idx_mp3_favorites_device")
+  @@index([mp3TrackId], map: "idx_mp3_favorites_track")
+  @@map("mp3_favorites")
 }
 
 model YoutubeVideo {

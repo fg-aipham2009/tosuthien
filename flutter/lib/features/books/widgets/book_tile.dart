@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../offline_books/state/offline_books_library.dart';
+import '../../offline_books/state/offline_books_scope.dart';
 import '../models/book_pdf.dart';
 
 class BookTile extends StatelessWidget {
@@ -7,14 +9,19 @@ class BookTile extends StatelessWidget {
     super.key,
     required this.book,
     required this.onTap,
+    this.showDownloadAction = true,
   });
 
   final BookPdf book;
   final VoidCallback onTap;
+  final bool showDownloadAction;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final offline = OfflineBooksScope.maybeOf(context);
+    final downloaded = offline?.isDownloaded(book.id) ?? false;
+    final downloading = offline?.isDownloading(book.id) ?? false;
 
     return Card(
       elevation: 0,
@@ -51,7 +58,8 @@ class BookTile extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Icon(Icons.menu_book_rounded, color: colors.onPrimaryContainer),
+                child: Icon(Icons.menu_book_rounded,
+                    color: colors.onPrimaryContainer),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -69,7 +77,10 @@ class BookTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      book.author,
+                      [
+                        book.author,
+                        if (downloaded) 'Đã tải',
+                      ].join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -89,11 +100,59 @@ class BookTile extends StatelessWidget {
                   ],
                 ),
               ),
+              if (showDownloadAction && offline != null)
+                downloading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : IconButton(
+                        tooltip: downloaded ? 'Xóa bản offline' : 'Tải về',
+                        onPressed: () => _onDownload(context, offline),
+                        icon: Icon(
+                          downloaded
+                              ? Icons.download_done_rounded
+                              : Icons.download_rounded,
+                          color: downloaded
+                              ? colors.primary
+                              : colors.onSurfaceVariant,
+                        ),
+                      ),
               Icon(Icons.chevron_right_rounded, color: colors.outline),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _onDownload(
+    BuildContext context,
+    OfflineBooksLibrary offline,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (offline.isDownloaded(book.id)) {
+      await offline.removeDownload(book.id);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Đã xóa sách tải về')),
+      );
+      return;
+    }
+    try {
+      await offline.download(book);
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Đã tải sách — đọc được khi offline')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Tải thất bại: $e')),
+      );
+    }
   }
 }

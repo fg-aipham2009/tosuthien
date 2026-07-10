@@ -150,6 +150,18 @@ CREATE INDEX idx_mp3_tracks_year ON mp3_tracks(year);
 CREATE INDEX idx_mp3_tracks_category_year ON mp3_tracks(category_id, year DESC);
 CREATE INDEX idx_mp3_tracks_folder ON mp3_tracks(folder_path);
 
+-- MP3 favorites theo máy (UUID app gửi lên, giống reading_progress)
+CREATE TABLE mp3_favorites (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id    TEXT NOT NULL,
+  mp3_track_id UUID NOT NULL REFERENCES mp3_tracks(id) ON DELETE CASCADE,
+  created_at   TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (device_id, mp3_track_id)
+);
+
+CREATE INDEX idx_mp3_favorites_device ON mp3_favorites(device_id);
+CREATE INDEX idx_mp3_favorites_track ON mp3_favorites(mp3_track_id);
+
 CREATE TABLE youtube_videos (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   category_id     UUID NOT NULL REFERENCES media_categories(id) ON DELETE RESTRICT,

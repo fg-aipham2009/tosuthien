@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../chat/presentation/chat_screen.dart';
 import '../../mp3/presentation/mp3_screen.dart';
-import '../../youtube/presentation/youtube_screen.dart';
+import '../../me/presentation/me_screen.dart';
 import '../../books/presentation/books_screen.dart';
 import '../../centers/presentation/centers_screen.dart';
 
@@ -33,10 +33,10 @@ class AppTab {
       screen: Mp3Screen(),
     ),
     AppTab(
-      title: 'YouTube',
-      icon: Icons.play_circle_outline,
-      selectedIcon: Icons.play_circle,
-      screen: YoutubeScreen(),
+      title: 'Me',
+      icon: Icons.person_outline,
+      selectedIcon: Icons.person,
+      screen: MeScreen(),
     ),
     AppTab(
       title: 'Kinh sách',

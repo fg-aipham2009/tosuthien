@@ -21,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final audio = Mp3AudioScope.of(context);
 
     return Scaffold(
-      appBar: _index == 0
+      appBar: _index == 0 || _index == 2
           ? null
           : AppBar(
               title: Text(tabs[_index].title),

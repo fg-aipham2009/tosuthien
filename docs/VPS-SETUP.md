@@ -555,7 +555,7 @@ Trên máy dev (có Flutter SDK):
 ```bash
 cd flutter
 flutter build appbundle \
-  --dart-define=API_BASE_URL=https://api.tosuthien.net
+  --dart-define=API_BASE_URL=https://api.tosuthien.net/
 ```
 
 File output: `build/app/outputs/bundle/release/app-release.aab` → upload Google Play Console.

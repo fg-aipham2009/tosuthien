@@ -4,12 +4,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-API_URL="${API_BASE_URL:-https://api.tosuthien.net}"
+API_URL="${API_BASE_URL:-https://api.tosuthien.net/}"
+BUILD_ID="${APP_BUILD_ID:-$(date +%Y%m%d-%H%M%S)}"
 
-echo "==> flutter build web (API_BASE_URL=$API_URL)"
+echo "==> flutter build web (API_BASE_URL=$API_URL, APP_BUILD_ID=$BUILD_ID)"
 flutter build web \
   --release \
-  --dart-define=API_BASE_URL="$API_URL"
+  --build-number "$BUILD_ID" \
+  --dart-define=API_BASE_URL="$API_URL" \
+  --dart-define=APP_BUILD_ID="$BUILD_ID"
 
 echo ""
 echo "Done. Output: flutter/build/web/"

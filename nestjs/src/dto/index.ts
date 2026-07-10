@@ -230,6 +230,14 @@ export class CreateMediaCategoryDto {
 
 export class UpdateMediaCategoryDto extends PartialType(CreateMediaCategoryDto) {}
 
+export class ToggleMp3FavoriteDto {
+  @IsString()
+  deviceId!: string;
+
+  @IsUUID()
+  mp3TrackId!: string;
+}
+
 export class ChatDto {
   @IsString()
   question!: string;

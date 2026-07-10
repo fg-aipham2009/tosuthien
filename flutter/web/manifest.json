@@ -1,11 +1,11 @@
 {
-    "name": "tosuthien",
-    "short_name": "tosuthien",
+    "name": "Tổ Sư Thiền",
+    "short_name": "Tổ Sư Thiền",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#4A2F1F",
+    "description": "Tổ Sư Thiền — tra cứu kinh sách Hoà thượng Thích Duy Lực",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

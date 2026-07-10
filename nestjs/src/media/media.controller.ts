@@ -8,7 +8,7 @@ import {
   Param,
   Query,
   ParseUUIDPipe,
-  ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { MediaService } from './media.service';
 import {
@@ -18,6 +18,7 @@ import {
   UpdateMp3Dto,
   CreateYoutubeDto,
   UpdateYoutubeDto,
+  ToggleMp3FavoriteDto,
 } from '../dto';
 
 @Controller('media/categories')
@@ -77,6 +78,32 @@ export class Mp3Controller {
   @Delete(':id')
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.removeMp3(id);
+  }
+}
+
+@Controller('mp3/favorites')
+export class Mp3FavoritesController {
+  constructor(private readonly service: MediaService) {}
+
+  @Get()
+  findAll(@Query('device_id') deviceId?: string) {
+    if (!deviceId?.trim()) {
+      throw new BadRequestException('device_id is required');
+    }
+    return this.service.findFavorites(deviceId.trim());
+  }
+
+  @Get('ids')
+  listIds(@Query('device_id') deviceId?: string) {
+    if (!deviceId?.trim()) {
+      throw new BadRequestException('device_id is required');
+    }
+    return this.service.listFavoriteIds(deviceId.trim());
+  }
+
+  @Post('toggle')
+  toggle(@Body() dto: ToggleMp3FavoriteDto) {
+    return this.service.toggleFavorite(dto);
   }
 }
 

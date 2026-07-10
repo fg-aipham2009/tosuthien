@@ -5,7 +5,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VPS_HOST="${VPS_HOST:-root@168.144.120.72}"
 VPS_WWW="${VPS_WWW:-/opt/tosu-thien/www}"
-API_URL="${API_BASE_URL:-https://api.tosuthien.net}"
+API_URL="${API_BASE_URL:-https://api.tosuthien.net/}"
 
 cd "$REPO_ROOT/flutter"
 chmod +x scripts/build-web-prod.sh
