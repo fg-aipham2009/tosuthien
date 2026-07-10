@@ -11,6 +11,7 @@ vuejs/dist/
 text/.ocr-*/
 data/pdf/*
 !data/pdf/.gitkeep
+!data/pdf/*.pdf
 data/mp3/*
 !data/mp3/.gitkeep
 data/images/*

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
+import '../../books/models/book_pdf.dart';
+import '../../books/presentation/pdf_flip_reader_screen.dart';
 import '../models/chat_models.dart';
 
 class ChatMessageBubble extends StatelessWidget {
@@ -88,8 +90,8 @@ class ChatMessageBubble extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     ...message.citations.map(
-                          (c) => _CitationCard(citation: c),
-                        ),
+                      (c) => _CitationCard(citation: c),
+                    ),
                   ],
                 ],
               ),
@@ -105,6 +107,47 @@ class _CitationCard extends StatelessWidget {
   const _CitationCard({required this.citation});
 
   final ChatCitation citation;
+
+  void _openPdf(BuildContext context) {
+    final pdf = citation.pdf;
+    if (pdf == null || !citation.canOpenPdf) return;
+
+    final page = citation.pageNum ?? pdf.pageNum ?? 1;
+    final book = BookPdf(
+      id: pdf.pdfFileId,
+      slug: pdf.pdfSlug.isNotEmpty ? pdf.pdfSlug : pdf.pdfFileId,
+      title: pdf.pdfTitle.isNotEmpty ? pdf.pdfTitle : citation.title,
+      volume: citation.volume,
+      author: 'Hòa thượng Thích Duy Lực',
+      filename: _filenameFromUrl(pdf.pdfUrl),
+      storagePath: _storagePathFromUrl(pdf.pdfUrl),
+      publicUrl: pdf.pdfUrl,
+    );
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PdfFlipReaderScreen(
+          book: book,
+          initialPage: page,
+        ),
+      ),
+    );
+  }
+
+  static String _filenameFromUrl(String url) {
+    final path = Uri.tryParse(url)?.path ?? url;
+    final name = path.split('/').where((s) => s.isNotEmpty).lastOrNull ?? 'book.pdf';
+    return name.endsWith('.pdf') ? name : '$name.pdf';
+  }
+
+  static String _storagePathFromUrl(String url) {
+    final path = Uri.tryParse(url)?.path ?? url;
+    final marker = '/files/';
+    final i = path.indexOf(marker);
+    if (i >= 0) return path.substring(i + marker.length);
+    final name = _filenameFromUrl(url);
+    return name.startsWith('pdf/') ? name : 'pdf/$name';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +195,22 @@ class _CitationCard extends StatelessWidget {
                     color: colors.onSurfaceVariant,
                     height: 1.45,
                   ),
+            ),
+          ],
+          if (citation.canOpenPdf) ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => _openPdf(context),
+                icon: const Icon(Icons.menu_book_rounded, size: 18),
+                label: Text(citation.openButtonLabel),
+                style: TextButton.styleFrom(
+                  foregroundColor: colors.primary,
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
             ),
           ],
         ],

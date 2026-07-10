@@ -32,7 +32,32 @@ MAX_PROSE_CHARS = 3_500
 MAX_QA_CHARS = 2_800
 
 TITLE_OVERRIDES: dict[str, str] = {
+    "1.txt": "NAM TUYỀN NGỮ LỤC VÀ BỬU TẠNG LUẬN",
+    "2.txt": "PHẬT PHÁP VỚI THIỀN TÔNG",
+    "3.txt": "CHƯ KINH TẬP YẾU",
+    "4.txt": "KINH PHÁP BẢO ĐÀN",
+    "5.txt": "TRUNG PHONG PHÁP NGỮ · LÂM TẾ NGỮ LỤC",
+    "6.txt": "PHẬT PHÁP VÀ KHOA HỌC",
+    "7.txt": "THAM THIỀN PHỔ THUYẾT",
+    "8.txt": "GÓP NHẶT LỜI PHẬT TỔ VÀ THÁNH HIỀN",
+    "9.txt": "LƯỢC GIẢNG BỒ TÁT GIỚI",
+    "10.txt": "VŨ TRỤ QUAN THẾ KỶ XXI",
+    "11.txt": "DANH TỪ THIỀN HỌC (CHÚ GIẢI)",
+    "12.txt": "CỘI NGUỒN TRUYỀN THỪA · THIỀN THẤT KHAI THỊ LỤC",
+    "13.txt": "DUY LỰC NGỮ LỤC",
+    "14.txt": "DUY LỰC NGỮ LỤC",
+    "16.txt": "ĐẠI THỪA TUYỆT ĐỐI LUẬN",
+    "17.txt": "TRIỆU LUẬN LƯỢC GIẢI",
+    "18.txt": "LƯỢC GIẢNG KINH KIM CANG",
+    "19.txt": "KINH LĂNG NGHIÊM",
+    "20.txt": "KINH LĂNG GIÀ",
     "21.txt": "ĐƯỜNG LỐI THỰC HÀNH THAM TỔ SƯ THIỀN",
+}
+
+VOLUME_OVERRIDES: dict[str, str | None] = {
+    "13.txt": "QUYỂN HẠ",
+    "14.txt": "QUYỂN THƯỢNG",
+    "16.txt": "Tín Tâm Minh Tịch Nghĩa Giải",
 }
 
 SKIP_PATTERNS = [
@@ -311,6 +336,8 @@ def ingest_file(conn: psycopg.Connection, path: Path) -> int:
     source_file = path.name
     title, volume = detect_title_volume(lines)
     title = TITLE_OVERRIDES.get(source_file, title)
+    if source_file in VOLUME_OVERRIDES:
+        volume = VOLUME_OVERRIDES[source_file]
     slug = slug_for(source_file, title, volume)
 
     chunks = chunk_lines(lines)

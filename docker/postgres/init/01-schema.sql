@@ -247,11 +247,11 @@ INSERT INTO media_categories (slug, name, sort_order) VALUES
   ('phap-hoi',               'Pháp hội',                3),
   ('tung-kinh',              'Tụng kinh',               4);
 -- =============================================================================
--- SEED — PDF (bỏ comment khi có DOMAIN)
+-- SEED — PDF (1.pdf … 14.pdf) — xem migrations/004-seed-pdf-files.sql
+-- Copy file: kinhsach/*.pdf → /data/pdf/
 -- =============================================================================
--- INSERT INTO pdf_files (slug, title, volume, filename, storage_path, public_url, sort_order) VALUES
---   ('duy-luc-ngu-luc-ha-pdf',     'DUY LỰC NGỮ LỤC', 'QUYỂN HẠ',      '13.pdf', 'pdf/13.pdf', 'https://DOMAIN/pdf/13.pdf', 1),
---   ('duy-luc-ngu-luc-thuong-pdf', 'DUY LỰC NGỮ LỤC', 'QUYỂN THƯỢNG', '14.pdf', 'pdf/14.pdf', 'https://DOMAIN/pdf/14.pdf', 2);
+-- \i /docker-entrypoint-initdb.d/../migrations/004-seed-pdf-files.sql
+-- hoặc: psql -U tosuthien -d tosuthien -f docker/postgres/migrations/004-seed-pdf-files.sql
 
 -- =============================================================================
 -- SEED — RAG text (bỏ comment sau khi có file text/*.txt)

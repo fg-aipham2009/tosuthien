@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-/// Single PDF page inside the flipbook (paper + shadow).
+/// Single PDF page inside the flipbook (paper + light shadow).
+///
+/// Caps DPI on mobile to keep memory stable during page-flip captures.
 class PdfFlipPage extends StatelessWidget {
   const PdfFlipPage({
     super.key,
@@ -13,6 +16,16 @@ class PdfFlipPage extends StatelessWidget {
   final int pageNumber;
 
   static const _paper = Color(0xFFFFF8E7);
+
+  static double get _dpi {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+      case TargetPlatform.iOS:
+        return 110;
+      default:
+        return 140;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +50,9 @@ class PdfFlipPage extends StatelessWidget {
             child: PdfPageView(
               document: document,
               pageNumber: pageNumber,
-              maximumDpi: 140,
+              maximumDpi: _dpi,
               backgroundColor: Colors.white,
+              decoration: const BoxDecoration(color: Colors.white),
             ),
           ),
         ),

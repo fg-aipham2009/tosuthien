@@ -56,12 +56,67 @@ class ChatMessage {
   }
 }
 
+class ChatCitationPdf {
+  const ChatCitationPdf({
+    required this.pdfFileId,
+    required this.pdfTitle,
+    required this.pdfSlug,
+    required this.pdfUrl,
+    this.pageNum,
+    this.openLabel,
+  });
+
+  final String pdfFileId;
+  final String pdfTitle;
+  final String pdfSlug;
+  final String pdfUrl;
+  final int? pageNum;
+  final String? openLabel;
+
+  factory ChatCitationPdf.fromJson(Map<String, dynamic> json) {
+    return ChatCitationPdf(
+      pdfFileId: json['pdfFileId'] as String? ?? '',
+      pdfTitle: json['pdfTitle'] as String? ?? '',
+      pdfSlug: json['pdfSlug'] as String? ?? '',
+      pdfUrl: _stripPageHash(json['pdfUrl'] as String? ?? ''),
+      pageNum: _asInt(json['pageNum']),
+      openLabel: json['openLabel'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'pdfFileId': pdfFileId,
+        'pdfTitle': pdfTitle,
+        'pdfSlug': pdfSlug,
+        'pdfUrl': pdfUrl,
+        if (pageNum != null) 'pageNum': pageNum,
+        if (openLabel != null) 'openLabel': openLabel,
+      };
+
+  static String _stripPageHash(String url) {
+    final i = url.indexOf('#');
+    return i >= 0 ? url.substring(0, i) : url;
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+}
+
 class ChatCitation {
   const ChatCitation({
     required this.label,
     required this.title,
     required this.body,
     this.pageNum,
+    this.volume,
+    this.sourceFile,
+    this.pdf,
+    this.openLabel,
   });
 
   final String label;
@@ -69,16 +124,33 @@ class ChatCitation {
   /// Full passage text for display (prefers API `excerpt` over short `quote`).
   final String body;
   final int? pageNum;
+  final String? volume;
+  final String? sourceFile;
+  final ChatCitationPdf? pdf;
+  final String? openLabel;
+
+  bool get canOpenPdf =>
+      pdf != null && pdf!.pdfFileId.isNotEmpty && pdf!.pdfUrl.isNotEmpty;
+
+  String get openButtonLabel =>
+      openLabel ?? pdf?.openLabel ?? (pageNum != null ? 'Mở tr.$pageNum' : 'Mở kinh sách');
 
   factory ChatCitation.fromJson(Map<String, dynamic> json) {
     final excerpt = (json['excerpt'] as String? ?? json['body'] as String? ?? '').trim();
     final quote = (json['quote'] as String? ?? '').trim();
     final body = excerpt.length >= quote.length ? excerpt : quote;
+    final pdfRaw = json['pdf'];
     return ChatCitation(
       label: json['label'] as String? ?? json['title'] as String? ?? 'Nguồn',
       title: json['title'] as String? ?? '',
       body: body,
-      pageNum: json['pageNum'] as int?,
+      pageNum: _asInt(json['pageNum']),
+      volume: json['volume'] as String?,
+      sourceFile: json['sourceFile'] as String?,
+      pdf: pdfRaw is Map<String, dynamic>
+          ? ChatCitationPdf.fromJson(pdfRaw)
+          : null,
+      openLabel: json['openLabel'] as String?,
     );
   }
 
@@ -87,7 +159,19 @@ class ChatCitation {
         'title': title,
         'body': body,
         if (pageNum != null) 'pageNum': pageNum,
+        if (volume != null) 'volume': volume,
+        if (sourceFile != null) 'sourceFile': sourceFile,
+        if (pdf != null) 'pdf': pdf!.toJson(),
+        if (openLabel != null) 'openLabel': openLabel,
       };
+
+  static int? _asInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
 }
 
 class ChatConversation {
