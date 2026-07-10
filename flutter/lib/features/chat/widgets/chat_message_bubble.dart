@@ -163,6 +163,7 @@ class _CitationCardState extends State<_CitationCard> {
             book: book!,
             initialPage: page,
             repository: repository,
+            saveReadingProgress: false,
           ),
         ),
       );

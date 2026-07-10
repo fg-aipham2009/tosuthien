@@ -23,12 +23,15 @@ class PdfFlipReaderScreen extends StatefulWidget {
     this.repository,
     /// When true (Kinh sách tab), fetch last saved page from server on open.
     this.resumeFromServer = false,
+    /// When false (opened from AI citation), do not write reading_progress.
+    this.saveReadingProgress = true,
   });
 
   final BookPdf book;
   final int initialPage;
   final BooksRepository? repository;
   final bool resumeFromServer;
+  final bool saveReadingProgress;
 
   @override
   State<PdfFlipReaderScreen> createState() => _PdfFlipReaderScreenState();
@@ -90,14 +93,16 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
   @override
   void dispose() {
     _saveDebounce?.cancel();
-    final pending = _pendingSavePage;
-    if (pending != null) {
-      unawaited(
-        _repository.saveReadingProgress(
-          pdfFileId: widget.book.id,
-          lastPage: pending,
-        ),
-      );
+    if (widget.saveReadingProgress) {
+      final pending = _pendingSavePage;
+      if (pending != null) {
+        unawaited(
+          _repository.saveReadingProgress(
+            pdfFileId: widget.book.id,
+            lastPage: pending,
+          ),
+        );
+      }
     }
     _clearFlipCache();
     _repository.dispose();
@@ -159,6 +164,7 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
   }
 
   void _scheduleSave(int page) {
+    if (!widget.saveReadingProgress) return;
     _pendingSavePage = page;
     _saveDebounce?.cancel();
     _saveDebounce = Timer(const Duration(milliseconds: 600), () {
