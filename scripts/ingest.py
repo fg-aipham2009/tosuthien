@@ -381,6 +381,17 @@ def ingest_file(conn: psycopg.Connection, path: Path) -> int:
     return len(chunks)
 
 
+def prune_removed_sources(conn: psycopg.Connection) -> list[str]:
+    """Drop rag_sources whose text/*.txt file no longer exists (e.g. removed duplicate 15.txt)."""
+    on_disk = {p.name for p in TEXT_DIR.glob("*.txt")}
+    with conn.cursor() as cur:
+        cur.execute("SELECT source_file FROM rag_sources")
+        stale = [row[0] for row in cur.fetchall() if row[0] not in on_disk]
+        for source_file in stale:
+            cur.execute("DELETE FROM rag_sources WHERE source_file = %s", (source_file,))
+    return stale
+
+
 def main() -> None:
     load_dotenv(BASE_DIR / ".env")
     db_url = os.getenv("DATABASE_URL")
@@ -398,6 +409,10 @@ def main() -> None:
     total_chunks = 0
     qa_total = 0
     with psycopg.connect(db_url) as conn:
+        stale = prune_removed_sources(conn)
+        if stale:
+            print(f"🗑️  Đã xóa nguồn RAG không còn file: {', '.join(sorted(stale))}")
+
         for path in existing:
             n = ingest_file(conn, path)
             total_chunks += n
