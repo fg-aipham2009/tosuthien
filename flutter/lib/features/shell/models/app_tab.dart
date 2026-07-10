@@ -40,8 +40,8 @@ class AppTab {
     ),
     AppTab(
       title: 'Thiền đường',
-      icon: Icons.temple_buddhist_outlined,
-      selectedIcon: Icons.temple_buddhist,
+      icon: Icons.spa_outlined,
+      selectedIcon: Icons.spa,
       screen: CentersScreen(),
     ),
     AppTab(
