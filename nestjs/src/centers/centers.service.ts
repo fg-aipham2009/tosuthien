@@ -34,9 +34,9 @@ export class CentersService {
     });
 
     const regionRank: Record<string, number> = {
-      BAC: 0,
+      NAM: 0,
       TRUNG: 1,
-      NAM: 2,
+      BAC: 2,
       NUOC_NGOAI: 3,
     };
 

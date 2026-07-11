@@ -8,7 +8,7 @@ enum CenterRegion {
   unknown;
 
   static CenterRegion fromCode(String? code) {
-    switch (code) {
+    switch ((code ?? '').trim().toUpperCase()) {
       case 'BAC':
         return CenterRegion.bac;
       case 'TRUNG':
@@ -31,11 +31,20 @@ enum CenterRegion {
       };
 
   int get sortRank => switch (this) {
-        CenterRegion.bac => 0,
+        // Display order: Nam → Trung → Bắc → Nước ngoài
+        CenterRegion.nam => 0,
         CenterRegion.trung => 1,
-        CenterRegion.nam => 2,
+        CenterRegion.bac => 2,
         CenterRegion.nuocNgoai => 3,
         CenterRegion.unknown => 9,
+      };
+
+  String get apiCode => switch (this) {
+        CenterRegion.bac => 'BAC',
+        CenterRegion.trung => 'TRUNG',
+        CenterRegion.nam => 'NAM',
+        CenterRegion.nuocNgoai => 'NUOC_NGOAI',
+        CenterRegion.unknown => '',
       };
 }
 
@@ -289,9 +298,9 @@ List<CenterRegionGroup> groupCentersByRegion(List<MeditationCenter> centers) {
   }
 
   final order = [
-    CenterRegion.bac,
-    CenterRegion.trung,
     CenterRegion.nam,
+    CenterRegion.trung,
+    CenterRegion.bac,
     CenterRegion.nuocNgoai,
     CenterRegion.unknown,
   ];

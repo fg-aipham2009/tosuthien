@@ -123,9 +123,9 @@ class _CentersScreenState extends State<CentersScreen> {
                       onTap: () => setState(() => _filter = null),
                     ),
                     for (final region in [
-                      CenterRegion.bac,
-                      CenterRegion.trung,
                       CenterRegion.nam,
+                      CenterRegion.trung,
+                      CenterRegion.bac,
                       CenterRegion.nuocNgoai,
                     ])
                       _FilterChip(
