@@ -86,7 +86,7 @@ export class LlmService {
 Ngữ cảnh (mỗi block có [Nguồn N | KINH hoặc NGỮ LỤC] — chỉ trích từ block liên quan; bỏ block không liên quan, không giải thích vì sao bỏ):
 ${context}`;
 
-    const { chatBaseUrl, chatApiKey, chatModel } = this.ai.get();
+    const { chatBaseUrl, chatApiKey, chatModel, chatProvider } = this.ai.get();
     const url = resolveAnthropicMessagesUrl(chatBaseUrl);
 
     const res = await fetch(url, {
@@ -106,7 +106,9 @@ ${context}`;
 
     if (!res.ok) {
       const detail = (await res.text()).slice(0, 400);
-      throw new Error(`Claude API ${res.status}: ${detail}`);
+      throw new Error(
+        `Claude API ${res.status} [${chatProvider} model=${chatModel} url=${url}]: ${detail}`,
+      );
     }
 
     const data = (await res.json()) as ClaudeMessageResponse;
