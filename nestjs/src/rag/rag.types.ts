@@ -65,3 +65,16 @@ export interface ChatResult {
   citations: ChatCitation[];
   meta: ChatMeta;
 }
+
+/** SSE payload shapes for POST /rag/chat/stream */
+export type ChatStreamEvent =
+  | { type: 'status'; phase: 'retrieving' | 'generating' }
+  | { type: 'delta'; text: string }
+  | {
+      type: 'done';
+      answer: string;
+      disclaimer: string;
+      citations: ChatCitation[];
+      meta: ChatMeta;
+    }
+  | { type: 'error'; message: string };

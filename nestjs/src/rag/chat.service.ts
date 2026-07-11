@@ -9,7 +9,12 @@ import { EmbeddingService } from './embedding.service';
 import { LlmService } from './llm.service';
 import { AiConfigService } from './ai-config.service';
 import { CitationLinkService } from './citation-link.service';
-import { PassageHit, ChatResult, ChatCitation } from './rag.types';
+import {
+  PassageHit,
+  ChatResult,
+  ChatCitation,
+  ChatStreamEvent,
+} from './rag.types';
 import { RAG_DISCLAIMER, clampTopK, CANDIDATE_POOL } from './rag.constants';
 import { expandKeywords, questionStem, analyzeQuery } from './rag-keywords.util';
 import { isKinhSource, sourceTier } from './rag-source.util';
@@ -18,9 +23,11 @@ import {
   resolveAnswerStyle,
   tierLabel,
   type AnswerStyle,
+  type AnswerStyleContext,
 } from './rag-answer-style';
 
-const MAX_CONTEXT_CHARS = 36_000;
+/** Cap LLM context — larger prompts slow generation more than they help recall. */
+const MAX_CONTEXT_CHARS = 18_000;
 /** Soft cap for citation quote — prefer whole paragraphs under this size. */
 const QUOTE_MAX_CHARS = 2_400;
 const MAX_DISPLAY_CITATIONS = 12;
@@ -72,10 +79,142 @@ export class ChatService {
 
   async chat(question: string, topK?: number): Promise<ChatResult> {
     const totalStart = Date.now();
+    const prepared = await this.prepareChat(question, topK);
+    if (prepared.kind === 'empty') {
+      return this.emptyResult({
+        ...prepared.meta,
+        totalMs: Date.now() - totalStart,
+      });
+    }
+
+    const llmStart = Date.now();
+    const [answer, expandedHits] = await Promise.all([
+      this.llm.answer(prepared.q, prepared.blocks, prepared.styleContext),
+      this.expandHitsWithNeighborPages(prepared.hits),
+    ]);
+    const llmMs = Date.now() - llmStart;
+
+    const displayCitations = await this.finalizeCitations(
+      expandedHits,
+      prepared.keywords,
+      prepared.sourceHints,
+      prepared.slimCitations,
+    );
+
+    return {
+      answer,
+      disclaimer: RAG_DISCLAIMER,
+      citations: displayCitations,
+      meta: {
+        ...prepared.meta,
+        llmMs,
+        totalMs: Date.now() - totalStart,
+      },
+    };
+  }
+
+  /** SSE stream: status → delta* → done (or error via controller). */
+  async *chatStream(
+    question: string,
+    topK?: number,
+  ): AsyncGenerator<ChatStreamEvent> {
+    const totalStart = Date.now();
+    yield { type: 'status', phase: 'retrieving' };
+
+    const prepared = await this.prepareChat(question, topK);
+    if (prepared.kind === 'empty') {
+      const empty = this.emptyResult({
+        ...prepared.meta,
+        totalMs: Date.now() - totalStart,
+      });
+      yield {
+        type: 'done',
+        answer: empty.answer,
+        disclaimer: empty.disclaimer,
+        citations: empty.citations,
+        meta: empty.meta,
+      };
+      return;
+    }
+
+    yield { type: 'status', phase: 'generating' };
+
+    const llmStart = Date.now();
+    const expandPromise = this.expandHitsWithNeighborPages(prepared.hits);
+    const parts: string[] = [];
+
+    for await (const text of this.llm.answerStream(
+      prepared.q,
+      prepared.blocks,
+      prepared.styleContext,
+    )) {
+      parts.push(text);
+      yield { type: 'delta', text };
+    }
+
+    const llmMs = Date.now() - llmStart;
+    const expandedHits = await expandPromise;
+    const displayCitations = await this.finalizeCitations(
+      expandedHits,
+      prepared.keywords,
+      prepared.sourceHints,
+      prepared.slimCitations,
+    );
+
+    const answer = parts.join('').trim();
+    yield {
+      type: 'done',
+      answer:
+        answer ||
+        'Trong tư liệu hiện có chưa tìm thấy đoạn liên quan. Hãy thử hỏi theo từ khóa khác.',
+      disclaimer: RAG_DISCLAIMER,
+      citations: displayCitations,
+      meta: {
+        ...prepared.meta,
+        llmMs,
+        totalMs: Date.now() - totalStart,
+      },
+    };
+  }
+
+  private async finalizeCitations(
+    expandedHits: PassageHit[],
+    keywords: string[],
+    sourceHints: string[],
+    slimCitations: Omit<ChatCitation, 'pdf' | 'openLabel'>[],
+  ): Promise<ChatCitation[]> {
+    const { citations } = this.buildContext(expandedHits, keywords);
+    return this.prepareDisplayCitations(
+      citations.length ? citations : slimCitations,
+      keywords,
+      sourceHints,
+    );
+  }
+
+  private async prepareChat(
+    question: string,
+    topK?: number,
+  ): Promise<
+    | { kind: 'empty'; meta: ChatResult['meta'] }
+    | {
+        kind: 'ready';
+        q: string;
+        keywords: string[];
+        sourceHints: string[];
+        hits: PassageHit[];
+        blocks: string[];
+        slimCitations: Omit<ChatCitation, 'pdf' | 'openLabel'>[];
+        styleContext: AnswerStyleContext;
+        meta: ChatResult['meta'];
+      }
+  > {
     const q = question.trim();
     if (q.length < 2) throw new BadRequestException('Câu hỏi quá ngắn');
 
-    const { keywords, mustGroups, topicTerms, sourceHints } = analyzeQuery(q, STOP_WORDS);
+    const { keywords, mustGroups, topicTerms, sourceHints } = analyzeQuery(
+      q,
+      STOP_WORDS,
+    );
     const searchKeywords = expandKeywords(keywords);
     const stem = questionStem(q);
     const k = clampTopK(topK, q, keywords.length);
@@ -160,12 +299,21 @@ export class ChatService {
     );
 
     const relevanceOf = (h: PassageHit) =>
-      this.relevanceScore(h, keywords, searchKeywords, stem, mustGroups, sourceHints);
+      this.relevanceScore(
+        h,
+        keywords,
+        searchKeywords,
+        stem,
+        mustGroups,
+        sourceHints,
+      );
 
     const styleContext = resolveAnswerStyle(rankedHits, relevanceOf);
-    const hits = this.trimHitsForStyle(rankedHits, styleContext.style, relevanceOf);
-
-    const chatProvider = this.ai.get().chatProvider;
+    const hits = this.trimHitsForStyle(
+      rankedHits,
+      styleContext.style,
+      relevanceOf,
+    );
 
     const meta: ChatResult['meta'] = {
       topK: topK ?? k,
@@ -175,33 +323,32 @@ export class ChatService {
       retrievalMs,
       embedError,
       answerStyle: styleContext.style,
-      chatProvider,
+      chatProvider: this.ai.get().chatProvider,
     };
 
     if (!hits.length) {
-      return this.emptyResult({ ...meta, totalMs: Date.now() - totalStart });
+      return { kind: 'empty', meta };
     }
 
-    const expandedHits = await this.expandHitsWithNeighborPages(hits);
-    const { blocks, citations } = this.buildContext(expandedHits, keywords);
-    if (!blocks.length) {
-      return this.emptyResult({ ...meta, totalMs: Date.now() - totalStart });
-    }
-
-    const llmStart = Date.now();
-    const answer = await this.llm.answer(q, blocks, styleContext);
-    const llmMs = Date.now() - llmStart;
-    const displayCitations = await this.prepareDisplayCitations(
-      citations,
+    // Slim hits for the LLM (faster). Neighbor pages expand for citations only.
+    const { blocks, citations: slimCitations } = this.buildContext(
+      hits,
       keywords,
-      sourceHints,
     );
+    if (!blocks.length) {
+      return { kind: 'empty', meta };
+    }
 
     return {
-      answer,
-      disclaimer: RAG_DISCLAIMER,
-      citations: displayCitations,
-      meta: { ...meta, llmMs, totalMs: Date.now() - totalStart },
+      kind: 'ready',
+      q,
+      keywords,
+      sourceHints,
+      hits,
+      blocks,
+      slimCitations,
+      styleContext,
+      meta,
     };
   }
 
@@ -740,71 +887,59 @@ export class ChatService {
   private async expandHitsWithNeighborPages(
     hits: PassageHit[],
   ): Promise<PassageHit[]> {
-    const out: PassageHit[] = [];
+    return Promise.all(
+      hits.map(async (hit) => {
+        if (hit.pageNum == null) return hit;
 
-    for (const hit of hits) {
-      if (hit.pageNum == null) {
-        out.push(hit);
-        continue;
-      }
+        const center = hit.pageNum;
+        const pageStart = Math.max(1, center - 1);
+        const pageEnd = center + 1;
+        const neighbors = await this.fetchPagesAround(
+          hit.sourceFile,
+          pageStart,
+          pageEnd,
+        );
 
-      const center = hit.pageNum;
-      const pageStart = Math.max(1, center - 1);
-      const pageEnd = center + 1;
-      const neighbors = await this.fetchPagesAround(
-        hit.sourceFile,
-        pageStart,
-        pageEnd,
-      );
+        if (!neighbors.length) return hit;
 
-      if (!neighbors.length) {
-        out.push(hit);
-        continue;
-      }
+        const byPage = new Map<number, string[]>();
+        for (const row of neighbors) {
+          if (row.pageNum == null) continue;
+          const list = byPage.get(row.pageNum) ?? [];
+          list.push(row.content);
+          byPage.set(row.pageNum, list);
+        }
 
-      const byPage = new Map<number, string[]>();
-      for (const row of neighbors) {
-        if (row.pageNum == null) continue;
-        const list = byPage.get(row.pageNum) ?? [];
-        list.push(row.content);
-        byPage.set(row.pageNum, list);
-      }
+        // Always include the original hit content for its page.
+        const hitPageParts = byPage.get(center) ?? [];
+        if (!hitPageParts.some((c) => c === hit.content)) {
+          hitPageParts.unshift(hit.content);
+          byPage.set(center, hitPageParts);
+        }
 
-      // Always include the original hit content for its page.
-      const hitPageParts = byPage.get(center) ?? [];
-      if (!hitPageParts.some((c) => c === hit.content)) {
-        hitPageParts.unshift(hit.content);
-        byPage.set(center, hitPageParts);
-      }
+        const pages = [...byPage.keys()].sort((a, b) => a - b);
+        const mergedParts: string[] = [];
+        for (const page of pages) {
+          const body = (byPage.get(page) ?? []).join('\n\n').trim();
+          if (!body) continue;
+          mergedParts.push(`[Trang ${page}]\n${body}`);
+        }
 
-      const pages = [...byPage.keys()].sort((a, b) => a - b);
-      const mergedParts: string[] = [];
-      for (const page of pages) {
-        const body = (byPage.get(page) ?? []).join('\n\n').trim();
-        if (!body) continue;
-        mergedParts.push(`[Trang ${page}]\n${body}`);
-      }
+        if (!mergedParts.length) return hit;
 
-      if (!mergedParts.length) {
-        out.push(hit);
-        continue;
-      }
+        // Open PDF at the start of the window so users don't miss earlier pages
+        // (e.g. nghi tình starts at 127 but a later chunk scored 129).
+        const openPage = pages[0] ?? center;
 
-      // Open PDF at the start of the window so users don't miss earlier pages
-      // (e.g. nghi tình starts at 127 but a later chunk scored 129).
-      const openPage = pages[0] ?? center;
-
-      const expanded = {
-        ...hit,
-        content: mergedParts.join('\n\n'),
-        pageNum: openPage,
-        pageStart: pages[0] ?? pageStart,
-        pageEnd: pages[pages.length - 1] ?? pageEnd,
-      } as PassageHit & { pageStart: number; pageEnd: number };
-      out.push(expanded);
-    }
-
-    return out;
+        return {
+          ...hit,
+          content: mergedParts.join('\n\n'),
+          pageNum: openPage,
+          pageStart: pages[0] ?? pageStart,
+          pageEnd: pages[pages.length - 1] ?? pageEnd,
+        } as PassageHit & { pageStart: number; pageEnd: number };
+      }),
+    );
   }
 
   private fetchPagesAround(

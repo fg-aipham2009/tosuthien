@@ -8,6 +8,7 @@ class ChatMessage {
     required this.createdAt,
     this.disclaimer,
     this.citations = const [],
+    this.isStreaming = false,
   });
 
   final String id;
@@ -16,6 +17,8 @@ class ChatMessage {
   final DateTime createdAt;
   final String? disclaimer;
   final List<ChatCitation> citations;
+  /// True while SSE tokens are still arriving (not persisted).
+  final bool isStreaming;
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
@@ -28,6 +31,7 @@ class ChatMessage {
           .whereType<Map<String, dynamic>>()
           .map(ChatCitation.fromJson)
           .toList(),
+      isStreaming: false,
     );
   }
 
@@ -44,6 +48,7 @@ class ChatMessage {
     String? content,
     String? disclaimer,
     List<ChatCitation>? citations,
+    bool? isStreaming,
   }) {
     return ChatMessage(
       id: id,
@@ -52,6 +57,7 @@ class ChatMessage {
       createdAt: createdAt,
       disclaimer: disclaimer ?? this.disclaimer,
       citations: citations ?? this.citations,
+      isStreaming: isStreaming ?? this.isStreaming,
     );
   }
 }

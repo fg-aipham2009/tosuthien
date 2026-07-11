@@ -163,10 +163,11 @@ class _ChatScreenState extends State<ChatScreen> {
               : ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-                  itemCount: messages.length + (_controller.isLoading ? 1 : 0),
+                  itemCount:
+                      messages.length + (_controller.showRetrievingRow ? 1 : 0),
                   itemBuilder: (context, index) {
                     if (index == messages.length) {
-                      return const _LoadingRow();
+                      return _LoadingRow(phase: _controller.statusPhase);
                     }
                     return Center(
                       child: ConstrainedBox(
@@ -197,11 +198,16 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 class _LoadingRow extends StatelessWidget {
-  const _LoadingRow();
+  const _LoadingRow({required this.phase});
+
+  final String phase;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final label = phase == 'generating'
+        ? 'Đang soạn câu trả lời…'
+        : 'Đang tra cứu kinh sách…';
 
     return Center(
       child: ConstrainedBox(
@@ -220,7 +226,7 @@ class _LoadingRow extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                'Đang tra cứu kinh sách…',
+                label,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),

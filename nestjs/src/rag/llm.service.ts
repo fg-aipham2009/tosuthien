@@ -57,18 +57,20 @@ ${modeRules}`;
 }
 
 function maxTokensForStyle(style: AnswerStyle): number {
+  // Lower caps cut wall-clock time; answers stay quote-heavy but shorter.
   switch (style) {
     case 'kinh_long':
-      return 4096;
-    case 'mixed':
       return 2048;
+    case 'mixed':
+      return 1280;
     case 'brief':
-      return 768;
+      return 512;
   }
 }
 
-interface ClaudeMessageResponse {
-  content: { type: string; text?: string }[];
+interface ClaudeStreamEvent {
+  type: string;
+  delta?: { type?: string; text?: string };
 }
 
 @Injectable()
@@ -80,6 +82,25 @@ export class LlmService {
     contextBlocks: string[],
     styleContext: AnswerStyleContext,
   ): Promise<string> {
+    const parts: string[] = [];
+    for await (const delta of this.answerStream(
+      question,
+      contextBlocks,
+      styleContext,
+    )) {
+      parts.push(delta);
+    }
+    const text = parts.join('').trim();
+    if (!text) throw new Error('Claude API không trả về text');
+    return text;
+  }
+
+  /** Yields text deltas from Anthropic Messages streaming API. */
+  async *answerStream(
+    question: string,
+    contextBlocks: string[],
+    styleContext: AnswerStyleContext,
+  ): AsyncGenerator<string> {
     const context = contextBlocks.join('\n\n---\n\n');
     const system = buildSystemPrompt(styleContext);
     const userContent = `Câu hỏi: ${question.trim()}
@@ -100,6 +121,7 @@ ${context}`;
       body: JSON.stringify({
         model: chatModel,
         max_tokens: maxTokensForStyle(styleContext.style),
+        stream: true,
         system,
         messages: [{ role: 'user', content: userContent }],
       }),
@@ -112,15 +134,43 @@ ${context}`;
       );
     }
 
-    const data = (await res.json()) as ClaudeMessageResponse;
+    if (!res.body) {
+      throw new Error('Claude API stream: empty body');
+    }
 
-    const text = data.content
-      ?.filter((b) => b.type === 'text')
-      .map((b) => b.text ?? '')
-      .join('')
-      .trim();
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
 
-    if (!text) throw new Error('Claude API không trả về text');
-    return text;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const payload = trimmed.slice(5).trim();
+        if (!payload || payload === '[DONE]') continue;
+
+        let event: ClaudeStreamEvent;
+        try {
+          event = JSON.parse(payload) as ClaudeStreamEvent;
+        } catch {
+          continue;
+        }
+
+        if (
+          event.type === 'content_block_delta' &&
+          event.delta?.type === 'text_delta' &&
+          event.delta.text
+        ) {
+          yield event.delta.text;
+        }
+      }
+    }
   }
 }

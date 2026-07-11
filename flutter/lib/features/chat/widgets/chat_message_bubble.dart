@@ -64,11 +64,25 @@ class ChatMessageBubble extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    message.content,
+                    message.content.isEmpty && message.isStreaming
+                        ? '…'
+                        : message.content,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           height: 1.6,
                         ),
                   ),
+                  if (message.isStreaming)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colors.primary,
+                        ),
+                      ),
+                    ),
                   if (message.disclaimer != null) ...[
                     const SizedBox(height: 12),
                     Text(
