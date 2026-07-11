@@ -3,6 +3,7 @@ import { PdfFile } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PublicUrlService } from '../common/public-url.service';
 import { ChatCitation, PdfOpenLink } from './rag.types';
+import { toPdfFilePage } from './rag-source.util';
 
 type PdfIndexEntry = Pick<
   PdfFile,
@@ -48,8 +49,17 @@ export class CitationLinkService implements OnModuleInit {
     citation: Omit<ChatCitation, 'pdf' | 'openLabel'>,
   ): ChatCitation {
     const pdf = this.findPdf(citation.sourceFile, citation.title, citation.volume);
+    const printedStart = citation.pageStart ?? citation.pageNum;
+    const printedEnd = citation.pageEnd ?? citation.pageNum;
+    // Citations expose printed pages; PDF openers need file/OCR page index.
     const pdfLink = pdf
-      ? this.buildPdfLinkWithRange(pdf, citation.pageStart ?? citation.pageNum, citation.pageEnd ?? citation.pageNum)
+      ? this.buildPdfLinkWithRange(
+          pdf,
+          toPdfFilePage(citation.sourceFile, printedStart),
+          toPdfFilePage(citation.sourceFile, printedEnd),
+          printedStart,
+          printedEnd,
+        )
       : null;
 
     return {
@@ -78,11 +88,15 @@ export class CitationLinkService implements OnModuleInit {
     const pdf =
       this.findPdf(citation.sourceFile, citation.title, citation.volume) ??
       (await this.lookupPdfBySourceFile(citation.sourceFile));
+    const printedStart = citation.pageStart ?? citation.pageNum;
+    const printedEnd = citation.pageEnd ?? citation.pageNum;
     const pdfLink = pdf
       ? this.buildPdfLinkWithRange(
           pdf,
-          citation.pageStart ?? citation.pageNum,
-          citation.pageEnd ?? citation.pageNum,
+          toPdfFilePage(citation.sourceFile, printedStart),
+          toPdfFilePage(citation.sourceFile, printedEnd),
+          printedStart,
+          printedEnd,
         )
       : null;
 
@@ -199,13 +213,19 @@ export class CitationLinkService implements OnModuleInit {
 
   buildPdfLinkWithRange(
     pdf: PdfIndexEntry,
-    pageStart: number | null,
-    pageEnd: number | null,
+    filePageStart: number | null,
+    filePageEnd: number | null,
+    printedStart?: number | null,
+    printedEnd?: number | null,
   ): PdfOpenLink {
-    const openAt = pageStart ?? pageEnd ?? 1;
+    const openAt = filePageStart ?? filePageEnd ?? 1;
     const link = this.buildPdfLink(pdf, openAt);
-    if (pageStart != null && pageEnd != null && pageEnd > pageStart) {
-      link.openLabel = `Mở tr.${pageStart}–${pageEnd}`;
+    const labelStart = printedStart ?? filePageStart;
+    const labelEnd = printedEnd ?? filePageEnd;
+    if (labelStart != null && labelEnd != null && labelEnd > labelStart) {
+      link.openLabel = `Mở tr.${labelStart}–${labelEnd}`;
+    } else if (labelStart != null) {
+      link.openLabel = `Mở tr.${labelStart}`;
     }
     return link;
   }

@@ -148,7 +148,11 @@ class ChatCitation {
     return m?.group(1);
   }
 
-  int? get openPage => pageStart ?? pageNum ?? pdf?.pageNum;
+  /// Printed page for labels (may differ from PDF file index).
+  int? get displayPage => pageStart ?? pageNum ?? pdf?.pageNum;
+
+  /// PDF file page to open — prefer server `pdf.pageNum` (already file-index).
+  int? get openPage => pdf?.pageNum ?? pageStart ?? pageNum;
 
   String get pageLabel {
     final start = pageStart ?? pageNum;

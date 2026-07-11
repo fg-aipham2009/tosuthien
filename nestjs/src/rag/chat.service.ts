@@ -17,7 +17,7 @@ import {
 } from './rag.types';
 import { RAG_DISCLAIMER, clampTopK, CANDIDATE_POOL } from './rag.constants';
 import { expandKeywords, questionStem, analyzeQuery } from './rag-keywords.util';
-import { isKinhSource, sourceTier } from './rag-source.util';
+import { isKinhSource, sourceTier, toPrintedPage, printedPageOffset } from './rag-source.util';
 import {
   maxPassageCharsForTier,
   resolveAnswerStyle,
@@ -992,17 +992,18 @@ export class ChatService {
         }
 
         const pages = [...byPage.keys()].sort((a, b) => a - b);
+        const offset = printedPageOffset(hit.sourceFile);
         const mergedParts: string[] = [];
         for (const page of pages) {
           const body = (byPage.get(page) ?? []).join('\n\n').trim();
           if (!body) continue;
-          mergedParts.push(`[Trang ${page}]\n${body}`);
+          // Label with printed page so the LLM cites the number readers see in the book.
+          mergedParts.push(`[Trang ${page + offset}]\n${body}`);
         }
 
         if (!mergedParts.length) return hit;
 
-        // Open PDF at the start of the window so users don't miss earlier pages
-        // (e.g. nghi tình starts at 127 but a later chunk scored 129).
+        // Keep OCR/file pages on the hit for PDF open; display offset applied in buildContext.
         const openPage = pages[0] ?? center;
 
         return {
@@ -1049,8 +1050,11 @@ export class ChatService {
         pageStart?: number;
         pageEnd?: number;
       };
-      const pageStart = h.pageStart ?? h.pageNum;
-      const pageEnd = h.pageEnd ?? h.pageNum;
+      // Hits store OCR/file pages; expose printed pages in labels + citations.
+      const ocrStart = h.pageStart ?? h.pageNum;
+      const ocrEnd = h.pageEnd ?? h.pageNum;
+      const pageStart = toPrintedPage(h.sourceFile, ocrStart);
+      const pageEnd = toPrintedPage(h.sourceFile, ocrEnd);
       const tier = sourceTier(h.title, h.sourceFile);
       const label = this.formatLabel(h.title, h.volume, pageStart, pageEnd);
       const header = `[Nguồn ${i + 1} | ${tierLabel(tier)}] ${label} (${h.sourceFile})`;
@@ -1058,8 +1062,8 @@ export class ChatService {
       const maxChars = maxPassageCharsForTier(tier);
       // Neighbor windows are larger — allow more chars so 3 pages aren't truncated away.
       const windowBonus =
-        pageStart != null && pageEnd != null && pageEnd > pageStart
-          ? Math.min(4_800, (pageEnd - pageStart) * 2_000)
+        ocrStart != null && ocrEnd != null && ocrEnd > ocrStart
+          ? Math.min(4_800, (ocrEnd - ocrStart) * 2_000)
           : 0;
       const body = this.trimPassageAtSentence(h.content, maxChars + windowBonus);
       const block = `${header}\n${body}`;
@@ -1075,7 +1079,7 @@ export class ChatService {
         label,
         title: h.title,
         volume: h.volume,
-        pageNum: pageStart ?? h.pageNum,
+        pageNum: pageStart ?? null,
         pageStart: pageStart ?? null,
         pageEnd: pageEnd ?? null,
         sourceFile: h.sourceFile,
