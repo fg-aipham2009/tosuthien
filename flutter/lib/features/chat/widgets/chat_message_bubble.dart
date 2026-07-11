@@ -126,7 +126,7 @@ class _CitationCardState extends State<_CitationCard> {
     final repository = BooksRepository();
 
     try {
-      final page = citation.pageNum ?? citation.pdf?.pageNum ?? 1;
+      final page = citation.openPage ?? citation.pdf?.pageNum ?? 1;
       BookPdf? book;
 
       final pdf = citation.pdf;
@@ -236,12 +236,12 @@ class _CitationCardState extends State<_CitationCard> {
                         color: colors.primary,
                       ),
                     )
-                  else if (citation.pageNum != null)
+                  else if (citation.pageLabel.isNotEmpty)
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'tr.${citation.pageNum}',
+                          citation.pageLabel,
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                 color: colors.onSurfaceVariant,
                               ),

@@ -25,7 +25,11 @@ export interface ChatCitation {
   label: string;
   title: string;
   volume: string | null;
+  /** Primary page to open in PDF (usually the start of the nearby window). */
   pageNum: number | null;
+  /** Inclusive page window around the hit (e.g. 127–129). */
+  pageStart: number | null;
+  pageEnd: number | null;
   sourceFile: string;
   score: number;
   /** Đoạn trích liên quan câu hỏi — hiển thị bắt buộc cho user tự đối chiếu */

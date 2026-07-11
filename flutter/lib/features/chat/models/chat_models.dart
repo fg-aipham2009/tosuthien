@@ -113,6 +113,8 @@ class ChatCitation {
     required this.title,
     required this.body,
     this.pageNum,
+    this.pageStart,
+    this.pageEnd,
     this.volume,
     this.sourceFile,
     this.pdf,
@@ -124,6 +126,8 @@ class ChatCitation {
   /// Full passage text for display (prefers API `excerpt` over short `quote`).
   final String body;
   final int? pageNum;
+  final int? pageStart;
+  final int? pageEnd;
   final String? volume;
   final String? sourceFile;
   final ChatCitationPdf? pdf;
@@ -138,13 +142,25 @@ class ChatCitation {
     return m?.group(1);
   }
 
+  int? get openPage => pageStart ?? pageNum ?? pdf?.pageNum;
+
+  String get pageLabel {
+    final start = pageStart ?? pageNum;
+    final end = pageEnd ?? pageNum;
+    if (start == null) return '';
+    if (end != null && end > start) return 'tr.$start–$end';
+    return 'tr.$start';
+  }
+
   bool get canOpenPdf =>
-      pageNum != null &&
+      openPage != null &&
       (sourceStem != null ||
           (pdf != null && pdf!.pdfFileId.isNotEmpty && pdf!.pdfUrl.isNotEmpty));
 
   String get openButtonLabel =>
-      openLabel ?? pdf?.openLabel ?? (pageNum != null ? 'Mở tr.$pageNum' : 'Mở kinh sách');
+      openLabel ??
+      pdf?.openLabel ??
+      (pageLabel.isNotEmpty ? 'Mở $pageLabel' : 'Mở kinh sách');
 
   factory ChatCitation.fromJson(Map<String, dynamic> json) {
     final excerpt = (json['excerpt'] as String? ?? json['body'] as String? ?? '').trim();
@@ -156,6 +172,8 @@ class ChatCitation {
       title: json['title'] as String? ?? '',
       body: body,
       pageNum: _asInt(json['pageNum']),
+      pageStart: _asInt(json['pageStart']),
+      pageEnd: _asInt(json['pageEnd']),
       volume: json['volume'] as String?,
       sourceFile: json['sourceFile'] as String?,
       pdf: pdfRaw is Map<String, dynamic>
@@ -170,6 +188,8 @@ class ChatCitation {
         'title': title,
         'body': body,
         if (pageNum != null) 'pageNum': pageNum,
+        if (pageStart != null) 'pageStart': pageStart,
+        if (pageEnd != null) 'pageEnd': pageEnd,
         if (volume != null) 'volume': volume,
         if (sourceFile != null) 'sourceFile': sourceFile,
         if (pdf != null) 'pdf': pdf!.toJson(),

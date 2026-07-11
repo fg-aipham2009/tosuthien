@@ -180,7 +180,8 @@ export class ChatService {
       return this.emptyResult({ ...meta, totalMs: Date.now() - totalStart });
     }
 
-    const { blocks, citations } = this.buildContext(hits, keywords);
+    const expandedHits = await this.expandHitsWithNeighborPages(hits);
+    const { blocks, citations } = this.buildContext(expandedHits, keywords);
     if (!blocks.length) {
       return this.emptyResult({ ...meta, totalMs: Date.now() - totalStart });
     }
@@ -730,19 +731,126 @@ export class ChatService {
     return [...kinh.slice(0, 5), ...nguLuc];
   }
 
+  /**
+   * Expand each hit with neighboring OCR pages (±1) from the same source file.
+   * Avoids missing split content (e.g. "nghi tình" across tr.127–129).
+   */
+  private async expandHitsWithNeighborPages(
+    hits: PassageHit[],
+  ): Promise<PassageHit[]> {
+    const out: PassageHit[] = [];
+
+    for (const hit of hits) {
+      if (hit.pageNum == null) {
+        out.push(hit);
+        continue;
+      }
+
+      const center = hit.pageNum;
+      const pageStart = Math.max(1, center - 1);
+      const pageEnd = center + 1;
+      const neighbors = await this.fetchPagesAround(
+        hit.sourceFile,
+        pageStart,
+        pageEnd,
+      );
+
+      if (!neighbors.length) {
+        out.push(hit);
+        continue;
+      }
+
+      const byPage = new Map<number, string[]>();
+      for (const row of neighbors) {
+        if (row.pageNum == null) continue;
+        const list = byPage.get(row.pageNum) ?? [];
+        list.push(row.content);
+        byPage.set(row.pageNum, list);
+      }
+
+      // Always include the original hit content for its page.
+      const hitPageParts = byPage.get(center) ?? [];
+      if (!hitPageParts.some((c) => c === hit.content)) {
+        hitPageParts.unshift(hit.content);
+        byPage.set(center, hitPageParts);
+      }
+
+      const pages = [...byPage.keys()].sort((a, b) => a - b);
+      const mergedParts: string[] = [];
+      for (const page of pages) {
+        const body = (byPage.get(page) ?? []).join('\n\n').trim();
+        if (!body) continue;
+        mergedParts.push(`[Trang ${page}]\n${body}`);
+      }
+
+      if (!mergedParts.length) {
+        out.push(hit);
+        continue;
+      }
+
+      // Open PDF at the start of the window so users don't miss earlier pages
+      // (e.g. nghi tình starts at 127 but a later chunk scored 129).
+      const openPage = pages[0] ?? center;
+
+      const expanded = {
+        ...hit,
+        content: mergedParts.join('\n\n'),
+        pageNum: openPage,
+        pageStart: pages[0] ?? pageStart,
+        pageEnd: pages[pages.length - 1] ?? pageEnd,
+      } as PassageHit & { pageStart: number; pageEnd: number };
+      out.push(expanded);
+    }
+
+    return out;
+  }
+
+  private fetchPagesAround(
+    sourceFile: string,
+    pageStart: number,
+    pageEnd: number,
+  ): Promise<PassageHit[]> {
+    return this.prisma.$queryRaw<PassageHit[]>`
+      SELECT
+        p.id AS "passageId",
+        p.content,
+        p.page_num AS "pageNum",
+        p.chunk_type AS "chunkType",
+        r.title,
+        r.volume,
+        r.source_file AS "sourceFile",
+        0::float8 AS score
+      FROM passages p
+      JOIN rag_sources r ON r.id = p.rag_source_id
+      WHERE r.source_file = ${sourceFile}
+        AND p.page_num BETWEEN ${pageStart} AND ${pageEnd}
+      ORDER BY p.page_num ASC NULLS LAST, length(p.content) ASC
+    `;
+  }
+
   private buildContext(hits: PassageHit[], keywords: string[]) {
     const citations: Omit<ChatCitation, 'pdf' | 'openLabel'>[] = [];
     const blocks: string[] = [];
     let used = 0;
 
     for (let i = 0; i < hits.length; i++) {
-      const h = hits[i];
+      const h = hits[i] as PassageHit & {
+        pageStart?: number;
+        pageEnd?: number;
+      };
+      const pageStart = h.pageStart ?? h.pageNum;
+      const pageEnd = h.pageEnd ?? h.pageNum;
       const tier = sourceTier(h.title, h.sourceFile);
-      const label = this.formatLabel(h.title, h.volume, h.pageNum);
+      const label = this.formatLabel(h.title, h.volume, pageStart, pageEnd);
       const header = `[Nguồn ${i + 1} | ${tierLabel(tier)}] ${label} (${h.sourceFile})`;
 
       const maxChars = maxPassageCharsForTier(tier);
-      const body = this.trimPassageAtSentence(h.content, maxChars);
+      // Neighbor windows are larger — allow more chars so 3 pages aren't truncated away.
+      const windowBonus =
+        pageStart != null && pageEnd != null && pageEnd > pageStart
+          ? Math.min(2_400, (pageEnd - pageStart) * 1_200)
+          : 0;
+      const body = this.trimPassageAtSentence(h.content, maxChars + windowBonus);
       const block = `${header}\n${body}`;
       if (used + block.length > MAX_CONTEXT_CHARS) break;
 
@@ -756,7 +864,9 @@ export class ChatService {
         label,
         title: h.title,
         volume: h.volume,
-        pageNum: h.pageNum,
+        pageNum: pageStart ?? h.pageNum,
+        pageStart: pageStart ?? null,
+        pageEnd: pageEnd ?? null,
         sourceFile: h.sourceFile,
         score: Math.round(h.score * 1000) / 1000,
         quote,
@@ -770,11 +880,16 @@ export class ChatService {
   private formatLabel(
     title: string,
     volume: string | null,
-    pageNum: number | null,
+    pageStart: number | null | undefined,
+    pageEnd?: number | null,
   ): string {
     const parts = [title];
     if (volume) parts.push(volume);
-    if (pageNum != null) parts.push(`tr.${pageNum}`);
+    if (pageStart != null && pageEnd != null && pageEnd > pageStart) {
+      parts.push(`tr.${pageStart}–${pageEnd}`);
+    } else if (pageStart != null) {
+      parts.push(`tr.${pageStart}`);
+    }
     return parts.join(', ');
   }
 

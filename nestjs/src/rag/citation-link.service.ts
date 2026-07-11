@@ -48,7 +48,9 @@ export class CitationLinkService implements OnModuleInit {
     citation: Omit<ChatCitation, 'pdf' | 'openLabel'>,
   ): ChatCitation {
     const pdf = this.findPdf(citation.sourceFile, citation.title, citation.volume);
-    const pdfLink = pdf ? this.buildPdfLink(pdf, citation.pageNum) : null;
+    const pdfLink = pdf
+      ? this.buildPdfLinkWithRange(pdf, citation.pageStart ?? citation.pageNum, citation.pageEnd ?? citation.pageNum)
+      : null;
 
     return {
       ...citation,
@@ -73,10 +75,16 @@ export class CitationLinkService implements OnModuleInit {
   private async enrichCitationAsync(
     citation: Omit<ChatCitation, 'pdf' | 'openLabel'>,
   ): Promise<ChatCitation> {
-    let pdf =
+    const pdf =
       this.findPdf(citation.sourceFile, citation.title, citation.volume) ??
       (await this.lookupPdfBySourceFile(citation.sourceFile));
-    const pdfLink = pdf ? this.buildPdfLink(pdf, citation.pageNum) : null;
+    const pdfLink = pdf
+      ? this.buildPdfLinkWithRange(
+          pdf,
+          citation.pageStart ?? citation.pageNum,
+          citation.pageEnd ?? citation.pageNum,
+        )
+      : null;
 
     return {
       ...citation,
@@ -187,6 +195,19 @@ export class CitationLinkService implements OnModuleInit {
       openLabel: pageNum != null ? `Mở tr.${pageNum}` : 'Mở kinh sách',
       apiPath: `/api/pdfs/${pdf.id}?page=${page}`,
     };
+  }
+
+  buildPdfLinkWithRange(
+    pdf: PdfIndexEntry,
+    pageStart: number | null,
+    pageEnd: number | null,
+  ): PdfOpenLink {
+    const openAt = pageStart ?? pageEnd ?? 1;
+    const link = this.buildPdfLink(pdf, openAt);
+    if (pageStart != null && pageEnd != null && pageEnd > pageStart) {
+      link.openLabel = `Mở tr.${pageStart}–${pageEnd}`;
+    }
+    return link;
   }
 }
 
