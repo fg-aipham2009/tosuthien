@@ -26,10 +26,10 @@ import {
   type AnswerStyleContext,
 } from './rag-answer-style';
 
-/** Cap LLM context — larger prompts slow generation more than they help recall. */
-const MAX_CONTEXT_CHARS = 18_000;
+/** Cap LLM context — neighbor ±1 pages need room for full paragraphs. */
+const MAX_CONTEXT_CHARS = 28_000;
 /** Soft cap for citation quote — prefer whole paragraphs under this size. */
-const QUOTE_MAX_CHARS = 2_400;
+const QUOTE_MAX_CHARS = 4_800;
 const MAX_DISPLAY_CITATIONS = 12;
 const SENTENCE_ENDINGS = /[.!?;:…]/;
 const PARAGRAPH_SPLIT = /\n{2,}|(?=\[Trang\s+\d+\])/;
@@ -88,17 +88,30 @@ export class ChatService {
     }
 
     const llmStart = Date.now();
-    const [answer, expandedHits] = await Promise.all([
-      this.llm.answer(prepared.q, prepared.blocks, prepared.styleContext),
-      this.expandHitsWithNeighborPages(prepared.hits),
-    ]);
-    const llmMs = Date.now() - llmStart;
-
-    const displayCitations = await this.finalizeCitations(
+    // Expand ±1 page before LLM so answers/quotes use full neighboring context.
+    const expandedHits = await this.expandHitsWithNeighborPages(prepared.hits);
+    const { blocks, citations } = this.buildContext(
       expandedHits,
       prepared.keywords,
+    );
+    if (!blocks.length) {
+      return this.emptyResult({
+        ...prepared.meta,
+        totalMs: Date.now() - totalStart,
+      });
+    }
+
+    const answer = await this.llm.answer(
+      prepared.q,
+      blocks,
+      prepared.styleContext,
+    );
+    const llmMs = Date.now() - llmStart;
+
+    const displayCitations = await this.prepareDisplayCitations(
+      citations.length ? citations : prepared.slimCitations,
+      prepared.keywords,
       prepared.sourceHints,
-      prepared.slimCitations,
     );
 
     return {
@@ -140,12 +153,30 @@ export class ChatService {
     yield { type: 'status', phase: 'generating' };
 
     const llmStart = Date.now();
-    const expandPromise = this.expandHitsWithNeighborPages(prepared.hits);
-    const parts: string[] = [];
+    const expandedHits = await this.expandHitsWithNeighborPages(prepared.hits);
+    const { blocks, citations } = this.buildContext(
+      expandedHits,
+      prepared.keywords,
+    );
+    if (!blocks.length) {
+      const empty = this.emptyResult({
+        ...prepared.meta,
+        totalMs: Date.now() - totalStart,
+      });
+      yield {
+        type: 'done',
+        answer: empty.answer,
+        disclaimer: empty.disclaimer,
+        citations: empty.citations,
+        meta: empty.meta,
+      };
+      return;
+    }
 
+    const parts: string[] = [];
     for await (const text of this.llm.answerStream(
       prepared.q,
-      prepared.blocks,
+      blocks,
       prepared.styleContext,
     )) {
       parts.push(text);
@@ -153,12 +184,10 @@ export class ChatService {
     }
 
     const llmMs = Date.now() - llmStart;
-    const expandedHits = await expandPromise;
-    const displayCitations = await this.finalizeCitations(
-      expandedHits,
+    const displayCitations = await this.prepareDisplayCitations(
+      citations.length ? citations : prepared.slimCitations,
       prepared.keywords,
       prepared.sourceHints,
-      prepared.slimCitations,
     );
 
     const answer = parts.join('').trim();
@@ -175,20 +204,6 @@ export class ChatService {
         totalMs: Date.now() - totalStart,
       },
     };
-  }
-
-  private async finalizeCitations(
-    expandedHits: PassageHit[],
-    keywords: string[],
-    sourceHints: string[],
-    slimCitations: Omit<ChatCitation, 'pdf' | 'openLabel'>[],
-  ): Promise<ChatCitation[]> {
-    const { citations } = this.buildContext(expandedHits, keywords);
-    return this.prepareDisplayCitations(
-      citations.length ? citations : slimCitations,
-      keywords,
-      sourceHints,
-    );
   }
 
   private async prepareChat(
@@ -985,7 +1000,7 @@ export class ChatService {
       // Neighbor windows are larger — allow more chars so 3 pages aren't truncated away.
       const windowBonus =
         pageStart != null && pageEnd != null && pageEnd > pageStart
-          ? Math.min(2_400, (pageEnd - pageStart) * 1_200)
+          ? Math.min(4_800, (pageEnd - pageStart) * 2_000)
           : 0;
       const body = this.trimPassageAtSentence(h.content, maxChars + windowBonus);
       const block = `${header}\n${body}`;
@@ -1063,16 +1078,29 @@ export class ChatService {
       return this.joinCompleteParagraphs(paragraphs.slice(0, 2), QUOTE_MAX_CHARS);
     }
 
-    // Take the matched paragraph plus one neighbor if it continues the same Q&A / topic.
+    // Matched paragraph ±1 paragraph, and expand to full HỎI–ĐÁP when present.
     const start = Math.max(0, bestIdx - 1);
-    const end = Math.min(paragraphs.length, bestIdx + 2);
+    const end = Math.min(paragraphs.length, bestIdx + 3);
     const window = paragraphs.slice(start, end);
 
-    // Prefer keeping HỎI + ĐÁP together when either side matched.
     const withQa = this.expandToQaPair(paragraphs, bestIdx);
-    const chosen = withQa.length >= window.length ? withQa : window;
+    const chosen =
+      withQa.length > window.length
+        ? withQa
+        : this.mergeUniqueParagraphs(window, withQa);
 
     return this.joinCompleteParagraphs(chosen, QUOTE_MAX_CHARS);
+  }
+
+  private mergeUniqueParagraphs(a: string[], b: string[]): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const p of [...a, ...b]) {
+      if (seen.has(p)) continue;
+      seen.add(p);
+      out.push(p);
+    }
+    return out;
   }
 
   private splitParagraphs(content: string): string[] {
