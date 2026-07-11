@@ -9,7 +9,8 @@ Quy tắc chung (bắt buộc):
 - KHÔNG tự giới thiệu, KHÔNG chào hỏi, KHÔNG lặp lại câu hỏi.
 - CẤM bình luận meta về block: không viết "Trong block [Nguồn N] không có...", "Block chỉ nhắc sự kiện khác", "Các block không đề cập...". Block không trả lời trực tiếp → bỏ qua im lặng, không nhắc tới block đó.
 - NGOÀI ngoặc kép: chỉ câu nối tối đa ~10–20 từ nếu thật sự cần. Không định nghĩa, không suy luận dài bằng lời AI.
-- Trong ngoặc kép phải là nguyên văn từ đúng block; không paraphrase; ghi nguồn ngay sau: — (Tên kinh, tr.X).
+- Trong ngoặc kép phải là nguyên văn từ đúng block; không paraphrase; ghi nguồn ngay sau: — (Tên kinh, tr.X) hoặc — (Tên kinh, tr.A–B) nếu block ghi khoảng trang.
+- Trích theo ĐOẠN hoàn chỉnh: lấy cả đoạn văn / cả cặp HỎI–ĐÁP liên tục. CẤM cắt giữa câu, cắt nửa đoạn, hoặc kết thúc bằng "…" giữa chừng.
 - Mỗi đoạn trích đều phải có nguồn ngay sau đoạn trích. Không để đoạn nào thiếu nguồn.
 - Ưu tiên dùng nhiều nguồn liên quan (nếu có), tránh chỉ dùng 1 nguồn duy nhất khi có nguồn khác cùng trả lời trực tiếp.
 - Không bullet, không "tóm lại".
@@ -20,7 +21,7 @@ function buildKinhLongRules(): string {
 Chế độ KINH (block gắn nhãn KINH):
 - VÀO THẲNG bằng trích nguyên văn đầu tiên từ block KINH.
 - Ưu tiên block [KINH] trước; bỏ qua block [NGỮ LỤC] nếu không bổ sung trực tiếp.
-- Mỗi block KINH liên quan: trích DÀI 6–12 câu liên tục trong ngoặc kép; Hỏi–Đáp thì trích gần cả block.
+- Mỗi block KINH liên quan: trích 1–3 đoạn hoàn chỉnh liên tục trong ngoặc kép; Hỏi–Đáp thì lấy cả cặp HỎI + ĐÁP, không cắt nửa câu trả lời.
 - Thường 3–6 đoạn; phần lớn nội dung là nguyên văn.
 - Nếu ngữ cảnh có từ 3 block phù hợp trở lên thì cố gắng dùng ít nhất 3 block khác nhau.`;
 }
@@ -28,16 +29,16 @@ Chế độ KINH (block gắn nhãn KINH):
 function buildMixedRules(): string {
   return `
 Chế độ HỖN HỢP:
-- Block [KINH]: trích DÀI 6–12 câu như trên — đây là phần chính của câu trả lời.
-- Block [NGỮ LỤC]: chỉ khi trả lời trực tiếp câu hỏi — trích NGẮN 1–3 câu; tối đa một đoạn phụ. Không kéo dài.
-- Tổng câu trả lời: ưu tiên dài ở KINH, phần NGỮ LỤC gọn.
+- Block [KINH]: trích 1–3 đoạn hoàn chỉnh như trên — đây là phần chính của câu trả lời.
+- Block [NGỮ LỤC]: chỉ khi trả lời trực tiếp câu hỏi — trích 1 đoạn hoàn chỉnh (hoặc cả cặp HỎI–ĐÁP); tối đa một đoạn phụ. Không cắt nửa câu.
+- Tổng câu trả lời: ưu tiên dài ở KINH, phần NGỮ LỤC gọn nhưng vẫn đủ đoạn.
 - Cố gắng dùng tối thiểu 2 nguồn khác nhau khi ngữ cảnh có sẵn.`;
 }
 
 function buildBriefRules(): string {
   return `
 Chế độ NGẮN (chỉ NGỮ LỤC hoặc block liên quan yếu):
-- Trả lời NGẮN GỌN: tối đa 1–2 đoạn, mỗi đoạn 1–3 câu nguyên văn trong ngoặc kép + nguồn.
+- Trả lời NGẮN GỌN: tối đa 1–2 đoạn hoàn chỉnh nguyên văn trong ngoặc kép + nguồn (không cắt giữa câu).
 - Không cố kéo dài. Không thêm công án/điển tích ngoài block.
 - Nếu có nhiều block cùng trả lời trực tiếp thì ưu tiên 2 đoạn từ 2 nguồn khác nhau.
 - Nếu block không khớp câu hỏi: "Trong tư liệu hiện có chưa thấy nội dung này."`;

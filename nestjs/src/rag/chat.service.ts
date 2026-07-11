@@ -21,9 +21,11 @@ import {
 } from './rag-answer-style';
 
 const MAX_CONTEXT_CHARS = 36_000;
-const QUOTE_LEN = 680;
+/** Soft cap for citation quote — prefer whole paragraphs under this size. */
+const QUOTE_MAX_CHARS = 2_400;
 const MAX_DISPLAY_CITATIONS = 12;
 const SENTENCE_ENDINGS = /[.!?;:…]/;
+const PARAGRAPH_SPLIT = /\n{2,}|(?=\[Trang\s+\d+\])/;
 /** Reciprocal Rank Fusion constant — dịu ảnh hưởng thứ hạng thấp (chuẩn ~60) */
 const RRF_K = 60;
 /** Minimum keyword/synonym overlap to send a passage to the LLM */
@@ -893,47 +895,105 @@ export class ChatService {
     return parts.join(', ');
   }
 
+  /**
+   * Citation quote: whole paragraph(s) containing keywords — never mid-sentence slice.
+   */
   private extractQuote(content: string, keywords: string[]): string {
-    const normalized = content.replace(/\s+/g, ' ').trim();
-    if (!normalized) return '';
+    const paragraphs = this.splitParagraphs(content);
+    if (!paragraphs.length) return '';
 
-    const lower = normalized.toLowerCase();
+    if (!keywords.length) {
+      return this.joinCompleteParagraphs(paragraphs.slice(0, 2), QUOTE_MAX_CHARS);
+    }
+
+    const lowerKeys = keywords.map((k) => k.toLowerCase());
     let bestIdx = -1;
-    let bestKey = '';
+    let bestHits = -1;
 
-    for (const k of keywords) {
-      const idx = lower.indexOf(k);
-      if (idx >= 0 && (bestIdx < 0 || idx < bestIdx)) {
-        bestIdx = idx;
-        bestKey = k;
+    for (let i = 0; i < paragraphs.length; i++) {
+      const lower = paragraphs[i].toLowerCase();
+      // Skip page markers alone
+      if (/^\[Trang\s+\d+\]\s*$/i.test(paragraphs[i].trim())) continue;
+      let hits = 0;
+      for (const k of lowerKeys) {
+        if (lower.includes(k)) hits++;
+      }
+      if (hits > bestHits) {
+        bestHits = hits;
+        bestIdx = i;
       }
     }
 
     if (bestIdx < 0) {
-      return normalized.length > QUOTE_LEN
-        ? `${normalized.slice(0, QUOTE_LEN)}…`
-        : normalized;
+      return this.joinCompleteParagraphs(paragraphs.slice(0, 2), QUOTE_MAX_CHARS);
     }
 
-    const start = Math.max(0, bestIdx - 250);
-    const end = Math.min(normalized.length, bestIdx + bestKey.length + 550);
-    let quote = normalized.slice(start, end).trim();
-    if (start > 0) quote = `…${quote}`;
-    if (end < normalized.length) quote = `${quote}…`;
-    return quote;
+    // Take the matched paragraph plus one neighbor if it continues the same Q&A / topic.
+    const start = Math.max(0, bestIdx - 1);
+    const end = Math.min(paragraphs.length, bestIdx + 2);
+    const window = paragraphs.slice(start, end);
+
+    // Prefer keeping HỎI + ĐÁP together when either side matched.
+    const withQa = this.expandToQaPair(paragraphs, bestIdx);
+    const chosen = withQa.length >= window.length ? withQa : window;
+
+    return this.joinCompleteParagraphs(chosen, QUOTE_MAX_CHARS);
+  }
+
+  private splitParagraphs(content: string): string[] {
+    return content
+      .split(PARAGRAPH_SPLIT)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+  }
+
+  /** If index is HỎI or ĐÁP, include the paired lines as one unit. */
+  private expandToQaPair(paragraphs: string[], index: number): string[] {
+    const isHoi = (s: string) => /^\*{0,2}\d*\.?\s*HỎI\s*:/i.test(s.trim()) || /^Hỏi\s*:/i.test(s.trim());
+    const isDap = (s: string) => /^[➤➢]?\s*\*{0,2}ĐÁP\s*:/i.test(s.trim()) || /^Đáp\s*:/i.test(s.trim());
+
+    let start = index;
+    let end = index;
+
+    if (isDap(paragraphs[index]) && index > 0 && isHoi(paragraphs[index - 1])) {
+      start = index - 1;
+    }
+    if (isHoi(paragraphs[index]) && index + 1 < paragraphs.length && isDap(paragraphs[index + 1])) {
+      end = index + 1;
+    }
+
+    // Also merge consecutive lines that look like Q then A without blank split
+    return paragraphs.slice(start, end + 1);
+  }
+
+  private joinCompleteParagraphs(parts: string[], maxChars: number): string {
+    const out: string[] = [];
+    let used = 0;
+    for (const part of parts) {
+      const next = used === 0 ? part : `${out.join('\n\n')}\n\n${part}`;
+      if (next.length > maxChars && out.length > 0) break;
+      out.push(part);
+      used = out.join('\n\n').length;
+      if (used >= maxChars) break;
+    }
+    return out.join('\n\n').trim();
   }
 
   /**
-   * Keep excerpt natural by ending at sentence boundary near maxChars.
-   * If no nearby boundary exists, fall back to hard cut.
+   * Trim context body at paragraph (preferred) or sentence boundary — never mid-clause.
    */
   private trimPassageAtSentence(content: string, maxChars: number): string {
     const normalized = content.trim();
     if (normalized.length <= maxChars) return normalized;
 
+    const paragraphs = this.splitParagraphs(normalized);
+    if (paragraphs.length > 1) {
+      const joined = this.joinCompleteParagraphs(paragraphs, maxChars);
+      if (joined.length >= Math.floor(maxChars * 0.4)) return joined;
+    }
+
     const hardCut = normalized.slice(0, maxChars).trimEnd();
 
-    // Try to end on the last sentence boundary before maxChars.
     for (let i = hardCut.length - 1; i >= 0; i--) {
       const ch = hardCut[i];
       if (!SENTENCE_ENDINGS.test(ch)) continue;
@@ -941,14 +1001,19 @@ export class ChatService {
       return hardCut.slice(0, i + 1).trimEnd();
     }
 
-    // If the sentence boundary is slightly after maxChars, include it.
-    const lookAhead = normalized.slice(maxChars, Math.min(normalized.length, maxChars + 220));
+    const lookAhead = normalized.slice(
+      maxChars,
+      Math.min(normalized.length, maxChars + 400),
+    );
     for (let i = 0; i < lookAhead.length; i++) {
       if (SENTENCE_ENDINGS.test(lookAhead[i])) {
         return normalized.slice(0, maxChars + i + 1).trimEnd();
       }
     }
 
+    // Last resort: cut at last whitespace so we don't split a word.
+    const sp = hardCut.lastIndexOf(' ');
+    if (sp > Math.floor(maxChars * 0.5)) return hardCut.slice(0, sp).trimEnd();
     return hardCut;
   }
 }
