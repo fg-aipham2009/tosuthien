@@ -23,8 +23,42 @@ export class CreateCenterDto {
   @IsString()
   abbotName?: string;
 
+  /** Rank prefix: HT, TT, ĐĐ, NS, SC */
+  @IsOptional()
   @IsString()
-  address!: string;
+  abbotRank?: string;
+
+  /** Role at temple: Trụ trì, Viện chủ, … */
+  @IsOptional()
+  @IsString()
+  abbotTitle?: string;
+
+  /** Org role: Chứng minh, Phó, TBTK, … */
+  @IsOptional()
+  @IsString()
+  orgRole?: string;
+
+  /** TANG | NI */
+  @IsOptional()
+  @IsString()
+  genderSection?: string;
+
+  /** BAC | TRUNG | NAM | NUOC_NGOAI */
+  @IsOptional()
+  @IsString()
+  region?: string;
+
+  @IsOptional()
+  @IsString()
+  countryCode?: string;
+
+  @IsOptional()
+  @IsString()
+  province?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 
   @IsOptional()
   @IsString()
@@ -84,6 +118,16 @@ export class CreateCourseDto {
   @IsString()
   title!: string;
 
+  /** REGULAR | SPRING | WINTER | AN_CU | OTHER */
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  /** ONCE | WEEKLY | MONTHLY_RANGE | YEARLY | SELF_PRACTICE */
+  @IsOptional()
+  @IsString()
+  recurrence?: string;
+
   @IsOptional()
   @IsString()
   startDate?: string;
@@ -91,6 +135,29 @@ export class CreateCourseDto {
   @IsOptional()
   @IsString()
   endDate?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  dayStart?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  dayEnd?: number;
+
+  /** 0=Sunday … 6=Saturday */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(6)
+  weekday?: number;
+
+  @IsOptional()
+  @IsString()
+  scheduleText?: string;
 
   @IsOptional()
   @IsUUID()
@@ -103,6 +170,10 @@ export class CreateCourseDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
 }
 
 export class UpdateCourseDto extends PartialType(CreateCourseDto) {}

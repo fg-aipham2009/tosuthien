@@ -9,7 +9,14 @@ export interface Center {
   slug: string | null;
   templeName: string;
   abbotName: string | null;
-  address: string;
+  abbotRank: string | null;
+  abbotTitle: string | null;
+  orgRole: string | null;
+  genderSection: string | null;
+  region: string | null;
+  countryCode: string | null;
+  province: string | null;
+  address: string | null;
   phone: string | null;
   abbotPhone: string | null;
   googleMapsUrl: string | null;
@@ -30,11 +37,18 @@ export interface Center {
 export interface Course {
   id: string;
   title: string;
+  type: string | null;
+  recurrence: string | null;
   startDate: string | null;
   endDate: string | null;
+  dayStart: number | null;
+  dayEnd: number | null;
+  weekday: number | null;
+  scheduleText: string | null;
   centerId: string | null;
   contact: string | null;
   description: string | null;
+  sortOrder: number;
   createdAt: string;
 }
 
@@ -59,7 +73,14 @@ export interface CenterFormData {
   templeName: string;
   slug?: string;
   abbotName?: string;
-  address: string;
+  abbotRank?: string;
+  abbotTitle?: string;
+  orgRole?: string;
+  genderSection?: string;
+  region?: string;
+  countryCode?: string;
+  province?: string;
+  address?: string;
   phone?: string;
   abbotPhone?: string;
   googleMapsUrl?: string;
@@ -75,11 +96,18 @@ export interface CenterFormData {
 
 export interface CourseFormData {
   title: string;
+  type?: string;
+  recurrence?: string;
   startDate?: string;
   endDate?: string;
+  dayStart?: number | null;
+  dayEnd?: number | null;
+  weekday?: number | null;
+  scheduleText?: string;
   centerId?: string;
   contact?: string;
   description?: string;
+  sortOrder?: number;
 }
 
 export interface MediaCategory {

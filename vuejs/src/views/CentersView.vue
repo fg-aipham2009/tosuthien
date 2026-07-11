@@ -60,9 +60,24 @@ onMounted(load);
 
     <el-card shadow="never">
       <el-table v-loading="loading" :data="centers" stripe>
+        <el-table-column prop="sortOrder" label="#" width="60" />
         <el-table-column prop="templeName" label="Tên" min-width="180" />
-        <el-table-column prop="address" label="Địa chỉ" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="abbotName" label="Trụ trì" width="140" />
+        <el-table-column label="Vùng" width="110">
+          <template #default="{ row }">
+            {{
+              ({ BAC: 'Bắc', TRUNG: 'Trung', NAM: 'Nam', NUOC_NGOAI: 'Nước ngoài' } as Record<string, string>)[
+                row.region
+              ] ?? row.region
+            }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="province" label="Tỉnh" width="110" show-overflow-tooltip />
+        <el-table-column prop="address" label="Địa chỉ" min-width="200" show-overflow-tooltip />
+        <el-table-column label="Trụ trì" width="160" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ [row.abbotRank, row.abbotName].filter(Boolean).join(' ') || '—' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="phone" label="Điện thoại" width="120" />
         <el-table-column label="Ảnh" width="80" align="center">
           <template #default="{ row }">

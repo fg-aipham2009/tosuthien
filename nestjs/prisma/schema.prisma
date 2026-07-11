@@ -172,43 +172,71 @@ model YoutubeVideo {
 }
 
 model Center {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug           String?  @unique
-  templeName     String   @map("temple_name")
-  abbotName      String?  @map("abbot_name")
-  address        String
+  id             String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug           String?               @unique
+  templeName     String                @map("temple_name")
+  abbotName      String?               @map("abbot_name")
+  /// Rank prefix: HT, TT, ĐĐ, NS, SC
+  abbotRank      String?               @map("abbot_rank")
+  /// Role at temple: Trụ trì, Viện chủ, …
+  abbotTitle     String?               @map("abbot_title")
+  /// Org role from sheet: Chứng minh, Phó, TBTK, …
+  orgRole        String?               @map("org_role")
+  /// TANG = chư tăng, NI = chư ni
+  genderSection  String?               @map("gender_section")
+  /// BAC | TRUNG | NAM | NUOC_NGOAI
+  region         String?
+  countryCode    String?               @map("country_code")
+  province       String?
+  address        String?
   phone          String?
-  abbotPhone     String?  @map("abbot_phone")
-  googleMapsUrl  String?  @map("google_maps_url")
+  abbotPhone     String?               @map("abbot_phone")
+  googleMapsUrl  String?               @map("google_maps_url")
   lat            Float?
   lng            Float?
-  activityHours  String?  @map("activity_hours")
+  activityHours  String?               @map("activity_hours")
   rules          String?
   customs        String?
-  mainImageUrl   String?  @map("main_image_url")
-  galleryImages  Json     @default("[]") @map("gallery_images")
-  detailContent  String?  @map("detail_content")
-  sortOrder      Int      @default(0) @map("sort_order")
-  isPublished    Boolean  @default(true) @map("is_published")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  mainImageUrl   String?               @map("main_image_url")
+  galleryImages  Json                  @default("[]") @map("gallery_images")
+  detailContent  String?               @map("detail_content")
+  sortOrder      Int                   @default(0) @map("sort_order")
+  isPublished    Boolean               @default(true) @map("is_published")
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
 
   courses Course[]
 
   @@index([sortOrder], map: "idx_centers_sort")
+  @@index([region], map: "idx_centers_region")
+  @@index([province], map: "idx_centers_province")
   @@map("centers")
 }
 
 model Course {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title       String
-  startDate   DateTime? @map("start_date") @db.Date
-  endDate     DateTime? @map("end_date") @db.Date
-  centerId    String?   @map("center_id") @db.Uuid
-  contact     String?
-  description String?
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title        String
+  /// REGULAR | SPRING | WINTER | AN_CU | OTHER
+  type         String?
+  /// ONCE | WEEKLY | MONTHLY_RANGE | YEARLY | SELF_PRACTICE
+  recurrence   String?
+  startDate    DateTime? @map("start_date") @db.Date
+  endDate      DateTime? @map("end_date") @db.Date
+  /// For MONTHLY_RANGE e.g. 10–16
+  dayStart     Int?      @map("day_start")
+  dayEnd       Int?      @map("day_end")
+  /// 0=Sunday … 6=Saturday for WEEKLY
+  weekday      Int?
+  /// Raw schedule text from sheet for display fallback
+  scheduleText String?   @map("schedule_text")
+  centerId     String?   @map("center_id") @db.Uuid
+  contact      String?
+  description  String?
+  sortOrder    Int       @default(0) @map("sort_order")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   center Center? @relation(fields: [centerId], references: [id], onDelete: SetNull)
 
+  @@index([centerId], map: "idx_courses_center")
+  @@index([type], map: "idx_courses_type")
   @@map("courses")
 }

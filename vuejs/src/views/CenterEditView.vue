@@ -31,6 +31,13 @@ const form = reactive({
   templeName: '',
   slug: '',
   abbotName: '',
+  abbotRank: '',
+  abbotTitle: '',
+  orgRole: '',
+  genderSection: '',
+  region: '',
+  countryCode: '',
+  province: '',
   address: '',
   phone: '',
   abbotPhone: '',
@@ -53,15 +60,21 @@ const courseDialog = ref(false);
 const editingCourse = ref<Course | null>(null);
 const courseForm = reactive<CourseFormData>({
   title: '',
+  type: 'REGULAR',
+  recurrence: 'ONCE',
   startDate: '',
   endDate: '',
+  dayStart: null,
+  dayEnd: null,
+  weekday: null,
+  scheduleText: '',
   contact: '',
   description: '',
+  sortOrder: 0,
 });
 
 const rules: FormRules = {
   templeName: [{ required: true, message: 'Nhập tên thiền viện', trigger: 'blur' }],
-  address: [{ required: true, message: 'Nhập địa chỉ', trigger: 'blur' }],
 };
 
 function parseGallery(raw: unknown): GalleryImage[] {
@@ -84,7 +97,14 @@ async function loadCenter() {
     form.templeName = c.templeName;
     form.slug = c.slug ?? '';
     form.abbotName = c.abbotName ?? '';
-    form.address = c.address;
+    form.abbotRank = c.abbotRank ?? '';
+    form.abbotTitle = c.abbotTitle ?? '';
+    form.orgRole = c.orgRole ?? '';
+    form.genderSection = c.genderSection ?? '';
+    form.region = c.region ?? '';
+    form.countryCode = c.countryCode ?? '';
+    form.province = c.province ?? '';
+    form.address = c.address ?? '';
     form.phone = c.phone ?? '';
     form.abbotPhone = c.abbotPhone ?? '';
     form.googleMapsUrl = c.googleMapsUrl ?? '';
@@ -111,7 +131,14 @@ function buildPayload() {
     templeName: form.templeName.trim(),
     slug: form.slug.trim() || undefined,
     abbotName: form.abbotName.trim() || undefined,
-    address: form.address.trim(),
+    abbotRank: form.abbotRank.trim() || undefined,
+    abbotTitle: form.abbotTitle.trim() || undefined,
+    orgRole: form.orgRole.trim() || undefined,
+    genderSection: form.genderSection || undefined,
+    region: form.region || undefined,
+    countryCode: form.countryCode.trim() || undefined,
+    province: form.province.trim() || undefined,
+    address: form.address.trim() || undefined,
     phone: form.phone.trim() || undefined,
     abbotPhone: form.abbotPhone.trim() || undefined,
     googleMapsUrl: form.googleMapsUrl.trim() || undefined,
@@ -189,10 +216,17 @@ async function onRemoveGallery(url: string) {
 function openCourseDialog(course?: Course) {
   editingCourse.value = course ?? null;
   courseForm.title = course?.title ?? '';
+  courseForm.type = course?.type ?? undefined;
+  courseForm.recurrence = course?.recurrence ?? undefined;
   courseForm.startDate = course?.startDate?.slice(0, 10) ?? '';
   courseForm.endDate = course?.endDate?.slice(0, 10) ?? '';
+  courseForm.dayStart = course?.dayStart ?? null;
+  courseForm.dayEnd = course?.dayEnd ?? null;
+  courseForm.weekday = course?.weekday ?? null;
+  courseForm.scheduleText = course?.scheduleText ?? '';
   courseForm.contact = course?.contact ?? '';
   courseForm.description = course?.description ?? '';
+  courseForm.sortOrder = course?.sortOrder ?? 0;
   courseDialog.value = true;
 }
 
@@ -204,11 +238,18 @@ async function saveCourse() {
   try {
     const payload: CourseFormData = {
       title: courseForm.title.trim(),
+      type: courseForm.type || undefined,
+      recurrence: courseForm.recurrence || undefined,
       centerId: centerId.value,
       startDate: courseForm.startDate || undefined,
       endDate: courseForm.endDate || undefined,
+      dayStart: courseForm.dayStart ?? undefined,
+      dayEnd: courseForm.dayEnd ?? undefined,
+      weekday: courseForm.weekday ?? undefined,
+      scheduleText: courseForm.scheduleText?.trim() || undefined,
       contact: courseForm.contact?.trim() || undefined,
       description: courseForm.description?.trim() || undefined,
+      sortOrder: courseForm.sortOrder ?? 0,
     };
     if (editingCourse.value) {
       await updateCourse(editingCourse.value.id, payload);
@@ -269,7 +310,56 @@ watch(() => route.params.id, loadCenter);
           </el-col>
           <el-col :xs="24" :md="12">
             <el-form-item label="Trụ trì / liên hệ">
-              <el-input v-model="form.abbotName" />
+              <el-input v-model="form.abbotName" placeholder="Thích ..." />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="12" :md="6">
+            <el-form-item label="Phẩm vị">
+              <el-select v-model="form.abbotRank" clearable placeholder="HT / TT / ĐĐ / NS / SC" style="width: 100%">
+                <el-option label="HT" value="HT" />
+                <el-option label="TT" value="TT" />
+                <el-option label="ĐĐ" value="ĐĐ" />
+                <el-option label="NS" value="NS" />
+                <el-option label="SC" value="SC" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="12" :md="6">
+            <el-form-item label="Chức vụ tại chùa">
+              <el-input v-model="form.abbotTitle" placeholder="Trụ trì, Viện chủ..." />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :md="12">
+            <el-form-item label="Chức vụ tổ chức">
+              <el-input v-model="form.orgRole" placeholder="Chứng minh, Phó, TBTK..." />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="12" :md="6">
+            <el-form-item label="Chư Tăng / Ni">
+              <el-select v-model="form.genderSection" clearable style="width: 100%">
+                <el-option label="Chư Tăng" value="TANG" />
+                <el-option label="Chư Ni" value="NI" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="12" :md="6">
+            <el-form-item label="Vùng">
+              <el-select v-model="form.region" clearable placeholder="Chọn sau" style="width: 100%">
+                <el-option label="Bắc" value="BAC" />
+                <el-option label="Trung" value="TRUNG" />
+                <el-option label="Nam" value="NAM" />
+                <el-option label="Nước ngoài" value="NUOC_NGOAI" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="12" :md="6">
+            <el-form-item label="Tỉnh / TP">
+              <el-input v-model="form.province" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="12" :md="6">
+            <el-form-item label="Mã quốc gia">
+              <el-input v-model="form.countryCode" placeholder="VN" />
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="12">
@@ -279,8 +369,8 @@ watch(() => route.params.id, loadCenter);
           </el-col>
         </el-row>
 
-        <el-form-item label="Địa chỉ" prop="address">
-          <el-input v-model="form.address" type="textarea" :rows="2" />
+        <el-form-item label="Địa chỉ">
+          <el-input v-model="form.address" type="textarea" :rows="2" placeholder="Có thể bổ sung sau" />
         </el-form-item>
 
         <el-row :gutter="20">
@@ -373,8 +463,10 @@ watch(() => route.params.id, loadCenter);
         <el-button type="primary" plain size="small" @click="openCourseDialog()">Thêm khoá tu</el-button>
         <el-table :data="courses" size="small" style="margin-top: 12px">
           <el-table-column prop="title" label="Tên khoá" />
-          <el-table-column prop="startDate" label="Bắt đầu" width="120" />
-          <el-table-column prop="endDate" label="Kết thúc" width="120" />
+          <el-table-column prop="type" label="Loại" width="100" />
+          <el-table-column prop="scheduleText" label="Lịch" width="120" show-overflow-tooltip />
+          <el-table-column prop="startDate" label="Bắt đầu" width="110" />
+          <el-table-column prop="endDate" label="Kết thúc" width="110" />
           <el-table-column prop="contact" label="Liên hệ" show-overflow-tooltip />
           <el-table-column label="" width="120">
             <template #default="{ row }">
@@ -395,10 +487,37 @@ watch(() => route.params.id, loadCenter);
       />
     </el-card>
 
-    <el-dialog v-model="courseDialog" :title="editingCourse ? 'Sửa khoá tu' : 'Thêm khoá tu'" width="520px">
+    <el-dialog v-model="courseDialog" :title="editingCourse ? 'Sửa khoá tu' : 'Thêm khoá tu'" width="560px">
       <el-form label-position="top">
         <el-form-item label="Tên khoá tu" required>
           <el-input v-model="courseForm.title" />
+        </el-form-item>
+        <el-row :gutter="12">
+          <el-col :span="12">
+            <el-form-item label="Loại">
+              <el-select v-model="courseForm.type" clearable placeholder="Chọn sau" style="width: 100%">
+                <el-option label="Khóa tu thường" value="REGULAR" />
+                <el-option label="Mùa xuân" value="SPRING" />
+                <el-option label="Mùa đông" value="WINTER" />
+                <el-option label="An cư" value="AN_CU" />
+                <el-option label="Khác" value="OTHER" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="Chu kỳ">
+              <el-select v-model="courseForm.recurrence" clearable placeholder="Chọn sau" style="width: 100%">
+                <el-option label="Một lần" value="ONCE" />
+                <el-option label="Hàng tuần" value="WEEKLY" />
+                <el-option label="Khoảng ngày/tháng" value="MONTHLY_RANGE" />
+                <el-option label="Hàng năm" value="YEARLY" />
+                <el-option label="Tự tu" value="SELF_PRACTICE" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="Lịch (text gốc)">
+          <el-input v-model="courseForm.scheduleText" placeholder="VD: 10-16, CN/Tuần, 8/4-4/7" />
         </el-form-item>
         <el-row :gutter="12">
           <el-col :span="12">
@@ -409,6 +528,23 @@ watch(() => route.params.id, loadCenter);
           <el-col :span="12">
             <el-form-item label="Ngày kết thúc">
               <el-date-picker v-model="courseForm.endDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="12">
+          <el-col :span="8">
+            <el-form-item label="Ngày bắt đầu (trong tháng)">
+              <el-input-number v-model="courseForm.dayStart" :min="1" :max="31" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="Ngày kết thúc">
+              <el-input-number v-model="courseForm.dayEnd" :min="1" :max="31" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="Thứ (0=CN)">
+              <el-input-number v-model="courseForm.weekday" :min="0" :max="6" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>

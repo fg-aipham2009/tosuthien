@@ -21,17 +21,42 @@ export class CentersService {
     );
   }
 
-  async findAll(publishedOnly = true) {
-    return this.prisma.center.findMany({
-      where: publishedOnly ? { isPublished: true } : undefined,
-      orderBy: { sortOrder: 'asc' },
+  async findAll(publishedOnly = true, region?: string) {
+    const rows = await this.prisma.center.findMany({
+      where: {
+        ...(publishedOnly ? { isPublished: true } : {}),
+        ...(region ? { region } : {}),
+      },
+      include: {
+        courses: { orderBy: { sortOrder: 'asc' } },
+      },
+      orderBy: [{ sortOrder: 'asc' }],
+    });
+
+    const regionRank: Record<string, number> = {
+      BAC: 0,
+      TRUNG: 1,
+      NAM: 2,
+      NUOC_NGOAI: 3,
+    };
+
+    return [...rows].sort((a, b) => {
+      const ra = regionRank[a.region ?? ''] ?? 9;
+      const rb = regionRank[b.region ?? ''] ?? 9;
+      if (ra !== rb) return ra - rb;
+
+      const ac = a.courses.length > 0 ? 0 : 1;
+      const bc = b.courses.length > 0 ? 0 : 1;
+      if (ac !== bc) return ac - bc;
+
+      return a.sortOrder - b.sortOrder;
     });
   }
 
   async findOne(id: string) {
     const center = await this.prisma.center.findUnique({
       where: { id },
-      include: { courses: true },
+      include: { courses: { orderBy: { sortOrder: 'asc' } } },
     });
     if (!center) throw new NotFoundException('Center not found');
     return center;
@@ -40,7 +65,7 @@ export class CentersService {
   async findBySlug(slug: string) {
     const center = await this.prisma.center.findUnique({
       where: { slug },
-      include: { courses: true },
+      include: { courses: { orderBy: { sortOrder: 'asc' } } },
     });
     if (!center) throw new NotFoundException('Center not found');
     return center;
@@ -52,6 +77,13 @@ export class CentersService {
         templeName: dto.templeName,
         slug: this.withSlug(dto),
         abbotName: dto.abbotName,
+        abbotRank: dto.abbotRank,
+        abbotTitle: dto.abbotTitle,
+        orgRole: dto.orgRole,
+        genderSection: dto.genderSection,
+        region: dto.region,
+        countryCode: dto.countryCode,
+        province: dto.province,
         address: dto.address,
         phone: dto.phone,
         abbotPhone: dto.abbotPhone,
@@ -76,6 +108,13 @@ export class CentersService {
 
     if (dto.templeName !== undefined) data.templeName = dto.templeName;
     if (dto.abbotName !== undefined) data.abbotName = dto.abbotName;
+    if (dto.abbotRank !== undefined) data.abbotRank = dto.abbotRank;
+    if (dto.abbotTitle !== undefined) data.abbotTitle = dto.abbotTitle;
+    if (dto.orgRole !== undefined) data.orgRole = dto.orgRole;
+    if (dto.genderSection !== undefined) data.genderSection = dto.genderSection;
+    if (dto.region !== undefined) data.region = dto.region;
+    if (dto.countryCode !== undefined) data.countryCode = dto.countryCode;
+    if (dto.province !== undefined) data.province = dto.province;
     if (dto.address !== undefined) data.address = dto.address;
     if (dto.phone !== undefined) data.phone = dto.phone;
     if (dto.abbotPhone !== undefined) data.abbotPhone = dto.abbotPhone;

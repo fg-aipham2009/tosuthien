@@ -10,7 +10,7 @@ export class CoursesService {
     return this.prisma.course.findMany({
       where: centerId ? { centerId } : undefined,
       include: { center: true },
-      orderBy: { startDate: 'desc' },
+      orderBy: [{ sortOrder: 'asc' }, { startDate: 'desc' }],
     });
   }
 
@@ -27,11 +27,18 @@ export class CoursesService {
     return this.prisma.course.create({
       data: {
         title: dto.title,
+        type: dto.type,
+        recurrence: dto.recurrence,
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+        dayStart: dto.dayStart,
+        dayEnd: dto.dayEnd,
+        weekday: dto.weekday,
+        scheduleText: dto.scheduleText,
         centerId: dto.centerId,
         contact: dto.contact,
         description: dto.description,
+        sortOrder: dto.sortOrder ?? 0,
       },
       include: { center: true },
     });
@@ -43,11 +50,18 @@ export class CoursesService {
       where: { id },
       data: {
         title: dto.title,
+        type: dto.type,
+        recurrence: dto.recurrence,
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+        dayStart: dto.dayStart,
+        dayEnd: dto.dayEnd,
+        weekday: dto.weekday,
+        scheduleText: dto.scheduleText,
         centerId: dto.centerId,
         contact: dto.contact,
         description: dto.description,
+        sortOrder: dto.sortOrder,
       },
       include: { center: true },
     });

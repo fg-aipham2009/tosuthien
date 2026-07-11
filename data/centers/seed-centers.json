@@ -1,0 +1,836 @@
+[
+  {
+    "sortOrder": 1,
+    "genderSection": "TANG",
+    "abbotRank": "HT",
+    "abbotName": "Thích Minh Hiển",
+    "orgRole": "Chứng minh",
+    "abbotTitle": "Trụ trì",
+    "templeName": "Thiền Viện Linh Sơn",
+    "address": "Xã Bảo Lâm 3, tỉnh Lâm Đồng",
+    "province": "Lâm Đồng",
+    "region": "TRUNG",
+    "countryCode": "VN",
+    "phone": "0908557867",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "SELF_PRACTICE",
+        "scheduleText": "Tự tu",
+        "title": "Khóa tu thiền thất"
+      },
+      {
+        "type": "WINTER",
+        "recurrence": "YEARLY",
+        "scheduleText": "Khóa tu mùa đông",
+        "title": "Khóa tu mùa đông"
+      }
+    ],
+    "anCu": {
+      "scheduleText": "8/4-4/7",
+      "startMonthDay": "04-08",
+      "endMonthDay": "07-04"
+    }
+  },
+  {
+    "sortOrder": 2,
+    "genderSection": "TANG",
+    "abbotRank": "HT",
+    "abbotName": "Thích Giác Điệp",
+    "orgRole": "Chứng minh",
+    "abbotTitle": "Trụ trì",
+    "templeName": "Tịnh Xá Ngọc Hòa",
+    "address": "Khu vực Thới Hưng, phường Thới Long, TP. Cần Thơ",
+    "province": "Cần Thơ",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0907883578",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 10,
+        "dayEnd": 16,
+        "scheduleText": "10-16",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": {
+      "scheduleText": "11/4-11/7",
+      "startMonthDay": "04-11",
+      "endMonthDay": "07-11"
+    }
+  },
+  {
+    "sortOrder": 3,
+    "genderSection": "TANG",
+    "abbotRank": "HT",
+    "abbotName": "Thích Duy Trần",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Liên Hoa",
+    "address": "236/31/4 Thái Phiên, phường Bình Thới, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0903924772",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "WEEKLY",
+        "weekday": 0,
+        "scheduleText": "CN/Tuần",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": {
+      "scheduleText": "13/4-13/7",
+      "startMonthDay": "04-13",
+      "endMonthDay": "07-13"
+    }
+  },
+  {
+    "sortOrder": 4,
+    "genderSection": "TANG",
+    "abbotRank": "HT",
+    "abbotName": "Thích Huệ Minh",
+    "orgRole": "Phó",
+    "abbotTitle": "Trụ trì",
+    "templeName": "Thiền Đường Liễu Quán 1",
+    "address": "Thôn Phước Thành, phường Tân Hải, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0908400155",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 1,
+        "dayEnd": 7,
+        "scheduleText": "01-07",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": null
+  },
+  {
+    "sortOrder": 5,
+    "genderSection": "TANG",
+    "abbotRank": "HT",
+    "abbotName": "Thích Huệ Minh",
+    "orgRole": "TBTK",
+    "abbotTitle": "Viện chủ",
+    "templeName": "Chùa Thiên Trì",
+    "address": "Xã Bình Hưng, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0908400155",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 14,
+        "dayEnd": 20,
+        "scheduleText": "14-20",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": null
+  },
+  {
+    "sortOrder": 6,
+    "genderSection": "TANG",
+    "abbotRank": "HT",
+    "abbotName": "Thích Huệ Minh",
+    "orgRole": null,
+    "abbotTitle": "Trưởng Ban QT",
+    "templeName": "Chùa Huyền Trang",
+    "address": "2056/39 Huỳnh Tấn Phát, xã Nhà Bè, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0918666239",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 7,
+    "genderSection": "TANG",
+    "abbotRank": "HT",
+    "abbotName": "Thích Thiện Tài",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Tam Bảo",
+    "address": "Ấp Tân Thuận, xã Tân Nhuận Đông, Đồng Tháp",
+    "province": "Đồng Tháp",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0908535369",
+    "retreats": [
+      {
+        "type": "WINTER",
+        "recurrence": "YEARLY",
+        "scheduleText": "Khóa tu mùa đông",
+        "title": "Khóa tu mùa đông"
+      }
+    ],
+    "anCu": null
+  },
+  {
+    "sortOrder": 8,
+    "genderSection": "TANG",
+    "abbotRank": "HT",
+    "abbotName": "Thích Minh Hòa",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Phật Quang",
+    "address": "Ấp Tân An, xã Tân Phú Trung, Đồng Tháp",
+    "province": "Đồng Tháp",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0764666841",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 9,
+    "genderSection": "TANG",
+    "abbotRank": "HT",
+    "abbotName": "Thích Minh Ngọc",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Phước Điền",
+    "address": "646A đường Vòng Núi Sam, phường Núi Sam, An Giang",
+    "province": "An Giang",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0773133777",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 10,
+    "genderSection": "TANG",
+    "abbotRank": "HT",
+    "abbotName": "Thích Nhựt Tây",
+    "orgRole": null,
+    "abbotTitle": null,
+    "templeName": "Tu Viện Thanh Long",
+    "address": "Santa Ana, CA, USA",
+    "province": null,
+    "region": "NUOC_NGOAI",
+    "countryCode": "US",
+    "phone": "001(714)5896571",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 11,
+    "genderSection": "TANG",
+    "abbotRank": "HT",
+    "abbotName": "Thích Minh Thọ",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Từ Ân Thiền Đường",
+    "address": "Khu phố Phước Thành, phường Tân Hòa, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0984314739",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 12,
+    "genderSection": "TANG",
+    "abbotRank": "TT",
+    "abbotName": "Thích Thiện Phẩm",
+    "orgRole": "TTLL",
+    "abbotTitle": null,
+    "templeName": "Thiền Tự Quy Sơn",
+    "address": "Ấp Tân Bình, phường Bửu Hòa, TP. Biên Hòa, Đồng Nai",
+    "province": "Đồng Nai",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0984315181",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 16,
+        "dayEnd": 22,
+        "scheduleText": "16-22",
+        "title": "Khóa tu thiền thất"
+      },
+      {
+        "type": "SPRING",
+        "recurrence": "YEARLY",
+        "scheduleText": "Khóa tu mùa xuân",
+        "title": "Khóa tu mùa xuân"
+      }
+    ],
+    "anCu": {
+      "scheduleText": "16/4-11/7",
+      "startMonthDay": "04-16",
+      "endMonthDay": "07-11"
+    }
+  },
+  {
+    "sortOrder": 13,
+    "genderSection": "TANG",
+    "abbotRank": "TT",
+    "abbotName": "Thích Tắc Quang",
+    "orgRole": "TTLL",
+    "abbotTitle": null,
+    "templeName": "Tổ Đình Long Thiền",
+    "address": "Ấp Núi Két, phường Thới Sơn, An Giang",
+    "province": "An Giang",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0918575774",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 21,
+        "dayEnd": 27,
+        "scheduleText": "21-27",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": null
+  },
+  {
+    "sortOrder": 14,
+    "genderSection": "TANG",
+    "abbotRank": "TT",
+    "abbotName": "Thích Nhuận Thuận",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Thới Hưng",
+    "address": "B15/20, xã Bình Hưng, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0976207061",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 15,
+    "genderSection": "TANG",
+    "abbotRank": "TT",
+    "abbotName": "Thích Trung Duệ",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Thiên Trì",
+    "address": "524/28 Nguyễn Đình Chiểu, phường Bàn Cờ, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0908901842",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 6,
+        "dayEnd": 12,
+        "scheduleText": "06-12",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": null
+  },
+  {
+    "sortOrder": 16,
+    "genderSection": "TANG",
+    "abbotRank": "TT",
+    "abbotName": "Thích Thiện Chơn",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Huê Quang",
+    "address": "14851 Wilson St, Midway City, CA 92655, USA",
+    "province": null,
+    "region": "NUOC_NGOAI",
+    "countryCode": "US",
+    "phone": "001(714)6229307",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 17,
+    "genderSection": "TANG",
+    "abbotRank": "TT",
+    "abbotName": "Thích Huệ Trí",
+    "orgRole": "Nhiếp ảnh",
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Duy Pháp",
+    "address": "362/46 Nguyễn Đình Chiểu, phường Bàn Cờ, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0918251975",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 6,
+        "dayEnd": 12,
+        "scheduleText": "06-12",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": {
+      "scheduleText": "16/4-16/7",
+      "startMonthDay": "04-16",
+      "endMonthDay": "07-16"
+    }
+  },
+  {
+    "sortOrder": 18,
+    "genderSection": "TANG",
+    "abbotRank": "TT",
+    "abbotName": "Thích Quảng Phúc",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Long Sơn",
+    "address": "Ấp Núi Két, phường Thới Sơn, An Giang",
+    "province": "An Giang",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0985116649",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 10,
+        "dayEnd": 16,
+        "scheduleText": "10-16",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": null
+  },
+  {
+    "sortOrder": 19,
+    "genderSection": "TANG",
+    "abbotRank": "TT",
+    "abbotName": "Thích Lệ Đạo",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa An Phước",
+    "address": "Ấp An Ninh, xã Hội An, An Giang",
+    "province": "An Giang",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0919726186",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 1,
+        "dayEnd": 7,
+        "scheduleText": "01-07",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": {
+      "scheduleText": "10/4-10/7",
+      "startMonthDay": "04-10",
+      "endMonthDay": "07-10"
+    }
+  },
+  {
+    "sortOrder": 20,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Thiện Quang",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Long Đức",
+    "address": "Xã Trà Tân, tỉnh Lâm Đồng",
+    "province": "Lâm Đồng",
+    "region": "TRUNG",
+    "countryCode": "VN",
+    "phone": "0909079425",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 21,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Tịnh Trí",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Phật Quang",
+    "address": "Ấp Trường Thuận, xã Trường Long, TP. Cần Thơ",
+    "province": "Cần Thơ",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0388565642",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 8,
+        "dayEnd": 14,
+        "scheduleText": "08-14",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": null
+  },
+  {
+    "sortOrder": 22,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Đức Sơn",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Sơn Hải",
+    "address": "Thôn Ninh Đảo, xã Đại Lãnh, Khánh Hòa",
+    "province": "Khánh Hòa",
+    "region": "TRUNG",
+    "countryCode": "VN",
+    "phone": "0365488810",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 21,
+        "dayEnd": 27,
+        "scheduleText": "21-27",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": {
+      "scheduleText": "6/4-6/7",
+      "startMonthDay": "04-06",
+      "endMonthDay": "07-06"
+    }
+  },
+  {
+    "sortOrder": 23,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Nhuận Nguyên",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Phước Quang",
+    "address": "KP Tân Phú, phường Phú Mỹ, Bà Rịa - Vũng Tàu",
+    "province": "Bà Rịa - Vũng Tàu",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0932653153",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 24,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Giác Tiến",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Phú Thọ",
+    "address": "Thôn 3, xã Hàm Liêm, tỉnh Lâm Đồng",
+    "province": "Lâm Đồng",
+    "region": "TRUNG",
+    "countryCode": "VN",
+    "phone": "0845950943",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 25,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Minh Phú",
+    "orgRole": null,
+    "abbotTitle": null,
+    "templeName": "Chùa Huyền Trang",
+    "address": "2056/39 Huỳnh Tấn Phát, phường Nhà Bè, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0886997243",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 26,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Pháp Hiện",
+    "orgRole": "TTLL",
+    "abbotTitle": null,
+    "templeName": "Chùa Liên Hoa",
+    "address": "Số 58 đường Ông Niệm, xã Bình Hưng, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0936623761",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 27,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Pháp Nhẫn",
+    "orgRole": null,
+    "abbotTitle": null,
+    "templeName": "Chùa Thiền Ân",
+    "address": "Houston, Texas, USA",
+    "province": null,
+    "region": "NUOC_NGOAI",
+    "countryCode": "US",
+    "phone": "001(281)8577047",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 28,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Nhuận Nghĩa",
+    "orgRole": null,
+    "abbotTitle": null,
+    "templeName": "Chùa Phật Đà",
+    "address": "Houston, Texas, USA",
+    "province": null,
+    "region": "NUOC_NGOAI",
+    "countryCode": "US",
+    "phone": "001(281)8577047",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 29,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Quang Bình",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Tân Phước",
+    "address": "362/46 Nguyễn Đình Chiểu, phường Bàn Cờ, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0778061727",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 30,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Nhuận Bình",
+    "orgRole": null,
+    "abbotTitle": null,
+    "templeName": "Chùa Phước Lộc",
+    "address": "Ấp Tân Hòa, xã Tân Xuân, tỉnh Vĩnh Long",
+    "province": "Vĩnh Long",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0938422772",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 31,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Huệ Đạo",
+    "orgRole": null,
+    "abbotTitle": null,
+    "templeName": "Linh Quang Thiền Tự",
+    "address": "126 Tôn Thất Tùng, Tân Biên, Tây Ninh",
+    "province": "Tây Ninh",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0938299996",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 32,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Thanh An",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Thượng",
+    "address": "Khu Thủ Ninh, phường Kinh Bắc, tỉnh Bắc Ninh",
+    "province": "Bắc Ninh",
+    "region": "BAC",
+    "countryCode": "VN",
+    "phone": "0974986486",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 33,
+    "genderSection": "TANG",
+    "abbotRank": "ĐĐ",
+    "abbotName": "Thích Nhuận Quy",
+    "orgRole": null,
+    "abbotTitle": null,
+    "templeName": "Thiền Viện Linh Sơn",
+    "address": "Phường Sông Công, tỉnh Thái Nguyên",
+    "province": "Thái Nguyên",
+    "region": "BAC",
+    "countryCode": "VN",
+    "phone": "0967746777",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 36,
+    "genderSection": "NI",
+    "abbotRank": "NS",
+    "abbotName": "T Nữ An Hương",
+    "orgRole": null,
+    "abbotTitle": "Viện chủ",
+    "templeName": "Chùa Pháp Thành",
+    "address": "192/32/4 Phan Văn Chí, phường 4, quận 3, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0969328681",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 3,
+        "dayEnd": 9,
+        "scheduleText": "03-09",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": null
+  },
+  {
+    "sortOrder": 37,
+    "genderSection": "NI",
+    "abbotRank": "NS",
+    "abbotName": "T Nữ Đàm Trì",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Quang Nhân",
+    "address": "Xã Bảo Lâm 3, tỉnh Lâm Đồng",
+    "province": "Lâm Đồng",
+    "region": "TRUNG",
+    "countryCode": "VN",
+    "phone": "0913676009",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "WEEKLY",
+        "weekday": 0,
+        "scheduleText": "CN",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": null
+  },
+  {
+    "sortOrder": 38,
+    "genderSection": "NI",
+    "abbotRank": "SC",
+    "abbotName": "Huệ Ý",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Liên Hương",
+    "address": "Quận Cầu Giấy, Hà Nội",
+    "province": "Hà Nội",
+    "region": "BAC",
+    "countryCode": "VN",
+    "phone": "0386466874",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 39,
+    "genderSection": "NI",
+    "abbotRank": "SC",
+    "abbotName": "An Đảo",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Tịnh Thất Phước Nguyên",
+    "address": "Ấp Tân Hòa 2, xã Phú Hữu, tỉnh Đồng Tháp",
+    "province": "Đồng Tháp",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0825720729",
+    "retreats": [
+      {
+        "type": "REGULAR",
+        "recurrence": "MONTHLY_RANGE",
+        "dayStart": 28,
+        "dayEnd": 4,
+        "scheduleText": "28-04",
+        "title": "Khóa tu thiền thất"
+      }
+    ],
+    "anCu": null
+  },
+  {
+    "sortOrder": 40,
+    "genderSection": "NI",
+    "abbotRank": "SC",
+    "abbotName": "T Nữ Bửu Nhật",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Liên Hoa",
+    "address": "Đường Lê Thị Đỏ, xã Bà Điểm, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0906780196",
+    "retreats": [],
+    "anCu": null
+  },
+  {
+    "sortOrder": 41,
+    "genderSection": "NI",
+    "abbotRank": "SC",
+    "abbotName": "T Nữ Pháp Ngân",
+    "orgRole": null,
+    "abbotTitle": null,
+    "templeName": "Thiền Viện Duy Lực",
+    "address": "Tổ 8, ấp 4, phường Long Hưng, TP. Đồng Nai",
+    "province": "Đồng Nai",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0836357624",
+    "retreats": [
+      {
+        "type": "WINTER",
+        "recurrence": "YEARLY",
+        "scheduleText": "Khóa tu mùa đông",
+        "title": "Khóa tu mùa đông"
+      }
+    ],
+    "anCu": null
+  },
+  {
+    "sortOrder": 42,
+    "genderSection": "NI",
+    "abbotRank": "SC",
+    "abbotName": "T Nữ An Hữu",
+    "orgRole": null,
+    "abbotTitle": "Trụ trì",
+    "templeName": "Chùa Pháp Thành",
+    "address": "Số 58 đường Ông Niệm, xã Bình Hưng, TP.HCM",
+    "province": "TP.HCM",
+    "region": "NAM",
+    "countryCode": "VN",
+    "phone": "0907274882",
+    "retreats": [],
+    "anCu": null
+  }
+]

@@ -17,8 +17,11 @@ export class CentersController {
   constructor(private readonly service: CentersService) {}
 
   @Get()
-  findAll(@Query('all') all?: string) {
-    return this.service.findAll(all !== 'true');
+  findAll(
+    @Query('all') all?: string,
+    @Query('region') region?: string,
+  ) {
+    return this.service.findAll(all !== 'true', region);
   }
 
   @Get('slug/:slug')
