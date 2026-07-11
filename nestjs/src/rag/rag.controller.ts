@@ -27,7 +27,14 @@ export class RagController {
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
+    // Disable Nagle so small SSE frames leave the socket immediately.
+    res.socket?.setNoDelay(true);
     res.flushHeaders();
+
+    const flush = () => {
+      const r = res as Response & { flush?: () => void };
+      if (typeof r.flush === 'function') r.flush();
+    };
 
     const write = (payload: object) => {
       const type =
@@ -35,6 +42,7 @@ export class RagController {
           ? (payload as { type: string }).type
           : 'message';
       res.write(`event: ${type}\ndata: ${JSON.stringify(payload)}\n\n`);
+      flush();
     };
 
     try {
