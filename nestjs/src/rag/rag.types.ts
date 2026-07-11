@@ -55,8 +55,8 @@ export interface ChatMeta {
   embedError?: string | null;
   /** kinh_long | mixed | brief */
   answerStyle?: 'kinh_long' | 'mixed' | 'brief';
-  /** shopaikey | nexus */
-  chatProvider?: 'shopaikey' | 'nexus' | 'hhtech';
+  /** shopaikey | nexus | hhtech | flare */
+  chatProvider?: 'shopaikey' | 'nexus' | 'hhtech' | 'flare';
 }
 
 export interface ChatResult {

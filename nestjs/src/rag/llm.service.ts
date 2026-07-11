@@ -1,5 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { AiConfigService, resolveAnthropicMessagesUrl } from './ai-config.service';
+import { Injectable, Logger } from '@nestjs/common';
+import {
+  AiConfigService,
+  ChatEndpoint,
+  resolveAnthropicMessagesUrl,
+} from './ai-config.service';
 import { AnswerStyle, AnswerStyleContext } from './rag-answer-style';
 
 const BASE_RULES = `Bạn là trợ lý tra cứu lời dạy Hoà thượng Thích Duy Lực về Tổ Sư Thiền. Đây là ứng dụng tra cứu kinh sách hợp pháp.
@@ -75,6 +79,8 @@ interface ClaudeStreamEvent {
 
 @Injectable()
 export class LlmService {
+  private readonly logger = new Logger(LlmService.name);
+
   constructor(private readonly ai: AiConfigService) {}
 
   async answer(
@@ -95,7 +101,10 @@ export class LlmService {
     return text;
   }
 
-  /** Yields text deltas from Anthropic Messages streaming API. */
+  /**
+   * Yields text deltas. Tries primary provider first, then CHAT_FALLBACK_PROVIDER
+   * (e.g. flare → nexus) if the primary fails or returns an empty stream.
+   */
   async *answerStream(
     question: string,
     contextBlocks: string[],
@@ -108,18 +117,57 @@ export class LlmService {
 Ngữ cảnh (mỗi block có [Nguồn N | KINH hoặc NGỮ LỤC] — chỉ trích từ block liên quan; bỏ block không liên quan, không giải thích vì sao bỏ):
 ${context}`;
 
-    const { chatBaseUrl, chatApiKey, chatModel, chatProvider } = this.ai.get();
-    const url = resolveAnthropicMessagesUrl(chatBaseUrl);
+    const endpoints = this.ai.get().chatEndpoints;
+    let lastError: Error | null = null;
+
+    for (let i = 0; i < endpoints.length; i++) {
+      const endpoint = endpoints[i];
+      try {
+        let yielded = false;
+        for await (const delta of this.streamAnthropic(
+          endpoint,
+          system,
+          userContent,
+          styleContext,
+        )) {
+          yielded = true;
+          yield delta;
+        }
+        if (yielded) return;
+        lastError = new Error(
+          `Claude API empty stream [${endpoint.provider} model=${endpoint.model}]`,
+        );
+        this.logger.warn(lastError.message);
+      } catch (err: unknown) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        const hasFallback = i < endpoints.length - 1;
+        this.logger.warn(
+          `${lastError.message}${hasFallback ? ' — trying fallback' : ''}`,
+        );
+        if (!hasFallback) break;
+      }
+    }
+
+    throw lastError ?? new Error('Claude API: no chat endpoints configured');
+  }
+
+  private async *streamAnthropic(
+    endpoint: ChatEndpoint,
+    system: string,
+    userContent: string,
+    styleContext: AnswerStyleContext,
+  ): AsyncGenerator<string> {
+    const url = resolveAnthropicMessagesUrl(endpoint.baseUrl);
 
     const res = await fetch(url, {
       method: 'POST',
       headers: {
-        'x-api-key': chatApiKey,
+        'x-api-key': endpoint.apiKey,
         'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: chatModel,
+        model: endpoint.model,
         max_tokens: maxTokensForStyle(styleContext.style),
         stream: true,
         system,
@@ -130,12 +178,14 @@ ${context}`;
     if (!res.ok) {
       const detail = (await res.text()).slice(0, 400);
       throw new Error(
-        `Claude API ${res.status} [${chatProvider} model=${chatModel} url=${url}]: ${detail}`,
+        `Claude API ${res.status} [${endpoint.provider} model=${endpoint.model} url=${url}]: ${detail}`,
       );
     }
 
     if (!res.body) {
-      throw new Error('Claude API stream: empty body');
+      throw new Error(
+        `Claude API stream: empty body [${endpoint.provider}]`,
+      );
     }
 
     const reader = res.body.getReader();
