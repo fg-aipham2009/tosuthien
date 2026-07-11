@@ -30,7 +30,7 @@ import {
 const MAX_CONTEXT_CHARS = 28_000;
 /** Soft cap for citation quote — prefer whole paragraphs under this size. */
 const QUOTE_MAX_CHARS = 4_800;
-const MAX_DISPLAY_CITATIONS = 12;
+const MAX_DISPLAY_CITATIONS = 16;
 const SENTENCE_ENDINGS = /[.!?;:…]/;
 const PARAGRAPH_SPLIT = /\n{2,}|(?=\[Trang\s+\d+\])/;
 /** Reciprocal Rank Fusion constant — dịu ảnh hưởng thứ hạng thấp (chuẩn ~60) */
@@ -324,10 +324,9 @@ export class ChatService {
       );
 
     const styleContext = resolveAnswerStyle(rankedHits, relevanceOf);
-    const hits = this.trimHitsForStyle(
-      rankedHits,
-      styleContext.style,
-      relevanceOf,
+    const hits = this.diversifyBySource(
+      this.trimHitsForStyle(rankedHits, styleContext.style, relevanceOf),
+      Math.max(k, 8),
     );
 
     const meta: ChatResult['meta'] = {
@@ -384,10 +383,69 @@ export class ChatService {
   ): Promise<ChatCitation[]> {
     const ranked = [...citations]
       .filter((c) => this.isRelevantCitation(c, keywords, sourceHints))
-      .sort((a, b) => this.citationRank(b, keywords) - this.citationRank(a, keywords))
-      .slice(0, MAX_DISPLAY_CITATIONS);
+      .sort(
+        (a, b) => this.citationRank(b, keywords) - this.citationRank(a, keywords),
+      );
 
-    return this.citationLinks.enrichCitations(ranked);
+    const diversified = this.diversifyCitationsBySource(
+      ranked,
+      MAX_DISPLAY_CITATIONS,
+    );
+
+    return this.citationLinks.enrichCitations(diversified);
+  }
+
+  /**
+   * Round-robin across source files so citations aren't dominated by one book.
+   */
+  private diversifyCitationsBySource(
+    citations: Omit<ChatCitation, 'pdf' | 'openLabel'>[],
+    limit: number,
+  ): Omit<ChatCitation, 'pdf' | 'openLabel'>[] {
+    if (citations.length <= limit) return citations;
+
+    const queues = new Map<string, Omit<ChatCitation, 'pdf' | 'openLabel'>[]>();
+    for (const c of citations) {
+      const key = c.sourceFile || c.title || 'unknown';
+      const list = queues.get(key) ?? [];
+      list.push(c);
+      queues.set(key, list);
+    }
+
+    const buckets = [...queues.values()];
+    const out: Omit<ChatCitation, 'pdf' | 'openLabel'>[] = [];
+    let i = 0;
+    while (out.length < limit && buckets.some((b) => b.length > 0)) {
+      const bucket = buckets[i % buckets.length];
+      if (bucket.length) out.push(bucket.shift()!);
+      i++;
+    }
+    return out;
+  }
+
+  /**
+   * Prefer passages from different books so the LLM can quote diversely.
+   */
+  private diversifyBySource(hits: PassageHit[], limit: number): PassageHit[] {
+    if (hits.length <= 1) return hits;
+
+    const queues = new Map<string, PassageHit[]>();
+    for (const h of hits) {
+      const key = h.sourceFile || h.title || 'unknown';
+      const list = queues.get(key) ?? [];
+      list.push(h);
+      queues.set(key, list);
+    }
+
+    const buckets = [...queues.values()];
+    const out: PassageHit[] = [];
+    let i = 0;
+    while (out.length < limit && buckets.some((b) => b.length > 0)) {
+      const bucket = buckets[i % buckets.length];
+      if (bucket.length) out.push(bucket.shift()!);
+      i++;
+    }
+    return out;
   }
 
   private citationRank(
@@ -876,23 +934,24 @@ export class ChatService {
 
     if (style === 'kinh_long') {
       const kinh = hits.filter((h) => isKinhSource(h.title, h.sourceFile));
-      if (kinh.length) return kinh;
-      return hits;
+      const pool = kinh.length ? kinh : hits;
+      return pool.slice(0, Math.min(8, pool.length));
     }
 
     if (style === 'brief') {
+      // Keep enough passages for multi-paragraph verbatim answers.
       const strong = hits.filter((h) => relevanceOf(h) >= MIN_RELEVANCE_SCORE + 1);
       const pool = strong.length ? strong : hits;
-      return pool.slice(0, Math.min(4, pool.length));
+      return pool.slice(0, Math.min(8, pool.length));
     }
 
-    // mixed: keep several kinh blocks + at most two strong ngu luc blocks
+    // mixed: keep several kinh blocks + a few strong ngu luc blocks
     const kinh = hits.filter((h) => isKinhSource(h.title, h.sourceFile));
     const nguLuc = hits
       .filter((h) => !isKinhSource(h.title, h.sourceFile))
       .filter((h) => relevanceOf(h) >= MIN_RELEVANCE_SCORE + 1)
-      .slice(0, 2);
-    return [...kinh.slice(0, 5), ...nguLuc];
+      .slice(0, 4);
+    return [...kinh.slice(0, 8), ...nguLuc];
   }
 
   /**

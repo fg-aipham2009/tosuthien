@@ -9,7 +9,7 @@ export interface AnswerStyleContext {
   nguLucBlockCount: number;
 }
 
-const STRONG_RELEVANCE = 3;
+const STRONG_RELEVANCE = 2;
 
 export function tierLabel(tier: SourceTier): string {
   return tier === 'kinh' ? 'KINH' : 'NGỮ LỤC';

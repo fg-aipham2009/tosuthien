@@ -1,10 +1,10 @@
-export const DEFAULT_TOP_K = 5;
-export const LOOKUP_TOP_K = 3;
-export const DEFINITION_TOP_K = 8;
-export const COMPARISON_TOP_K = 8;
-export const MAX_TOP_K = 10;
-/** Số ứng viên lấy về để lọc/xếp hạng trước khi cắt còn topK (recall > precision ở bước này) */
-export const CANDIDATE_POOL = 30;
+export const DEFAULT_TOP_K = 8;
+export const LOOKUP_TOP_K = 6;
+export const DEFINITION_TOP_K = 10;
+export const COMPARISON_TOP_K = 10;
+export const MAX_TOP_K = 12;
+/** Candidate pool before filtering/ranking (recall > precision here). */
+export const CANDIDATE_POOL = 40;
 
 export const RAG_DISCLAIMER =
   'Câu trả lời do AI tổng hợp từ kinh sách. Vui lòng đọc lại đoạn trích bên dưới và mở đúng trang PDF để tự kiểm chứng — không nên tin hoàn toàn vào AI.';
