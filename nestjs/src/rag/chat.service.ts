@@ -101,10 +101,13 @@ export class ChatService {
       });
     }
 
-    const answer = await this.llm.answer(
-      prepared.q,
-      blocks,
-      prepared.styleContext,
+    const answer = this.rewriteNumericSourceRefs(
+      await this.llm.answer(
+        prepared.q,
+        blocks,
+        prepared.styleContext,
+      ),
+      citations,
     );
     const llmMs = Date.now() - llmStart;
 
@@ -190,7 +193,10 @@ export class ChatService {
       prepared.sourceHints,
     );
 
-    const answer = parts.join('').trim();
+    const answer = this.rewriteNumericSourceRefs(
+      parts.join('').trim(),
+      citations,
+    );
     yield {
       type: 'done',
       answer:
@@ -1057,7 +1063,13 @@ export class ChatService {
       const pageEnd = toPrintedPage(h.sourceFile, ocrEnd);
       const tier = sourceTier(h.title, h.sourceFile);
       const label = this.formatLabel(h.title, h.volume, pageStart, pageEnd);
-      const header = `[Nguồn ${i + 1} | ${tierLabel(tier)}] ${label} (${h.sourceFile})`;
+      const header = [
+        `[${tierLabel(tier)}]`,
+        `Trích dẫn: ${label}`,
+        h.sourceFile ? `File: ${h.sourceFile}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n');
 
       const maxChars = maxPassageCharsForTier(tier);
       // Neighbor windows are larger — allow more chars so 3 pages aren't truncated away.
@@ -1106,6 +1118,29 @@ export class ChatService {
       parts.push(`tr.${pageStart}`);
     }
     return parts.join(', ');
+  }
+
+  /**
+   * If the model still writes "nguồn 1/2", map those indexes back to
+   * context citation labels (book title + page).
+   */
+  private rewriteNumericSourceRefs(
+    answer: string,
+    citations: Array<{ label: string }>,
+  ): string {
+    if (!answer || !citations.length) return answer;
+
+    return answer.replace(
+      /([—–-]\s*)?(?:\(|\[)?\s*[Nn]guồn\s*(\d+)\s*(?:\)|\])?/g,
+      (match, dashPrefix: string | undefined, numStr: string) => {
+        const idx = Number(numStr) - 1;
+        if (idx < 0 || idx >= citations.length) return match;
+        const label = citations[idx]?.label?.trim();
+        if (!label) return match;
+        const prefix = dashPrefix?.trim() ? '— ' : '— ';
+        return `${prefix}(${label})`;
+      },
+    );
   }
 
   /**

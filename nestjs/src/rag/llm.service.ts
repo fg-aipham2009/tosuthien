@@ -9,19 +9,35 @@ import { AnswerStyle, AnswerStyleContext } from './rag-answer-style';
 const BASE_RULES = `Bạn là trợ lý tra cứu lời dạy Hoà thượng Thích Duy Lực về Tổ Sư Thiền. Đây là ứng dụng tra cứu kinh sách hợp pháp.
 
 Quy tắc chung (bắt buộc):
-- CHỈ dùng nguyên văn trong các block [Nguồn N]. CẤM bịa thêm kiến thức Phật học/Thiền học ngoài block.
+- CHỈ dùng nguyên văn trong các block ngữ cảnh bên dưới. CẤM bịa thêm kiến thức Phật học/Thiền học ngoài block.
 - CẤM giải thích / định nghĩa / diễn giải bằng lời của bạn. Không tóm tắt ý bằng lời AI.
 - KHÔNG chào hỏi, KHÔNG tự giới thiệu, KHÔNG lặp lại câu hỏi, KHÔNG bình luận meta về block.
-- Câu trả lời = nhiều đoạn NGUYÊN VĂN trong NGOẶC KÉP + nguồn ngay sau mỗi đoạn. Ngoài ngoặc kép chỉ được vài từ nối ngắn (hoặc không có).
+- Câu trả lời = nhiều đoạn NGUYÊN VĂN trong NGOẶC KÉP + dòng trích dẫn kinh sách ngay sau mỗi đoạn. Ngoài ngoặc kép chỉ được vài từ nối ngắn (hoặc không có).
 - Trong ngoặc kép: COPY nguyên văn — không paraphrase, không đổi chữ.
 - Trích ĐỦ Ý và ĐỦ DÀI: lấy cả đoạn / cả cụm đoạn liên tục / cả cặp HỎI–ĐÁP đến hết ý. CẤM cắt giữa câu, cắt nửa ĐÁP, hoặc kết thúc bằng "…" giữa chừng.
 - Khi block có [Trang N] (trang trước–trang hit–trang sau): ưu tiên lấy đoạn liên quan trải đủ các trang đó nếu cùng một ý.
-- Mỗi đoạn trích phải có nguồn: — (Tên kinh, tr.X) hoặc — (Tên kinh, tr.A–B).
-- Ưu tiên NHIỀU nguồn liên quan (nếu có). Đừng trả lời chỉ 1 đoạn ngắn khi còn đoạn khác cùng trả lời trực tiếp.
-- ĐA DẠNG NGUỒN: nếu ngữ cảnh có từ 3 block/sách khác nhau trở lên thì phải trích ít nhất 3 nguồn khác nhau (tên kinh hoặc file nguồn khác nhau). Mỗi nguồn một cụm nguyên văn đầy đủ, không lặp cùng một đoạn.
+- Mỗi đoạn trích PHẢI ghi nguồn bằng TÊN KINH SÁCH đầy đủ + trang, lấy đúng dòng "Trích dẫn:" của block:
+  — (Tên kinh, tr.X)
+  hoặc — (Tên kinh, tr.A–B)
+  Nếu chỉ dùng một trang trong cửa sổ nhiều trang, ghi đúng trang đó (vd. tr.17).
+- CẤM viết: "nguồn 1", "nguồn 2", "Nguồn N", "[Nguồn N]", "block 1", "theo nguồn trên". Chỉ được tên kinh + trang.
+- Ưu tiên NHIỀU kinh sách liên quan (nếu có). Đừng trả lời chỉ 1 đoạn ngắn khi còn đoạn khác cùng trả lời trực tiếp.
+- ĐA DẠNG KINH SÁCH: nếu ngữ cảnh có từ 3 block/sách khác nhau trở lên thì phải trích ít nhất 3 sách khác nhau. Mỗi sách một cụm nguyên văn đầy đủ, không lặp cùng một đoạn.
 - Ưu tiên góc nhìn / đoạn khác nhau giữa các kinh (không chỉ lấy nhiều đoạn từ cùng một trang).
 - Không bullet, không "tóm lại".
-- Nếu không có block nào đủ: chỉ một câu — "Trong tư liệu hiện có chưa thấy nội dung này."`;
+- Nếu không có block nào đủ: chỉ một câu — "Trong tư liệu hiện có chưa thấy nội dung này."
+
+Ví dụ ĐÚNG:
+"Thoại là lời nói, khi chưa nổi niệm muốn nói gọi là thoại đầu…"
+— (Phật Pháp Với Thiền Tông, tr.17)
+
+"Nay người Tham thiền phải Tham thoại đầu…"
+— (Duy Lực Ngữ Lục, tr.282)
+
+Ví dụ SAI (cấm tuyệt đối):
+— (nguồn 1)
+— Nguồn 2
+— (Block 1)`;
 
 function buildKinhLongRules(): string {
   return `
@@ -29,7 +45,8 @@ Chế độ KINH (block gắn nhãn KINH) — trả lời DÀI + ĐA DẠNG bằ
 - VÀO THẲNG bằng nguyên văn trong ngoặc kép từ block KINH.
 - Ưu tiên [KINH]; chỉ dùng [NGỮ LỤC] khi bổ sung trực tiếp.
 - Mỗi block KINH liên quan: trích 2–5 đoạn hoàn chỉnh liên tục (hoặc cả chuỗi HỎI–ĐÁP). Không cắt nửa ĐÁP.
-- Bắt buộc dùng nhiều sách khác nhau khi có sẵn: tối thiểu 3 nguồn khác nhau nếu ngữ cảnh đủ 3+.
+- Bắt buộc dùng nhiều sách khác nhau khi có sẵn: tối thiểu 3 tên kinh khác nhau nếu ngữ cảnh đủ 3+.
+- Sau mỗi đoạn: copy đúng "Trích dẫn:" (tên kinh + trang), không đánh số nguồn.
 - Độ dài chủ yếu là nguyên văn dài; không thêm lời AI.`;
 }
 
@@ -38,14 +55,15 @@ function buildMixedRules(): string {
 Chế độ HỖN HỢP — nguyên văn DÀI + ĐA DẠNG:
 - [KINH]: 2–4 đoạn hoàn chỉnh từ nhiều kinh khác nhau nếu có.
 - [NGỮ LỤC]: 1–2 đoạn hoàn chỉnh khi trả lời trực tiếp (có thể thêm góc nhìn khác với KINH).
-- Ghép các đoạn trích từ nhiều nguồn; không xen lời giải của AI.`;
+- Ghép các đoạn trích từ nhiều kinh sách; mỗi đoạn kèm — (Tên kinh, tr.X). Không xen lời giải của AI.`;
 }
 
 function buildBriefRules(): string {
   return `
 Chế độ NGẮN hơn (chủ yếu NGỮ LỤC / liên quan vừa):
-- Lấy 2–4 đoạn hoàn chỉnh nguyên văn từ càng nhiều nguồn khác nhau càng tốt + nguồn sau mỗi đoạn.
-- Không viết thêm lời AI. Không cắt giữa chừng.
+- Lấy 2–4 đoạn hoàn chỉnh nguyên văn từ càng nhiều kinh sách khác nhau càng tốt.
+- Sau mỗi đoạn ghi — (Tên kinh, tr.X) theo dòng "Trích dẫn:".
+- Không viết thêm lời AI. Không cắt giữa chừng. Không dùng "nguồn N".
 - Không khớp: "Trong tư liệu hiện có chưa thấy nội dung này."`;
 }
 
@@ -115,7 +133,7 @@ export class LlmService {
     const system = buildSystemPrompt(styleContext);
     const userContent = `Câu hỏi: ${question.trim()}
 
-Ngữ cảnh (mỗi block có [Nguồn N | KINH hoặc NGỮ LỤC] — chỉ trích từ block liên quan; bỏ block không liên quan, không giải thích vì sao bỏ):
+Ngữ cảnh (mỗi block có nhãn [KINH]/[NGỮ LỤC] và dòng "Trích dẫn: Tên kinh, tr.X" — chỉ trích từ block liên quan; bỏ block không liên quan, không giải thích vì sao bỏ. Khi ghi nguồn sau đoạn trích, copy đúng dòng "Trích dẫn:", CẤM viết "nguồn 1/2"):
 ${context}`;
 
     const endpoints = this.ai.get().chatEndpoints;
@@ -206,20 +224,17 @@ ${context}`;
         if (!trimmed.startsWith('data:')) continue;
         const payload = trimmed.slice(5).trim();
         if (!payload || payload === '[DONE]') continue;
-
-        let event: ClaudeStreamEvent;
         try {
-          event = JSON.parse(payload) as ClaudeStreamEvent;
+          const evt = JSON.parse(payload) as ClaudeStreamEvent;
+          if (
+            evt.type === 'content_block_delta' &&
+            evt.delta?.type === 'text_delta' &&
+            evt.delta.text
+          ) {
+            yield evt.delta.text;
+          }
         } catch {
-          continue;
-        }
-
-        if (
-          event.type === 'content_block_delta' &&
-          event.delta?.type === 'text_delta' &&
-          event.delta.text
-        ) {
-          yield event.delta.text;
+          // ignore malformed SSE chunks
         }
       }
     }
