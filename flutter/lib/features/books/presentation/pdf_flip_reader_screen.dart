@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:page_flip/page_flip.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -11,10 +12,12 @@ import '../data/books_repository.dart';
 import '../models/book_pdf.dart';
 import '../widgets/pdf_flip_page.dart';
 
-/// Flipbook reader: [pdfrx] renders pages, [page_flip] animates turns.
+/// Flipbook reader: [pdfrx] renders pages, [page_flip] animates turns on mobile.
 ///
-/// Uses a sliding window of pages so [PageFlipWidget] never holds hundreds of
-/// [AnimationController]s (common OOM / jank source on Android & iOS).
+/// Web uses a single-page navigator (no [PageFlipWidget] / [PageView]) because
+/// `RepaintBoundary.toImage` and heavy adjacent-page builds are unreliable with
+/// PDFium WASM. Mobile keeps a sliding window so [PageFlipWidget] never holds
+/// hundreds of [AnimationController]s.
 class PdfFlipReaderScreen extends StatefulWidget {
   const PdfFlipReaderScreen({
     super.key,
@@ -42,6 +45,8 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
   static const int _edgePrefetch = 1;
 
   late final BooksRepository _repository;
+  late final bool _ownsRepository;
+  final FocusNode _focusNode = FocusNode();
   PageFlipController _flipController = PageFlipController();
   int _currentIndex = 0;
   int _pageCount = 0;
@@ -51,11 +56,11 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
   int? _pendingSavePage;
   Future<String>? _openUrlFuture;
   bool _resumeApplied = false;
-  PageController? _webPageController;
 
   @override
   void initState() {
     super.initState();
+    _ownsRepository = widget.repository == null;
     _repository = widget.repository ?? BooksRepository();
     _currentIndex = (widget.initialPage - 1).clamp(0, 9999);
     if (widget.resumeFromServer) {
@@ -71,21 +76,10 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
     if (_resumeApplied) return;
     _resumeApplied = true;
     setState(() {
-      _currentIndex = (page - 1).clamp(0, 9999);
+      _currentIndex = (page - 1).clamp(0, _pageCount > 0 ? _pageCount - 1 : 9999);
       _windowStart = 0;
       _flipEpoch++;
     });
-    _syncWebPageController();
-  }
-
-  void _syncWebPageController() {
-    if (!kIsWeb) return;
-    final controller = _webPageController;
-    if (controller == null || !controller.hasClients) return;
-    final target = _currentIndex.clamp(0, _pageCount > 0 ? _pageCount - 1 : _currentIndex);
-    if (controller.page?.round() != target) {
-      controller.jumpToPage(target);
-    }
   }
 
   @override
@@ -117,8 +111,11 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
       }
     }
     _clearFlipCache();
-    _webPageController?.dispose();
-    _repository.dispose();
+    _focusNode.dispose();
+    // Do not close a shared client owned by BooksScreen / caller.
+    if (_ownsRepository) {
+      _repository.dispose();
+    }
     super.dispose();
   }
 
@@ -134,7 +131,8 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
     return (_windowSize).clamp(1, _pageCount);
   }
 
-  int get _localIndex => (_currentIndex - _windowStart).clamp(0, _windowLength - 1);
+  int get _localIndex =>
+      (_currentIndex - _windowStart).clamp(0, _windowLength - 1);
 
   void _syncWindow({required bool remount}) {
     if (_pageCount <= 0) return;
@@ -150,7 +148,6 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
       return;
     }
     if (start == _windowStart && !remount && !outOfWindow) {
-      // Still near an edge — shift window toward the reading direction.
       if (nearEnd && _windowStart + len < _pageCount) {
         start = (_currentIndex - half).clamp(0, _pageCount - len);
       } else if (nearStart && _windowStart > 0) {
@@ -192,10 +189,7 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
   void _goPrev() {
     if (_currentIndex <= 0) return;
     if (kIsWeb) {
-      _webPageController?.previousPage(
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOut,
-      );
+      _jumpTo(_currentIndex - 1);
       return;
     }
     if (_localIndex > 0) {
@@ -210,10 +204,7 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
   void _goNext() {
     if (_currentIndex >= _pageCount - 1) return;
     if (kIsWeb) {
-      _webPageController?.nextPage(
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOut,
-      );
+      _jumpTo(_currentIndex + 1);
       return;
     }
     if (_localIndex < _windowLength - 1) {
@@ -226,22 +217,32 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
   }
 
   void _jumpTo(int absoluteIndex) {
+    if (_pageCount <= 0) return;
     final idx = absoluteIndex.clamp(0, _pageCount - 1);
     if (idx == _currentIndex) return;
-    if (kIsWeb) {
-      setState(() => _currentIndex = idx);
-      _scheduleSave(idx + 1);
-      _webPageController?.jumpToPage(idx);
-      return;
-    }
     setState(() => _currentIndex = idx);
     _scheduleSave(idx + 1);
-    _syncWindow(remount: true);
+    if (!kIsWeb) {
+      _syncWindow(remount: true);
+    }
   }
 
-  void _onWebPageChanged(int index) {
-    setState(() => _currentIndex = index);
-    _scheduleSave(index + 1);
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+        event.logicalKey == LogicalKeyboardKey.pageUp) {
+      _goPrev();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight ||
+        event.logicalKey == LogicalKeyboardKey.pageDown ||
+        event.logicalKey == LogicalKeyboardKey.space) {
+      _goNext();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   Widget _buildBottomBar(int count, ColorScheme colors) {
@@ -280,18 +281,66 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
     );
   }
 
-  Widget _buildWebPageView(PdfDocument document, int count) {
-    _webPageController ??= PageController(
-      initialPage: _currentIndex.clamp(0, count - 1),
-    );
-
-    return PageView.builder(
-      controller: _webPageController,
-      itemCount: count,
-      onPageChanged: _onWebPageChanged,
-      itemBuilder: (context, index) => PdfFlipPage(
-        document: document,
-        pageNumber: index + 1,
+  /// Web: one page at a time + swipe / click edges. Avoids PageView rebuild storms.
+  Widget _buildWebReader(PdfDocument document, int count) {
+    final index = _currentIndex.clamp(0, count - 1);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragEnd: (details) {
+        final vx = details.primaryVelocity ?? 0;
+        if (vx < -200) {
+          _goNext();
+        } else if (vx > 200) {
+          _goPrev();
+        }
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: KeyedSubtree(
+              key: ValueKey('web-page-$index'),
+              child: PdfFlipPage(
+                document: document,
+                pageNumber: index + 1,
+              ),
+            ),
+          ),
+          // Large invisible hit targets so buttons aren't the only way to turn.
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 56,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _currentIndex > 0 ? _goPrev : null,
+                overlayColor: WidgetStatePropertyAll(
+                  Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: 56,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _currentIndex < count - 1 ? _goNext : null,
+                overlayColor: WidgetStatePropertyAll(
+                  Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -340,14 +389,10 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
           setState(() {
             _pageCount = count;
             _currentIndex = _currentIndex.clamp(0, count - 1);
-            if (kIsWeb) {
-              _webPageController?.dispose();
-              _webPageController = PageController(initialPage: _currentIndex);
-            } else {
+            if (!kIsWeb) {
               final len = _windowSize.clamp(1, count);
               final half = len ~/ 2;
-              _windowStart =
-                  (_currentIndex - half).clamp(0, count - len);
+              _windowStart = (_currentIndex - half).clamp(0, count - len);
             }
           });
         });
@@ -355,16 +400,21 @@ class _PdfFlipReaderScreenState extends State<PdfFlipReaderScreen> {
       }
 
       if (kIsWeb) {
-        return Column(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                child: _buildWebPageView(document, count),
+        return Focus(
+          focusNode: _focusNode,
+          autofocus: true,
+          onKeyEvent: _onKey,
+          child: Column(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                  child: _buildWebReader(document, count),
+                ),
               ),
-            ),
-            _buildBottomBar(count, colors),
-          ],
+              _buildBottomBar(count, colors),
+            ],
+          ),
         );
       }
 

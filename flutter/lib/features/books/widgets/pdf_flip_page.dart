@@ -18,6 +18,8 @@ class PdfFlipPage extends StatelessWidget {
   static const _paper = Color(0xFFFFF8E7);
 
   static double get _dpi {
+    // Web WASM rasterizes slowly; keep DPI modest so page turns stay responsive.
+    if (kIsWeb) return 120;
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
       case TargetPlatform.iOS:

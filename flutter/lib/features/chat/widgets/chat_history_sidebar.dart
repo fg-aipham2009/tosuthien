@@ -13,6 +13,49 @@ class ChatHistorySidebar extends StatelessWidget {
   final ChatController controller;
   final VoidCallback? onItemTap;
 
+  Future<void> _confirmDelete(
+    BuildContext context,
+    ChatController controller,
+    ChatConversation item,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final colors = Theme.of(ctx).colorScheme;
+        return AlertDialog(
+          title: const Text('Xóa hội thoại?'),
+          content: Text(
+            '「${item.title}」 sẽ bị xóa và không thể khôi phục.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: colors.error,
+                foregroundColor: colors.onError,
+              ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Xóa'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    await controller.deleteConversation(item.id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(content: Text('Đã xóa hội thoại')),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -146,8 +189,11 @@ class ChatHistorySidebar extends StatelessWidget {
                                         minWidth: 32,
                                         minHeight: 32,
                                       ),
-                                      onPressed: () =>
-                                          controller.deleteConversation(item.id),
+                                      onPressed: () => _confirmDelete(
+                                        context,
+                                        controller,
+                                        item,
+                                      ),
                                       icon: Icon(
                                         Icons.close_rounded,
                                         size: 16,
