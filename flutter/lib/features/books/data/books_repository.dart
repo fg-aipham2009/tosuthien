@@ -1,6 +1,7 @@
 import '../../../core/device/device_id.dart';
 import '../../../core/network/api_client.dart';
 import '../models/book_pdf.dart';
+import '../models/text_book.dart';
 
 class BooksRepository {
   BooksRepository({ApiClient? client}) : _client = client ?? ApiClient();
@@ -23,6 +24,50 @@ class BooksRepository {
     return rows
         .whereType<Map<String, dynamic>>()
         .map(BookPdf.fromJson)
+        .toList();
+  }
+
+  Future<List<TextBook>> fetchTextBooks() async {
+    final deviceId = await _resolveDeviceId();
+    final rows = await _client.getList(
+      '/text-books',
+      query: {'device_id': deviceId},
+    );
+    return rows
+        .whereType<Map<String, dynamic>>()
+        .map(TextBook.fromJson)
+        .toList();
+  }
+
+  Future<TextBook?> fetchTextBookById(String id) async {
+    final deviceId = await _resolveDeviceId();
+    try {
+      final json = await _client.getObject(
+        '/text-books/$id',
+        query: {'device_id': deviceId},
+      );
+      return TextBook.fromJson(json);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Load a window of pages (server caps range; default ~20 pages).
+  Future<List<TextBookPage>> fetchTextPages(
+    String id, {
+    required int from,
+    int? to,
+  }) async {
+    final query = <String, String>{
+      'from': '$from',
+      if (to != null) 'to': '$to',
+    };
+    final json = await _client.getObject('/text-books/$id/pages', query: query);
+    final pages = json['pages'];
+    if (pages is! List) return const [];
+    return pages
+        .whereType<Map<String, dynamic>>()
+        .map(TextBookPage.fromJson)
         .toList();
   }
 
@@ -59,7 +104,8 @@ class BooksRepository {
 
     final books = await fetchBooks();
     for (final book in books) {
-      final bookStem = book.filename.replaceAll(RegExp(r'\.pdf$', caseSensitive: false), '');
+      final bookStem =
+          book.filename.replaceAll(RegExp(r'\.pdf$', caseSensitive: false), '');
       if (bookStem == stem) return book;
       if (book.storagePath == 'pdf/$stem.pdf') return book;
     }

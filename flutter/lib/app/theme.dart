@@ -15,6 +15,14 @@ abstract final class AppTheme {
     colors: [Color(0xFF8D6E63), Color(0xFF5D4037)],
   );
 
+  /// Spotify/Zing-style Now Playing palette (dark canvas + brand accent).
+  static const playerCanvas = Color(0xFF121212);
+  static const playerSurface = Color(0xFF282828);
+  static const playerAccent = Color(0xFFD4A574);
+  static const playerAccentPressed = Color(0xFFB8895A);
+  static const playerTextSecondary = Color(0xFFB3B3B3);
+  static const playerTextTertiary = Color(0xFF6A6A6A);
+
   static ThemeData get light => ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: _seedColor,

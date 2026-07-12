@@ -38,6 +38,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-tosuthien}:${POSTGRES_PASSWORD:-thamthien}@db:5432/${POSTGRES_DB:-tosuthien}
       DATA_ROOT: /data
+      TEXT_BOOKS_ROOT: /text-books
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://api.tosuthien.net}
       PORT: 8000
       # host.docker.internal → embed_server.py on the Mac host (port 7997)
@@ -46,6 +47,7 @@ services:
       - "${API_PORT:-8000}:8000"
     volumes:
       - ./data:/data
+      - ./text/doc-chu/books:/text-books:ro
     depends_on:
       db:
         condition: service_healthy

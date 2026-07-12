@@ -25,11 +25,13 @@ class ChatStreamDelta extends ChatStreamEvent {
 class ChatStreamDone extends ChatStreamEvent {
   const ChatStreamDone({
     required this.answer,
+    this.aiInterpretation,
     required this.disclaimer,
     required this.citations,
   });
 
   final String answer;
+  final String? aiInterpretation;
   final String disclaimer;
   final List<ChatCitation> citations;
 }
@@ -49,7 +51,13 @@ class ChatRepository {
   final http.Client _http;
   final bool _ownsHttp;
 
-  Future<({String answer, String disclaimer, List<ChatCitation> citations})> ask(
+  Future<
+      ({
+        String answer,
+        String? aiInterpretation,
+        String disclaimer,
+        List<ChatCitation> citations,
+      })> ask(
     String question,
   ) async {
     final json = await _client.post('/rag/chat', {'question': question});
@@ -60,6 +68,7 @@ class ChatRepository {
 
     return (
       answer: json['answer'] as String? ?? '',
+      aiInterpretation: json['aiInterpretation'] as String?,
       disclaimer: json['disclaimer'] as String? ?? '',
       citations: citations,
     );
@@ -174,6 +183,7 @@ class ChatRepository {
             .toList();
         return ChatStreamDone(
           answer: json['answer'] as String? ?? '',
+          aiInterpretation: json['aiInterpretation'] as String?,
           disclaimer: json['disclaimer'] as String? ?? '',
           citations: citations,
         );

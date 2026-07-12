@@ -15,7 +15,7 @@ import {
   ChatCitation,
   ChatStreamEvent,
 } from './rag.types';
-import { RAG_DISCLAIMER, clampTopK, CANDIDATE_POOL } from './rag.constants';
+import { RAG_DISCLAIMER, clampTopK, CANDIDATE_POOL, AI_INTERPRETATION_MARKER } from './rag.constants';
 import { expandKeywords, questionStem, analyzeQuery } from './rag-keywords.util';
 import { isKinhSource, sourceTier, toPrintedPage, printedPageOffset } from './rag-source.util';
 import {
@@ -27,10 +27,10 @@ import {
 } from './rag-answer-style';
 
 /** Cap LLM context — neighbor ±1 pages need room for full paragraphs. */
-const MAX_CONTEXT_CHARS = 28_000;
+const MAX_CONTEXT_CHARS = 36_000;
 /** Soft cap for citation quote — prefer whole paragraphs under this size. */
 const QUOTE_MAX_CHARS = 4_800;
-const MAX_DISPLAY_CITATIONS = 16;
+const MAX_DISPLAY_CITATIONS = 24;
 const SENTENCE_ENDINGS = /[.!?;:…]/;
 const PARAGRAPH_SPLIT = /\n{2,}|(?=\[Trang\s+\d+\])/;
 /** Reciprocal Rank Fusion constant — dịu ảnh hưởng thứ hạng thấp (chuẩn ~60) */
@@ -101,7 +101,7 @@ export class ChatService {
       });
     }
 
-    const answer = this.rewriteNumericSourceRefs(
+    const { answer, aiInterpretation } = this.enforceVerbatimAnswer(
       await this.llm.answer(
         prepared.q,
         blocks,
@@ -119,6 +119,7 @@ export class ChatService {
 
     return {
       answer,
+      aiInterpretation,
       disclaimer: RAG_DISCLAIMER,
       citations: displayCitations,
       meta: {
@@ -146,6 +147,7 @@ export class ChatService {
       yield {
         type: 'done',
         answer: empty.answer,
+        aiInterpretation: empty.aiInterpretation,
         disclaimer: empty.disclaimer,
         citations: empty.citations,
         meta: empty.meta,
@@ -169,6 +171,7 @@ export class ChatService {
       yield {
         type: 'done',
         answer: empty.answer,
+        aiInterpretation: empty.aiInterpretation,
         disclaimer: empty.disclaimer,
         citations: empty.citations,
         meta: empty.meta,
@@ -193,7 +196,7 @@ export class ChatService {
       prepared.sourceHints,
     );
 
-    const answer = this.rewriteNumericSourceRefs(
+    const { answer, aiInterpretation } = this.enforceVerbatimAnswer(
       parts.join('').trim(),
       citations,
     );
@@ -202,6 +205,7 @@ export class ChatService {
       answer:
         answer ||
         'Trong tư liệu hiện có chưa tìm thấy đoạn liên quan. Hãy thử hỏi theo từ khóa khác.',
+      aiInterpretation,
       disclaimer: RAG_DISCLAIMER,
       citations: displayCitations,
       meta: {
@@ -224,7 +228,7 @@ export class ChatService {
         sourceHints: string[];
         hits: PassageHit[];
         blocks: string[];
-        slimCitations: Omit<ChatCitation, 'pdf' | 'openLabel'>[];
+        slimCitations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[];
         styleContext: AnswerStyleContext;
         meta: ChatResult['meta'];
       }
@@ -376,6 +380,7 @@ export class ChatService {
     return {
       answer:
         'Trong tư liệu hiện có chưa tìm thấy đoạn liên quan. Hãy thử hỏi theo từ khóa khác.',
+      aiInterpretation: null,
       disclaimer: RAG_DISCLAIMER,
       citations: [],
       meta,
@@ -383,7 +388,7 @@ export class ChatService {
   }
 
   private async prepareDisplayCitations(
-    citations: Omit<ChatCitation, 'pdf' | 'openLabel'>[],
+    citations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
     keywords: string[],
     sourceHints: string[],
   ): Promise<ChatCitation[]> {
@@ -405,12 +410,12 @@ export class ChatService {
    * Round-robin across source files so citations aren't dominated by one book.
    */
   private diversifyCitationsBySource(
-    citations: Omit<ChatCitation, 'pdf' | 'openLabel'>[],
+    citations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
     limit: number,
-  ): Omit<ChatCitation, 'pdf' | 'openLabel'>[] {
+  ): Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] {
     if (citations.length <= limit) return citations;
 
-    const queues = new Map<string, Omit<ChatCitation, 'pdf' | 'openLabel'>[]>();
+    const queues = new Map<string, Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[]>();
     for (const c of citations) {
       const key = c.sourceFile || c.title || 'unknown';
       const list = queues.get(key) ?? [];
@@ -419,7 +424,7 @@ export class ChatService {
     }
 
     const buckets = [...queues.values()];
-    const out: Omit<ChatCitation, 'pdf' | 'openLabel'>[] = [];
+    const out: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] = [];
     let i = 0;
     while (out.length < limit && buckets.some((b) => b.length > 0)) {
       const bucket = buckets[i % buckets.length];
@@ -455,7 +460,7 @@ export class ChatService {
   }
 
   private citationRank(
-    c: Omit<ChatCitation, 'pdf' | 'openLabel'>,
+    c: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>,
     keywords: string[],
   ): number {
     let rank = this.keywordHitScore(c.quote, keywords) * 10;
@@ -467,7 +472,7 @@ export class ChatService {
   }
 
   private isRelevantCitation(
-    c: Omit<ChatCitation, 'pdf' | 'openLabel'>,
+    c: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>,
     keywords: string[],
     sourceHints: string[],
   ): boolean {
@@ -1009,15 +1014,13 @@ export class ChatService {
 
         if (!mergedParts.length) return hit;
 
-        // Keep OCR/file pages on the hit for PDF open; display offset applied in buildContext.
-        const openPage = pages[0] ?? center;
-
+        // Neighbor window is only for LLM context. Cite/open the hit page itself.
         return {
           ...hit,
           content: mergedParts.join('\n\n'),
-          pageNum: openPage,
-          pageStart: pages[0] ?? pageStart,
-          pageEnd: pages[pages.length - 1] ?? pageEnd,
+          pageNum: center,
+          pageStart: center,
+          pageEnd: center,
         } as PassageHit & { pageStart: number; pageEnd: number };
       }),
     );
@@ -1047,7 +1050,7 @@ export class ChatService {
   }
 
   private buildContext(hits: PassageHit[], keywords: string[]) {
-    const citations: Omit<ChatCitation, 'pdf' | 'openLabel'>[] = [];
+    const citations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] = [];
     const blocks: string[] = [];
     let used = 0;
 
@@ -1056,27 +1059,23 @@ export class ChatService {
         pageStart?: number;
         pageEnd?: number;
       };
-      // Hits store OCR/file pages; expose printed pages in labels + citations.
-      const ocrStart = h.pageStart ?? h.pageNum;
-      const ocrEnd = h.pageEnd ?? h.pageNum;
-      const pageStart = toPrintedPage(h.sourceFile, ocrStart);
-      const pageEnd = toPrintedPage(h.sourceFile, ocrEnd);
+      // Hits store OCR/file pages; expose printed page of the HIT (not neighbor window).
+      const ocrPage = h.pageNum ?? h.pageStart ?? h.pageEnd;
+      const printedPage = toPrintedPage(h.sourceFile, ocrPage);
       const tier = sourceTier(h.title, h.sourceFile);
-      const label = this.formatLabel(h.title, h.volume, pageStart, pageEnd);
-      const header = [
-        `[${tierLabel(tier)}]`,
-        `Trích dẫn: ${label}`,
-        h.sourceFile ? `File: ${h.sourceFile}` : null,
-      ]
-        .filter(Boolean)
-        .join('\n');
+      const headerLabel = this.formatLabel(
+        h.title,
+        h.volume,
+        printedPage,
+        printedPage,
+      );
+      const header = `[${tierLabel(tier)}]\nTrích dẫn: ${headerLabel}`;
 
       const maxChars = maxPassageCharsForTier(tier);
       // Neighbor windows are larger — allow more chars so 3 pages aren't truncated away.
+      const pageMarkers = (h.content.match(/\[Trang\s+\d+\]/g) ?? []).length;
       const windowBonus =
-        ocrStart != null && ocrEnd != null && ocrEnd > ocrStart
-          ? Math.min(4_800, (ocrEnd - ocrStart) * 2_000)
-          : 0;
+        pageMarkers > 1 ? Math.min(4_800, (pageMarkers - 1) * 2_000) : 0;
       const body = this.trimPassageAtSentence(h.content, maxChars + windowBonus);
       const block = `${header}\n${body}`;
       if (used + block.length > MAX_CONTEXT_CHARS) break;
@@ -1085,15 +1084,26 @@ export class ChatService {
       used += block.length;
 
       const quote = this.extractQuote(body, keywords);
+      const pageSections = this.splitContentByPrintedPage(body);
+      const pages =
+        pageSections.length > 0
+          ? pageSections.map((s) => s.page)
+          : printedPage != null
+            ? [printedPage]
+            : [];
+      const windowStart = pages.length ? pages[0] : printedPage;
+      const windowEnd = pages.length ? pages[pages.length - 1] : printedPage;
 
+      // One citation card per source hit; page chips open each page in the window.
       citations.push({
         passageId: h.passageId,
-        label,
+        label: this.formatLabel(h.title, h.volume, windowStart, windowEnd),
         title: h.title,
         volume: h.volume,
-        pageNum: pageStart ?? null,
-        pageStart: pageStart ?? null,
-        pageEnd: pageEnd ?? null,
+        pageNum: printedPage ?? windowStart ?? null,
+        pageStart: windowStart ?? null,
+        pageEnd: windowEnd ?? null,
+        pages,
         sourceFile: h.sourceFile,
         score: Math.round(h.score * 1000) / 1000,
         quote,
@@ -1102,6 +1112,22 @@ export class ChatService {
     }
 
     return { blocks, citations };
+  }
+
+  /** Split expanded body marked with [Trang N] into per-page excerpts. */
+  private splitContentByPrintedPage(
+    content: string,
+  ): Array<{ page: number; body: string }> {
+    const chunks = content.split(/(?=\[Trang\s+\d+\])/i);
+    const out: Array<{ page: number; body: string }> = [];
+    for (const chunk of chunks) {
+      const m = chunk.match(/^\[Trang\s+(\d+)\]\s*/i);
+      if (!m) continue;
+      const body = chunk.slice(m[0].length).trim();
+      if (!body) continue;
+      out.push({ page: Number(m[1]), body });
+    }
+    return out;
   }
 
   private formatLabel(
@@ -1121,8 +1147,7 @@ export class ChatService {
   }
 
   /**
-   * If the model still writes "nguồn 1/2", map those indexes back to
-   * context citation labels (book title + page).
+   * Map leftover "Nguồn N" / "(Nguồn N)" in the answer to book title + page labels.
    */
   private rewriteNumericSourceRefs(
     answer: string,
@@ -1130,17 +1155,186 @@ export class ChatService {
   ): string {
     if (!answer || !citations.length) return answer;
 
-    return answer.replace(
-      /([—–-]\s*)?(?:\(|\[)?\s*[Nn]guồn\s*(\d+)\s*(?:\)|\])?/g,
-      (match, dashPrefix: string | undefined, numStr: string) => {
-        const idx = Number(numStr) - 1;
-        if (idx < 0 || idx >= citations.length) return match;
-        const label = citations[idx]?.label?.trim();
-        if (!label) return match;
-        const prefix = dashPrefix?.trim() ? '— ' : '— ';
-        return `${prefix}(${label})`;
+    let out = answer.replace(
+      /\(\s*[Nn]guồn\s*(\d+)\s*\)/g,
+      (_match, numStr: string) => {
+        const label = citations[Number(numStr) - 1]?.label?.trim();
+        return label ? `(${label})` : _match;
       },
     );
+
+    out = out.replace(/\b[Nn]guồn\s*(\d+)\b/g, (match, numStr: string) => {
+      const label = citations[Number(numStr) - 1]?.label?.trim();
+      return label ?? match;
+    });
+
+    return out;
+  }
+
+  /**
+   * Split LLM output into scripture quotes (`answer`) and a separate
+   * `aiInterpretation` field shown last in the client.
+   */
+  private enforceVerbatimAnswer(
+    answer: string,
+    citations: Array<{ label: string }>,
+  ): { answer: string; aiInterpretation: string | null } {
+    const rewritten = this.rewriteNumericSourceRefs(answer, citations);
+    if (!rewritten.trim()) {
+      return { answer: rewritten, aiInterpretation: null };
+    }
+
+    const { scripture, aiBody } = this.splitAiInterpretation(rewritten);
+    const cleanedScripture = scripture.trim();
+
+    // Prefer the model's long verbatim block when it already looks correct —
+    // re-extracting quotes can accidentally shorten passages.
+    let scriptureOut: string;
+    if (this.looksLikeLongVerbatim(cleanedScripture)) {
+      scriptureOut = cleanedScripture;
+    } else {
+      scriptureOut =
+        this.extractQuoteCitationPairs(cleanedScripture, citations) ||
+        cleanedScripture ||
+        rewritten.trim();
+    }
+
+    if (!aiBody?.trim()) {
+      return { answer: scriptureOut, aiInterpretation: null };
+    }
+
+    const cleanedAi = this.cleanAiInterpretationTone(aiBody);
+
+    return {
+      answer: scriptureOut,
+      aiInterpretation: cleanedAi || null,
+    };
+  }
+
+  /** True when scripture already has long quotes + book citations (keep as-is). */
+  private looksLikeLongVerbatim(scripture: string): boolean {
+    if (!scripture) return false;
+    const quoteMatches = scripture.match(/"([^"]{40,})"/g) ?? [];
+    const citeMatches = scripture.match(/[—–-]\s*\([^)]+tr\.\s*\d+/gi) ?? [];
+    const hasAiLeak =
+      /phân tích|tóm lại|theo tôi|nguồn\s*\d+/i.test(scripture) &&
+      quoteMatches.length === 0;
+    if (hasAiLeak) return false;
+    return quoteMatches.length >= 1 && citeMatches.length >= 1;
+  }
+
+  /** Strip stiff meta openers so the AI section reads naturally. */
+  private cleanAiInterpretationTone(raw: string): string {
+    let text = raw.trim();
+    const leadPatterns = [
+      /^\s*Đây là diễn giải của AI[^\n:]*:\s*/i,
+      /^\s*Diễn giải của AI[^\n:]*:\s*/i,
+      /^\s*Dựa vào (các )?đoạn trích( dẫn)?[^\n:]*:\s*/i,
+      /^\s*Dựa trên (các )?đoạn trích( dẫn)?[^\n:]*:\s*/i,
+      /^\s*Theo (các )?đoạn (trích|trên)[^\n:]*:\s*/i,
+      /^\s*Theo câu hỏi và[^\n:]*:\s*/i,
+      /^\s*Dựa vào câu hỏi và[^\n:]*:\s*/i,
+    ];
+    for (const re of leadPatterns) {
+      text = text.replace(re, '');
+    }
+    // Soften leftover meta phrases mid-text (first sentence only).
+    text = text.replace(
+      /^(Dựa vào|Dựa trên|Theo)\s+(các\s+)?đoạn\s+trích[^.。]*[.。]\s*/i,
+      '',
+    );
+    return text.trim();
+  }
+
+  private splitAiInterpretation(text: string): {
+    scripture: string;
+    aiBody: string | null;
+  } {
+    const markers = [
+      AI_INTERPRETATION_MARKER,
+      '【AI diễn giải】',
+      '[AI diễn giải]',
+      'AI diễn giải:',
+    ];
+    let idx = -1;
+    let markerLen = 0;
+    for (const m of markers) {
+      const i = text.indexOf(m);
+      if (i >= 0 && (idx < 0 || i < idx)) {
+        idx = i;
+        markerLen = m.length;
+      }
+    }
+    if (idx < 0) return { scripture: text, aiBody: null };
+    return {
+      scripture: text.slice(0, idx).trim(),
+      aiBody: text.slice(idx + markerLen).trim(),
+    };
+  }
+
+  private extractQuoteCitationPairs(
+    scripture: string,
+    citations: Array<{ label: string }>,
+  ): string | null {
+    const labels = citations
+      .map((c) => c.label?.trim())
+      .filter((l): l is string => !!l);
+
+    const pairs: string[] = [];
+    const seen = new Set<string>();
+    const quoteRe = /"([^"]{12,})"/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = quoteRe.exec(scripture)) !== null) {
+      // Preserve paragraph breaks; only tidy spaces inside lines.
+      const quote = match[1]
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n[ \t]+/g, '\n')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+      if (quote.length < 12) continue;
+
+      const before = scripture.slice(Math.max(0, match.index - 160), match.index);
+      const after = scripture.slice(
+        match.index + match[0].length,
+        match.index + match[0].length + 120,
+      );
+
+      let label =
+        this.findLabelNear(before, labels) ??
+        this.findLabelNear(after, labels) ??
+        this.findLabelInEmDash(after, labels);
+
+      if (!label && labels.length === 1) label = labels[0];
+      if (!label) continue;
+
+      const key = `${label}::${quote.slice(0, 80)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pairs.push(`"${quote}"\n— (${label})`);
+    }
+
+    return pairs.length > 0 ? pairs.join('\n\n') : null;
+  }
+
+  private findLabelNear(window: string, labels: string[]): string | null {
+    let best: string | null = null;
+    let bestPos = -1;
+    for (const label of labels) {
+      const pos = window.lastIndexOf(label);
+      if (pos > bestPos) {
+        bestPos = pos;
+        best = label;
+      }
+    }
+    return best;
+  }
+
+  private findLabelInEmDash(after: string, labels: string[]): string | null {
+    const m = after.match(/^[^\S\n]*[—–-]\s*\(([^)]+)\)/);
+    if (!m) return null;
+    const inner = m[1].trim();
+    return labels.find((l) => l === inner) ?? inner;
   }
 
   /**

@@ -1,13 +1,16 @@
-export const DEFAULT_TOP_K = 8;
-export const LOOKUP_TOP_K = 6;
-export const DEFINITION_TOP_K = 10;
-export const COMPARISON_TOP_K = 10;
-export const MAX_TOP_K = 12;
+export const DEFAULT_TOP_K = 10;
+export const LOOKUP_TOP_K = 8;
+export const DEFINITION_TOP_K = 12;
+export const COMPARISON_TOP_K = 12;
+export const MAX_TOP_K = 16;
 /** Candidate pool before filtering/ranking (recall > precision here). */
-export const CANDIDATE_POOL = 40;
+export const CANDIDATE_POOL = 48;
 
 export const RAG_DISCLAIMER =
-  'Câu trả lời do AI tổng hợp từ kinh sách. Vui lòng đọc lại đoạn trích bên dưới và mở đúng trang PDF để tự kiểm chứng — không nên tin hoàn toàn vào AI.';
+  'Nguyên văn = lời kinh sách (không chỉnh sửa). 「AI diễn giải」 lấy nền từ câu hỏi + nguyên văn; có thể bổ sung kiến thức nền — không phải kinh văn. Hãy đối chiếu thẻ nguồn và PDF.';
+
+/** Exact heading the model must use before any AI commentary. */
+export const AI_INTERPRETATION_MARKER = '【AI diễn giải】';
 
 const COMPARISON_PATTERN =
   /\b(so sánh|khác nhau|khác gì|phân biệt|đối chiếu|vs|với)\b/i;

@@ -45,7 +45,7 @@ class AppTab {
       screen: CentersScreen(),
     ),
     AppTab(
-      title: 'Me',
+      title: 'Tôi',
       icon: Icons.person_outline,
       selectedIcon: Icons.person,
       screen: MeScreen(),

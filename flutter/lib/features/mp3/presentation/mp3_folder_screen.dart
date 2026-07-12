@@ -6,6 +6,7 @@ import '../audio/mp3_audio_scope.dart';
 import '../data/mp3_repository.dart';
 import '../models/mp3_folder_listing.dart';
 import '../models/mp3_track.dart';
+import 'mp3_player_screen.dart';
 import '../widgets/mp3_folder_tile.dart';
 import '../widgets/mp3_hero_header.dart';
 import '../widgets/mp3_section_header.dart';
@@ -71,11 +72,11 @@ class _Mp3FolderScreenState extends State<Mp3FolderScreen> {
     );
   }
 
-  Future<void> _onTrackTap(List<Mp3Track> visibleTracks, Mp3Track track) async {
-    final index = visibleTracks.indexWhere((t) => t.id == track.id);
-    await Mp3AudioScope.of(context).playOrToggle(
-      visibleTracks,
-      startIndex: index < 0 ? 0 : index,
+  Future<void> _onTrackTap(List<Mp3Track> visibleTracks, Mp3Track track) {
+    return playMp3AndOpenPlayer(
+      context,
+      queue: visibleTracks,
+      track: track,
     );
   }
 

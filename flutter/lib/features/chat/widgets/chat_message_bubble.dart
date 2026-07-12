@@ -29,7 +29,7 @@ class ChatMessageBubble extends StatelessWidget {
             color: colors.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Text(
+          child: SelectableText(
             message.content,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   height: 1.5,
@@ -38,6 +38,13 @@ class ChatMessageBubble extends StatelessWidget {
         ),
       );
     }
+
+    final rawContent = message.content.isEmpty && message.isStreaming
+        ? '…'
+        : message.content;
+    // Main bubble must stay scripture-only (strip any leaked AI marker while streaming).
+    final content = _scriptureOnly(rawContent);
+    final aiText = message.aiInterpretation?.trim();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,14 +70,22 @@ class ChatMessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    message.content.isEmpty && message.isStreaming
-                        ? '…'
-                        : message.content,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          height: 1.6,
-                        ),
-                  ),
+                  if (content.isNotEmpty) ...[
+                    Text(
+                      'Nguyên văn kinh sách',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: colors.primary,
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    SelectableText(
+                      content,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            height: 1.6,
+                          ),
+                    ),
+                  ],
                   if (message.isStreaming)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -83,6 +98,25 @@ class ChatMessageBubble extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (message.citations.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Kinh sách trích dẫn (${message.citations.length})',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...message.citations.map(
+                      (c) => _CitationCard(citation: c),
+                    ),
+                  ],
+                  // Below citations only.
+                  if (aiText != null && aiText.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _AiInterpretationBox(text: aiText),
+                  ],
                   if (message.disclaimer != null) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -94,26 +128,83 @@ class ChatMessageBubble extends StatelessWidget {
                           ),
                     ),
                   ],
-                  if (message.citations.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      'Nguồn trích dẫn (${message.citations.length})',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: colors.onSurfaceVariant,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...message.citations.map(
-                      (c) => _CitationCard(citation: c),
-                    ),
-                  ],
                 ],
               ),
             ),
           ],
         ),
       ],
+    );
+  }
+}
+
+String _scriptureOnly(String content) {
+  const marker = '【AI diễn giải】';
+  final idx = content.indexOf(marker);
+  if (idx < 0) return content.trim();
+  return content.substring(0, idx).trim();
+}
+
+class _AiInterpretationBox extends StatelessWidget {
+  const _AiInterpretationBox({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: colors.secondaryContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colors.outlineVariant.withValues(alpha: 0.7),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.psychology_alt_outlined,
+                size: 18,
+                color: colors.onSecondaryContainer,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'AI diễn giải',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: colors.onSecondaryContainer,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Lời AI — nền từ câu hỏi & nguyên văn; có thể bổ sung kiến thức nền. Không phải kinh văn.',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                  height: 1.3,
+                ),
+          ),
+          const SizedBox(height: 10),
+          SelectableText(
+            text,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  height: 1.55,
+                  color: colors.onSurface,
+                ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -132,7 +223,7 @@ class _CitationCardState extends State<_CitationCard> {
 
   ChatCitation get citation => widget.citation;
 
-  Future<void> _openPdf() async {
+  Future<void> _openPdf({int? filePage}) async {
     if (_opening || !citation.canOpenPdf) return;
 
     setState(() => _opening = true);
@@ -140,7 +231,11 @@ class _CitationCardState extends State<_CitationCard> {
     final repository = BooksRepository();
 
     try {
-      final page = citation.openPage ?? citation.pdf?.pageNum ?? 1;
+      final page = filePage ??
+          citation.openPage ??
+          citation.pdf?.pageNum ??
+          citation.tappablePages.firstOrNull?.filePage ??
+          1;
       BookPdf? book;
 
       final pdf = citation.pdf;
@@ -210,90 +305,99 @@ class _CitationCardState extends State<_CitationCard> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final tappable = citation.canOpenPdf;
+    final pageChips = citation.tappablePages;
 
     return Material(
       color: colors.surfaceContainerLow,
       borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: tappable && !_opening ? _openPdf : null,
-        child: Container(
-          width: double.infinity,
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.4)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.menu_book_outlined, size: 15, color: colors.primary),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      citation.title.isEmpty ? citation.label : citation.title,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: colors.primary,
-                          ),
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.4)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.menu_book_outlined, size: 15, color: colors.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    citation.title.isEmpty ? citation.label : citation.title,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colors.primary,
+                        ),
+                  ),
+                ),
+                if (_opening)
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colors.primary,
                     ),
                   ),
-                  if (_opening)
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: colors.primary,
+              ],
+            ),
+            if (pageChips.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  for (var i = 0; i < pageChips.length; i++) ...[
+                    if (i > 0)
+                      Text(
+                        ' · ',
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
                       ),
-                    )
-                  else if (citation.pageLabel.isNotEmpty)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          citation.pageLabel,
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: colors.onSurfaceVariant,
+                    InkWell(
+                      onTap: tappable && !_opening
+                          ? () => _openPdf(filePage: pageChips[i].filePage)
+                          : null,
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 2,
+                          vertical: 2,
+                        ),
+                        child: Text(
+                          pageChips[i].openLabel,
+                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                color: tappable
+                                    ? colors.primary
+                                    : colors.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                                decoration: tappable
+                                    ? TextDecoration.underline
+                                    : TextDecoration.none,
+                                decorationColor: colors.primary,
                               ),
                         ),
-                        if (tappable) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.open_in_new_rounded,
-                            size: 14,
-                            color: colors.primary,
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
+                  ],
                 ],
               ),
-              if (citation.body.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  citation.body,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                        height: 1.45,
-                      ),
-                ),
-              ],
-              if (tappable && !_opening) ...[
-                const SizedBox(height: 8),
-                Text(
-                  citation.openButtonLabel,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
             ],
-          ),
+            if (citation.body.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              SelectableText(
+                citation.body,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                      height: 1.45,
+                    ),
+              ),
+            ],
+          ],
         ),
       ),
     );

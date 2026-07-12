@@ -25,11 +25,17 @@ export interface ChatCitation {
   label: string;
   title: string;
   volume: string | null;
-  /** Primary page to open in PDF (usually the start of the nearby window). */
+  /** Primary printed page (hit page). */
   pageNum: number | null;
-  /** Inclusive page window around the hit (e.g. 127–129). */
+  /** First printed page in the neighbor window (if any). */
   pageStart: number | null;
+  /** Last printed page in the neighbor window (if any). */
   pageEnd: number | null;
+  /**
+   * All printed pages in this one citation (e.g. 16,17,18).
+   * UI shows one card; each page chip opens that page.
+   */
+  pages?: number[];
   sourceFile: string;
   score: number;
   /** Đoạn trích liên quan câu hỏi — hiển thị bắt buộc cho user tự đối chiếu */
@@ -38,6 +44,12 @@ export interface ChatCitation {
   /** Nút mở PDF đúng trang (null nếu chưa có PDF trong hệ thống) */
   pdf: PdfOpenLink | null;
   openLabel: string | null;
+  /** Per-page open targets for chips inside one citation card. */
+  pageLinks?: Array<{
+    printed: number;
+    filePage: number;
+    openLabel: string;
+  }>;
 }
 
 export interface ChatMeta {
@@ -61,6 +73,8 @@ export interface ChatMeta {
 
 export interface ChatResult {
   answer: string;
+  /** AI commentary — separate from scripture quotes; show last in UI. */
+  aiInterpretation: string | null;
   disclaimer: string;
   citations: ChatCitation[];
   meta: ChatMeta;
@@ -73,6 +87,7 @@ export type ChatStreamEvent =
   | {
       type: 'done';
       answer: string;
+      aiInterpretation: string | null;
       disclaimer: string;
       citations: ChatCitation[];
       meta: ChatMeta;

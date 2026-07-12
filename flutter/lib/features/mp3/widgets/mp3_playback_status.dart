@@ -39,7 +39,7 @@ extension Mp3PlaybackPhaseX on Mp3PlaybackPhase {
       };
 
   IconData get actionIcon =>
-      isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill;
+      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded;
 
   IconData get compactActionIcon =>
       isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded;
@@ -118,7 +118,7 @@ class Mp3PlaybackTitleBlock extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             meta,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: colors.onSurfaceVariant,
@@ -144,32 +144,45 @@ class Mp3PlaybackActionButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool compact;
 
+  static const double _box = 40;
+  static const double _iconSize = 22;
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
     if (compact) {
-      return IconButton(
-        onPressed: onPressed,
-        icon: Icon(phase.compactActionIcon),
-        style: IconButton.styleFrom(
-          backgroundColor: colors.primaryContainer,
-          foregroundColor: colors.onPrimaryContainer,
+      return SizedBox(
+        width: _box,
+        height: _box,
+        child: IconButton(
+          onPressed: onPressed,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: _box, height: _box),
+          icon: Icon(phase.compactActionIcon, size: _iconSize),
+          style: IconButton.styleFrom(
+            backgroundColor: colors.primaryContainer,
+            foregroundColor: colors.onPrimaryContainer,
+          ),
         ),
       );
     }
 
-    return IconButton(
-      onPressed: onPressed,
-      icon: Icon(
-        phase.actionIcon,
-        size: 36,
-        color: phase.isActive
-            ? colors.primary
-            : colors.primary.withValues(alpha: 0.75),
+    return SizedBox(
+      width: _box,
+      height: _box,
+      child: IconButton(
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: _box, height: _box),
+        icon: Icon(
+          phase.actionIcon,
+          size: _iconSize,
+          color: phase.isActive
+              ? colors.primary
+              : colors.onSurfaceVariant,
+        ),
       ),
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
     );
   }
 }

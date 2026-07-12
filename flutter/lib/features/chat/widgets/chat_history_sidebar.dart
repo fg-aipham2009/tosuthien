@@ -52,7 +52,16 @@ class ChatHistorySidebar extends StatelessWidget {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(content: Text('Đã xóa hội thoại')),
+        SnackBar(
+          content: const Text('Đã xóa hội thoại'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(milliseconds: 1600),
+          margin: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
   }
 
@@ -60,12 +69,13 @@ class ChatHistorySidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return Material(
-      color: colors.surfaceContainerLow,
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+    return ScaffoldMessenger(
+      child: Scaffold(
+        backgroundColor: colors.surfaceContainerLow,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
               child: Row(
@@ -211,6 +221,7 @@ class ChatHistorySidebar extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

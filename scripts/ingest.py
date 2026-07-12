@@ -46,12 +46,14 @@ TITLE_OVERRIDES: dict[str, str] = {
     "12.txt": "CỘI NGUỒN TRUYỀN THỪA · THIỀN THẤT KHAI THỊ LỤC",
     "13.txt": "DUY LỰC NGỮ LỤC",
     "14.txt": "DUY LỰC NGỮ LỤC",
+    "15.txt": "LƯỢC GIẢNG KINH LĂNG NGHIÊM",
     "16.txt": "ĐẠI THỪA TUYỆT ĐỐI LUẬN",
     "17.txt": "TRIỆU LUẬN LƯỢC GIẢI",
     "18.txt": "LƯỢC GIẢNG KINH KIM CANG",
     "19.txt": "KINH LĂNG NGHIÊM",
     "20.txt": "KINH LĂNG GIÀ",
     "21.txt": "ĐƯỜNG LỐI THỰC HÀNH THAM TỔ SƯ THIỀN",
+    "22.txt": "LƯỢC GIẢNG TÍN TÂM MINH TỊCH NGHĨA GIẢI",
 }
 
 VOLUME_OVERRIDES: dict[str, str | None] = {

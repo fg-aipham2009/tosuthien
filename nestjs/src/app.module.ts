@@ -10,6 +10,7 @@ import { MediaModule } from './media/media.module';
 import { RagModule } from './rag/rag.module';
 import { UploadModule } from './upload/upload.module';
 import { FilesModule } from './files/files.module';
+import { TextBooksModule } from './text-books/text-books.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -39,6 +40,7 @@ import { AppController } from './app.controller';
     RagModule,
     UploadModule,
     FilesModule,
+    TextBooksModule,
   ],
   controllers: [AppController],
 })

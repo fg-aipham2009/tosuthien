@@ -10,10 +10,11 @@ Future<void> main() async {
   await pdfrxFlutterInitialize();
   if (!kIsWeb) {
     await JustAudioBackground.init(
-      androidNotificationChannelId: 'com.tosuthien.tosuthien.audio',
+      androidNotificationChannelId: 'com.tosuthien.audio',
       androidNotificationChannelName: 'Pháp âm',
       androidNotificationOngoing: true,
-      androidStopForegroundOnPause: true,
+      // Keep media notification (and lock-screen controls) while paused.
+      androidStopForegroundOnPause: false,
     );
   }
   runApp(const ToSuThienApp());

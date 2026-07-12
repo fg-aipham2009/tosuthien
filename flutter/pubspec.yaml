@@ -1,7 +1,7 @@
 name: tosuthien
 description: Tổ Sư Thiền — tra cứu kinh sách Hoà thượng Thích Duy Lực
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+12
 
 environment:
   sdk: ^3.8.0
@@ -13,9 +13,10 @@ dependencies:
   http: ^1.4.0
   just_audio: ^0.10.4
   just_audio_background: ^0.0.1-beta.17
+  audio_session: ^0.1.25
+  permission_handler: ^12.0.1
   shared_preferences: ^2.5.3
   pdfrx: ^2.4.4
-  page_flip: ^0.2.5+1
   path_provider: ^2.1.6
   uuid: ^4.5.3
 
@@ -26,3 +27,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/text_reader_bg_v3.png

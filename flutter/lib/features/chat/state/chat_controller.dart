@@ -162,6 +162,7 @@ class ChatController extends ChangeNotifier {
             _appendAssistantDelta(conversationId, assistantId, text);
           case ChatStreamDone(
               :final answer,
+              :final aiInterpretation,
               :final disclaimer,
               :final citations,
             ):
@@ -170,6 +171,7 @@ class ChatController extends ChangeNotifier {
               conversationId,
               assistantId,
               answer: answer,
+              aiInterpretation: aiInterpretation,
               disclaimer: disclaimer,
               citations: citations,
             );
@@ -217,6 +219,7 @@ class ChatController extends ChangeNotifier {
     String conversationId,
     String assistantId, {
     required String answer,
+    String? aiInterpretation,
     required String disclaimer,
     required List<ChatCitation> citations,
   }) {
@@ -225,6 +228,9 @@ class ChatController extends ChangeNotifier {
         if (m.id != assistantId) return m;
         return m.copyWith(
           content: answer.isNotEmpty ? answer : m.content,
+          aiInterpretation: aiInterpretation,
+          clearAiInterpretation:
+              aiInterpretation == null || aiInterpretation.isEmpty,
           disclaimer: disclaimer.isEmpty ? null : disclaimer,
           citations: citations,
           isStreaming: false,

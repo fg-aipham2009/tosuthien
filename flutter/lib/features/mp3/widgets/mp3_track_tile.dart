@@ -45,6 +45,7 @@ class Mp3TrackTile extends StatelessWidget {
       if (!showYear && track.location != null) track.location!,
       if (showYear && track.year > 0) '${track.year}',
       if (track.categoryName != null) track.categoryName!,
+      if (track.duration != null) formatDuration(track.duration),
       if (downloaded) 'Đã tải',
     ];
 
@@ -59,76 +60,68 @@ class Mp3TrackTile extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Mp3PlaybackArtwork(phase: phase, size: 48, borderRadius: 14),
                   const SizedBox(width: 14),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Mp3PlaybackTitleBlock(
-                          title: track.title,
-                          phase: phase,
-                          metaParts: metaParts,
-                        ),
-                        if (track.duration != null) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            formatDuration(track.duration),
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(color: colors.outline),
-                          ),
-                        ],
-                      ],
+                    child: Mp3PlaybackTitleBlock(
+                      title: track.title,
+                      phase: phase,
+                      metaParts: metaParts,
                     ),
                   ),
-                  if (showLibraryActions) ...[
-                    if (favorites != null)
-                      IconButton(
-                        tooltip: favorite ? 'Bỏ yêu thích' : 'Yêu thích',
-                        onPressed: () => favorites.toggle(track),
-                        icon: Icon(
-                          favorite ? Icons.favorite : Icons.favorite_border,
-                          color: favorite ? colors.error : colors.onSurfaceVariant,
-                        ),
-                        visualDensity: VisualDensity.compact,
+                  const SizedBox(width: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      if (showLibraryActions) ...[
+                        if (favorites != null)
+                          _TrackActionIcon(
+                            tooltip: favorite ? 'Bỏ yêu thích' : 'Yêu thích',
+                            onPressed: () => favorites.toggle(track),
+                            icon: favorite
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: favorite
+                                ? colors.error
+                                : colors.onSurfaceVariant,
+                          ),
+                        if (offline != null)
+                          downloading
+                              ? const SizedBox(
+                                  width: 40,
+                                  height: 40,
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : _TrackActionIcon(
+                                  tooltip: downloaded
+                                      ? 'Xóa bản offline'
+                                      : 'Tải về',
+                                  onPressed: () =>
+                                      _onDownloadPressed(context, offline),
+                                  icon: downloaded
+                                      ? Icons.download_done_rounded
+                                      : Icons.download_rounded,
+                                  color: downloaded
+                                      ? colors.primary
+                                      : colors.onSurfaceVariant,
+                                ),
+                      ],
+                      Mp3PlaybackActionButton(
+                        phase: phase,
+                        onPressed: onTap,
                       ),
-                    if (offline != null)
-                      downloading
-                          ? const Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 12,
-                              ),
-                              child: SizedBox(
-                                width: 22,
-                                height: 22,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            )
-                          : IconButton(
-                              tooltip:
-                                  downloaded ? 'Xóa bản offline' : 'Tải về',
-                              onPressed: () =>
-                                  _onDownloadPressed(context, offline),
-                              icon: Icon(
-                                downloaded
-                                    ? Icons.download_done_rounded
-                                    : Icons.download_rounded,
-                                color: downloaded
-                                    ? colors.primary
-                                    : colors.onSurfaceVariant,
-                              ),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                  ],
-                  Mp3PlaybackActionButton(
-                    phase: phase,
-                    onPressed: onTap,
+                    ],
                   ),
                 ],
               ),
@@ -170,5 +163,39 @@ class Mp3TrackTile extends StatelessWidget {
         SnackBar(content: Text('Tải thất bại: $e')),
       );
     }
+  }
+}
+
+/// Equal-sized trailing control so favorite / download / play stay aligned.
+class _TrackActionIcon extends StatelessWidget {
+  const _TrackActionIcon({
+    required this.tooltip,
+    required this.onPressed,
+    required this.icon,
+    required this.color,
+  });
+
+  final String tooltip;
+  final VoidCallback onPressed;
+  final IconData icon;
+  final Color color;
+
+  static const double _box = 40;
+  static const double _iconSize = 22;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: _box,
+      height: _box,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints.tightFor(width: _box, height: _box),
+        icon: Icon(icon, size: _iconSize, color: color),
+      ),
+    );
   }
 }

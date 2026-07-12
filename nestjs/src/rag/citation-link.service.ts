@@ -46,31 +46,53 @@ export class CitationLinkService implements OnModuleInit {
   }
 
   enrichCitation(
-    citation: Omit<ChatCitation, 'pdf' | 'openLabel'>,
+    citation: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>,
   ): ChatCitation {
     const pdf = this.findPdf(citation.sourceFile, citation.title, citation.volume);
-    const printedStart = citation.pageStart ?? citation.pageNum;
-    const printedEnd = citation.pageEnd ?? citation.pageNum;
-    // Citations expose printed pages; PDF openers need file/OCR page index.
-    const pdfLink = pdf
-      ? this.buildPdfLinkWithRange(
-          pdf,
-          toPdfFilePage(citation.sourceFile, printedStart),
-          toPdfFilePage(citation.sourceFile, printedEnd),
-          printedStart,
-          printedEnd,
-        )
-      : null;
+    const printedPage =
+      citation.pageNum ?? citation.pageStart ?? citation.pageEnd ?? null;
+    const pages =
+      citation.pages?.length
+        ? citation.pages
+        : printedPage != null
+          ? [printedPage]
+          : [];
+
+    const pageLinks = pages.map((printed) => {
+      const filePage = toPdfFilePage(citation.sourceFile, printed) ?? printed;
+      return {
+        printed,
+        filePage,
+        openLabel: `tr.${printed}`,
+      };
+    });
+
+    const primaryLink =
+      pageLinks.find((p) => p.printed === printedPage) ?? pageLinks[0];
+    const primaryFilePage =
+      primaryLink?.filePage ??
+      toPdfFilePage(citation.sourceFile, printedPage);
+    const primaryPrinted = primaryLink?.printed ?? printedPage;
+
+    const pdfLink = pdf ? this.buildPdfLink(pdf, primaryFilePage) : null;
+    if (pdfLink && primaryPrinted != null) {
+      pdfLink.openLabel = `Mở tr.${primaryPrinted}`;
+    }
 
     return {
       ...citation,
+      pages,
+      pageNum: printedPage,
+      pageStart: pages[0] ?? printedPage,
+      pageEnd: pages[pages.length - 1] ?? printedPage,
       pdf: pdfLink,
       openLabel: pdfLink?.openLabel ?? null,
+      pageLinks,
     };
   }
 
   async enrichCitations(
-    citations: Omit<ChatCitation, 'pdf' | 'openLabel'>[],
+    citations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
   ): Promise<ChatCitation[]> {
     if (!this.pdfIndex.length) {
       await this.refreshIndex();
@@ -83,27 +105,50 @@ export class CitationLinkService implements OnModuleInit {
   }
 
   private async enrichCitationAsync(
-    citation: Omit<ChatCitation, 'pdf' | 'openLabel'>,
+    citation: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>,
   ): Promise<ChatCitation> {
     const pdf =
       this.findPdf(citation.sourceFile, citation.title, citation.volume) ??
       (await this.lookupPdfBySourceFile(citation.sourceFile));
-    const printedStart = citation.pageStart ?? citation.pageNum;
-    const printedEnd = citation.pageEnd ?? citation.pageNum;
-    const pdfLink = pdf
-      ? this.buildPdfLinkWithRange(
-          pdf,
-          toPdfFilePage(citation.sourceFile, printedStart),
-          toPdfFilePage(citation.sourceFile, printedEnd),
-          printedStart,
-          printedEnd,
-        )
-      : null;
+    const printedPage =
+      citation.pageNum ?? citation.pageStart ?? citation.pageEnd ?? null;
+    const pages =
+      citation.pages?.length
+        ? citation.pages
+        : printedPage != null
+          ? [printedPage]
+          : [];
+
+    const pageLinks = pages.map((printed) => {
+      const filePage = toPdfFilePage(citation.sourceFile, printed) ?? printed;
+      return {
+        printed,
+        filePage,
+        openLabel: `tr.${printed}`,
+      };
+    });
+
+    const primaryLink =
+      pageLinks.find((p) => p.printed === printedPage) ?? pageLinks[0];
+    const primaryFilePage =
+      primaryLink?.filePage ??
+      toPdfFilePage(citation.sourceFile, printedPage);
+    const primaryPrinted = primaryLink?.printed ?? printedPage;
+
+    const pdfLink = pdf ? this.buildPdfLink(pdf, primaryFilePage) : null;
+    if (pdfLink && primaryPrinted != null) {
+      pdfLink.openLabel = `Mở tr.${primaryPrinted}`;
+    }
 
     return {
       ...citation,
+      pages,
+      pageNum: printedPage,
+      pageStart: pages[0] ?? printedPage,
+      pageEnd: pages[pages.length - 1] ?? printedPage,
       pdf: pdfLink,
       openLabel: pdfLink?.openLabel ?? null,
+      pageLinks,
     };
   }
 

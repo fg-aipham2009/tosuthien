@@ -41,6 +41,6 @@ export function resolveAnswerStyle(
 }
 
 export function maxPassageCharsForTier(tier: SourceTier): number {
-  // Prefer whole paragraphs over aggressive mid-passage cuts (±1 page windows).
-  return tier === 'kinh' ? 9_000 : 4_000;
+  // Keep neighbor windows long so the model can copy full passages uncut.
+  return tier === 'kinh' ? 12_000 : 6_000;
 }

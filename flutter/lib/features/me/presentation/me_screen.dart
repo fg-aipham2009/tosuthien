@@ -5,7 +5,7 @@ import '../../books/models/book_pdf.dart';
 import '../../books/presentation/pdf_flip_reader_screen.dart';
 import '../../books/widgets/book_tile.dart';
 import '../../mp3/audio/mp3_audio_scope.dart';
-import '../../mp3/models/mp3_track.dart';
+import '../../mp3/presentation/mp3_player_screen.dart';
 import '../../mp3/widgets/mp3_track_list.dart';
 import '../../mp3_favorites/state/mp3_favorites_scope.dart';
 import '../../offline_books/models/saved_book_pdf.dart';
@@ -250,23 +250,15 @@ class _Mp3Section extends StatelessWidget {
               shrinkWrap: true,
               activeTrackId: audio.currentTrack?.id,
               isPlaying: audio.isPlaying,
-              onTrackTap: (track) => _play(context, playable, track),
+              onTrackTap: (track) => playMp3AndOpenPlayer(
+                context,
+                queue: playable,
+                track: track,
+              ),
             );
           },
         ),
       ),
-    );
-  }
-
-  Future<void> _play(
-    BuildContext context,
-    List<Mp3Track> queue,
-    Mp3Track track,
-  ) async {
-    final index = queue.indexWhere((t) => t.id == track.id);
-    await Mp3AudioScope.of(context).playOrToggle(
-      queue,
-      startIndex: index < 0 ? 0 : index,
     );
   }
 }

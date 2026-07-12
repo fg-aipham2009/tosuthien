@@ -1,0 +1,116 @@
+{
+  "info": {
+    "name": "Nexus API",
+    "_postman_id": "a1b2c3d4-nexus-opus-48-test",
+    "description": "Test Nexus Claude API (Claude Code /messages + OpenAI chat).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://nexusmmo.store/api/v1"
+    },
+    {
+      "key": "apiKey",
+      "value": "sk-nexus-9f9d2e842cea9581d938de350f3d7955caed9eb185bb78b5865c3c84e9e44dee"
+    },
+    {
+      "key": "model",
+      "value": "claude-opus-4-8"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. List models",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiKey}}"
+          }
+        ],
+        "url": "{{baseUrl}}/models",
+        "description": "Should return 200 and include claude-opus-4-8"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Messages (Claude Code style)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "anthropic-version",
+            "value": "2023-06-01"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"model\": \"{{model}}\",\n  \"max_tokens\": 64,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Reply with only: PONG\"\n    }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/messages",
+        "description": "Claude Code direct: POST /messages + x-api-key"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Chat completions (OpenAI style)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiKey}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"model\": \"{{model}}\",\n  \"max_tokens\": 64,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Reply with only: PONG\"\n    }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/chat/completions",
+        "description": "OpenAI-compatible chat endpoint"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Messages — claude-fable-5 (expect fail on Nexus)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "anthropic-version",
+            "value": "2023-06-01"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"model\": \"claude-fable-5\",\n  \"max_tokens\": 64,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Reply with only: PONG\"\n    }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/messages",
+        "description": "Nexus catalog currently has no claude-fable-5"
+      },
+      "response": []
+    }
+  ]
+}
