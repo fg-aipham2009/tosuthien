@@ -1,0 +1,13 @@
+{
+  "id": "6",
+  "source": "6.txt",
+  "title": "PHẬT PHÁP VÀ KHOA HỌC",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 72,
+  "contentPages": 70,
+  "blankPages": 2,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

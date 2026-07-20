@@ -1,0 +1,13 @@
+{
+  "id": "9",
+  "source": "9.txt",
+  "title": "LƯỢC GIẢNG BỒ TÁT GIỚI",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 154,
+  "contentPages": 150,
+  "blankPages": 4,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

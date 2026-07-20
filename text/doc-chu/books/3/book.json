@@ -1,0 +1,13 @@
+{
+  "id": "3",
+  "source": "3.txt",
+  "title": "CHƯ KINH TẬP YẾU",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 336,
+  "contentPages": 322,
+  "blankPages": 14,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

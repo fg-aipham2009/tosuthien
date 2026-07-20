@@ -1,0 +1,13 @@
+{
+  "id": "4",
+  "source": "4.txt",
+  "title": "KINH PHÁP BẢO ĐÀN",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 128,
+  "contentPages": 127,
+  "blankPages": 1,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

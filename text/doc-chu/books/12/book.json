@@ -1,0 +1,13 @@
+{
+  "id": "12",
+  "source": "12.txt",
+  "title": "CỘI NGUỒN TRUYỀN THỪA · THIỀN THẤT KHAI THỊ LỤC",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 448,
+  "contentPages": 444,
+  "blankPages": 4,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

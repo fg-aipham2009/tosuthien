@@ -1,0 +1,13 @@
+{
+  "id": "7",
+  "source": "7.txt",
+  "title": "THAM THIỀN PHỔ THUYẾT",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 364,
+  "contentPages": 360,
+  "blankPages": 4,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

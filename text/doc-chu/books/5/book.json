@@ -1,0 +1,13 @@
+{
+  "id": "5",
+  "source": "5.txt",
+  "title": "TRUNG PHONG PHÁP NGỮ · LÂM TẾ NGỮ LỤC",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 168,
+  "contentPages": 163,
+  "blankPages": 5,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "22",
+  "source": "22.txt",
+  "title": "LƯỢC GIẢNG TÍN TÂM MINH TỊCH NGHĨA GIẢI",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 722,
+  "contentPages": 720,
+  "blankPages": 2,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

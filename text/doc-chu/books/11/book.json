@@ -1,0 +1,13 @@
+{
+  "id": "11",
+  "source": "11.txt",
+  "title": "DANH TỪ THIỀN HỌC (CHÚ GIẢI)",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 74,
+  "contentPages": 72,
+  "blankPages": 2,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

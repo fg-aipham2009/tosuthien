@@ -1,0 +1,13 @@
+{
+  "id": "20",
+  "source": "20.txt",
+  "title": "KINH LĂNG GIÀ",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 248,
+  "contentPages": 246,
+  "blankPages": 2,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

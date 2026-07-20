@@ -1,0 +1,13 @@
+{
+  "id": "15",
+  "source": "15.txt",
+  "title": "LƯỢC GIẢNG KINH LĂNG NGHIÊM",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 688,
+  "contentPages": 679,
+  "blankPages": 9,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

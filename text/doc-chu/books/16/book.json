@@ -1,0 +1,13 @@
+{
+  "id": "16",
+  "source": "16.txt",
+  "title": "ĐẠI THỪA TUYỆT ĐỐI LUẬN",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 176,
+  "contentPages": 174,
+  "blankPages": 2,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

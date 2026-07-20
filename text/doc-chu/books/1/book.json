@@ -1,0 +1,13 @@
+{
+  "id": "1",
+  "source": "1.txt",
+  "title": "NAM TUYỀN NGỮ LỤC VÀ BỬU TẠNG LUẬN",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 88,
+  "contentPages": 86,
+  "blankPages": 2,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

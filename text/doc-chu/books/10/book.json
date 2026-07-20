@@ -1,0 +1,13 @@
+{
+  "id": "10",
+  "source": "10.txt",
+  "title": "VŨ TRỤ QUAN THẾ KỶ XXI",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 160,
+  "contentPages": 150,
+  "blankPages": 10,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}

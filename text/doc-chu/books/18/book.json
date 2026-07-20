@@ -1,0 +1,13 @@
+{
+  "id": "18",
+  "source": "18.txt",
+  "title": "LƯỢC GIẢNG KINH KIM CANG",
+  "author": "Hòa thượng Thích Duy Lực",
+  "pageCount": 136,
+  "contentPages": 132,
+  "blankPages": 4,
+  "splitMode": "ocr",
+  "status": "ready",
+  "format": "per-page-text",
+  "pagesDir": "pages/"
+}
