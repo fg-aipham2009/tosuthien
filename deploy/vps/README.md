@@ -63,6 +63,43 @@ chmod +x deploy/vps/redeploy.sh
 ./deploy/vps/redeploy.sh
 ```
 
+## CI/CD (GitHub Actions — tự deploy khi push `main`)
+
+Workflow: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)
+
+| Thay đổi | Việc CI làm |
+|----------|-------------|
+| `nestjs/**` | Build image trên GitHub → đẩy GHCR → VPS pull + restart API (nhanh, không build trên VPS) |
+| `flutter/**` | Build Flutter web trên GitHub → upload tarball → publish `/opt/tosu-thien/www` |
+| `vuejs/**` | SSH VPS `docker compose up -d --build admin` |
+
+### Secret cần có (một lần)
+
+Repo → **Settings → Secrets and variables → Actions**:
+
+| Name | Value |
+|------|--------|
+| `VPS_SSH_PRIVATE_KEY` | Nội dung private key SSH vào VPS (cùng key đã add vào `authorized_keys`) |
+
+Public key tương ứng phải có trên VPS (`~/.ssh/authorized_keys`).
+
+Hoặc CLI:
+
+```bash
+gh secret set VPS_SSH_PRIVATE_KEY < ~/.ssh/id_ed25519_tosuthien
+```
+
+### Chạy tay
+
+GitHub → **Actions → Deploy → Run workflow** (tick Force API / Force web nếu cần).
+
+### Local vẫn dùng được
+
+```bash
+./deploy/scripts/deploy-api.sh
+./deploy/scripts/deploy-flutter-web.sh
+```
+
 ## Flutter web (build trên Mac)
 
 ```bash
