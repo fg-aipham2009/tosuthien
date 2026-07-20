@@ -86,7 +86,7 @@ class ChatBookFilterBar extends StatelessWidget {
                                   controlAffinity:
                                       ListTileControlAffinity.leading,
                                   title: Text(
-                                    book.title,
+                                    book.displayTitle,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),

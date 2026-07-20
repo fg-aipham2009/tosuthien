@@ -273,6 +273,11 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
   }
 
   String? _volumeLabelIfDuyLuc() {
+    // Prefer explicit volume; avoid duplicating when title already has Quyển …
+    final title = widget.book.title.toUpperCase();
+    if (title.contains('QUYỂN THƯỢNG') || title.contains('QUYỂN HẠ')) {
+      return null;
+    }
     return switch (widget.book.id) {
       '13' => 'QUYỂN HẠ',
       '14' => 'QUYỂN THƯỢNG',

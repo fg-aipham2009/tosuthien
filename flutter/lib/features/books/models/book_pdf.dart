@@ -29,8 +29,13 @@ class BookPdf {
   final int? lastPage;
   final DateTime? lastReadAt;
 
-  String get displayTitle =>
-      volume != null && volume!.isNotEmpty ? '$title — $volume' : title;
+  String get displayTitle {
+    final t = title.trim();
+    final v = volume?.trim();
+    if (v == null || v.isEmpty) return t;
+    if (t.toLowerCase().contains(v.toLowerCase())) return t;
+    return '$t — $v';
+  }
 
   String get pdfUrl {
     if (publicUrl.startsWith('http://') || publicUrl.startsWith('https://')) {

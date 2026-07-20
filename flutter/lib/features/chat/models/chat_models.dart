@@ -392,8 +392,17 @@ class RagSourceBook {
   }
 
   String get shortLabel {
+    final full = displayTitle.trim();
+    if (full.length <= 42) return full;
+    return '${full.substring(0, 42)}…';
+  }
+
+  /// Unique label when several rows share the same base title (e.g. Quyển Thượng/Hạ).
+  String get displayTitle {
     final t = title.trim();
-    if (t.length <= 36) return t;
-    return '${t.substring(0, 36)}…';
+    final v = volume?.trim();
+    if (v == null || v.isEmpty) return t;
+    if (t.toLowerCase().contains(v.toLowerCase())) return t;
+    return '$t — $v';
   }
 }

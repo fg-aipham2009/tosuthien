@@ -122,22 +122,22 @@ INSERT INTO pdf_files (
     17813367, 12
   ),
   (
-    'duy-luc-ngu-luc-thuong-pdf',
-    'DUY LỰC NGỮ LỤC',
-    'QUYỂN THƯỢNG',
-    'Hòa thượng Thích Duy Lực',
-    '14.pdf', 'pdf/', 'pdf/14.pdf',
-    'https://api.tosuthien.net/files/pdf/14.pdf',
-    27180493, 13
-  ),
-  (
     'duy-luc-ngu-luc-ha-pdf',
-    'DUY LỰC NGỮ LỤC',
+    'DUY LỰC NGỮ LỤC — QUYỂN HẠ',
     'QUYỂN HẠ',
     'Hòa thượng Thích Duy Lực',
     '13.pdf', 'pdf/', 'pdf/13.pdf',
     'https://api.tosuthien.net/files/pdf/13.pdf',
-    26977247, 14
+    26977247, 13
+  ),
+  (
+    'duy-luc-ngu-luc-thuong-pdf',
+    'DUY LỰC NGỮ LỤC — QUYỂN THƯỢNG',
+    'QUYỂN THƯỢNG',
+    'Hòa thượng Thích Duy Lực',
+    '14.pdf', 'pdf/', 'pdf/14.pdf',
+    'https://api.tosuthien.net/files/pdf/14.pdf',
+    27180493, 14
   ),
   (
     'dai-thua-tuyet-doi-luan-pdf',

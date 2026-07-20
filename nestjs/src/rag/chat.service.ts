@@ -1501,7 +1501,14 @@ export class ChatService {
     pageEnd?: number | null,
   ): string {
     const parts = [title];
-    if (volume) parts.push(volume);
+    const vol = volume?.trim();
+    // Avoid "… — QUYỂN THƯỢNG, QUYỂN THƯỢNG" when title already includes volume.
+    if (
+      vol &&
+      !title.toLocaleLowerCase('vi').includes(vol.toLocaleLowerCase('vi'))
+    ) {
+      parts.push(vol);
+    }
     if (pageStart != null && pageEnd != null && pageEnd > pageStart) {
       parts.push(`tr.${pageStart}–${pageEnd}`);
     } else if (pageStart != null) {
