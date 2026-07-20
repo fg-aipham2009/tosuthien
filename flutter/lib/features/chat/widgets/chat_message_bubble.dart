@@ -1,10 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/theme.dart';
 import '../../books/data/books_repository.dart';
 import '../../books/models/book_pdf.dart';
 import '../../books/presentation/pdf_flip_reader_screen.dart';
 import '../models/chat_models.dart';
+
+void _copyText(BuildContext context, String text, {String label = 'Đã sao chép'}) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return;
+  Clipboard.setData(ClipboardData(text: trimmed));
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(label),
+      duration: const Duration(seconds: 2),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
 
 class ChatMessageBubble extends StatelessWidget {
   const ChatMessageBubble({
@@ -29,11 +43,13 @@ class ChatMessageBubble extends StatelessWidget {
             color: colors.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: SelectableText(
-            message.content,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  height: 1.5,
-                ),
+          child: SelectionArea(
+            child: SelectableText(
+              message.content,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    height: 1.5,
+                  ),
+            ),
           ),
         ),
       );
@@ -67,68 +83,95 @@ class ChatMessageBubble extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (content.isNotEmpty) ...[
-                    Text(
-                      'Nguyên văn kinh sách',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+              child: SelectionArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (content.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Nguyên văn kinh sách',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: colors.primary,
+                                  ),
+                            ),
+                          ),
+                          if (!message.isStreaming)
+                            IconButton(
+                              tooltip: 'Sao chép nguyên văn',
+                              visualDensity: VisualDensity.compact,
+                              iconSize: 18,
+                              onPressed: () => _copyText(
+                                context,
+                                content,
+                                label: 'Đã sao chép nguyên văn',
+                              ),
+                              icon: Icon(
+                                Icons.copy_outlined,
+                                color: colors.primary,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      SelectableText(
+                        content,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              height: 1.6,
+                            ),
+                      ),
+                    ],
+                    if (message.isStreaming)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
                             color: colors.primary,
                           ),
-                    ),
-                    const SizedBox(height: 6),
-                    SelectableText(
-                      content,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            height: 1.6,
-                          ),
-                    ),
-                  ],
-                  if (message.isStreaming)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colors.primary,
                         ),
                       ),
-                    ),
-                  if (message.citations.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      'Kinh sách trích dẫn (${message.citations.length})',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: colors.onSurfaceVariant,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...message.citations.map(
-                      (c) => _CitationCard(citation: c),
-                    ),
+                    if (message.citations.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        'Kinh sách trích dẫn (${message.citations.length})',
+                        style:
+                            Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.onSurfaceVariant,
+                                ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...message.citations.map(
+                        (c) => _CitationCard(citation: c),
+                      ),
+                    ],
+                    // Below citations only.
+                    if (aiText != null && aiText.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      _AiInterpretationBox(text: aiText),
+                    ],
+                    if (message.disclaimer != null) ...[
+                      const SizedBox(height: 12),
+                      SelectableText(
+                        message.disclaimer!,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                              fontStyle: FontStyle.italic,
+                              height: 1.35,
+                            ),
+                      ),
+                    ],
                   ],
-                  // Below citations only.
-                  if (aiText != null && aiText.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _AiInterpretationBox(text: aiText),
-                  ],
-                  if (message.disclaimer != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      message.disclaimer!,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: colors.onSurfaceVariant,
-                            fontStyle: FontStyle.italic,
-                            height: 1.35,
-                          ),
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
           ],
@@ -182,6 +225,20 @@ class _AiInterpretationBox extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: colors.onSecondaryContainer,
                       ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Sao chép diễn giải',
+                visualDensity: VisualDensity.compact,
+                iconSize: 18,
+                onPressed: () => _copyText(
+                  context,
+                  text,
+                  label: 'Đã sao chép diễn giải AI',
+                ),
+                icon: Icon(
+                  Icons.copy_outlined,
+                  color: colors.onSecondaryContainer,
                 ),
               ),
             ],

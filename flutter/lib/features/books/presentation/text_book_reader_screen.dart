@@ -426,7 +426,6 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
                             fontSize: _fontSize,
                             lineHeight: _lineHeight,
                             palette: palette,
-                            onToggleChrome: _toggleChrome,
                             onPinchStart: () => _pinchBaseFont = _fontSize,
                             onPinchUpdate: (scale) =>
                                 _setFontSize(_pinchBaseFont * scale),
@@ -628,6 +627,50 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
                             ),
                           ),
                         ),
+                      if (!_chromeVisible && !_fullscreen)
+                        Positioned(
+                          top: MediaQuery.paddingOf(context).top + 8,
+                          right: 8,
+                          child: Material(
+                            color: palette.chip.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(99),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(99),
+                              onTap: _toggleChrome,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Icon(
+                                  Icons.more_horiz_rounded,
+                                  color: palette.text,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      // Tap empty side margins to toggle chrome without blocking text select.
+                      if (!_settingsOpen && !_jumpOpen)
+                        Positioned(
+                          left: 0,
+                          top: MediaQuery.paddingOf(context).top + 56,
+                          bottom: 72,
+                          width: 18,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.translucent,
+                            onTap: _toggleChrome,
+                          ),
+                        ),
+                      if (!_settingsOpen && !_jumpOpen)
+                        Positioned(
+                          right: 0,
+                          top: MediaQuery.paddingOf(context).top + 56,
+                          bottom: 72,
+                          width: 18,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.translucent,
+                            onTap: _toggleChrome,
+                          ),
+                        ),
                       if (_chromeVisible)
                         Positioned(
                           left: 0,
@@ -774,7 +817,6 @@ class _TextPageView extends StatelessWidget {
     required this.fontSize,
     required this.lineHeight,
     required this.palette,
-    required this.onToggleChrome,
     required this.onPinchStart,
     required this.onPinchUpdate,
   });
@@ -784,7 +826,6 @@ class _TextPageView extends StatelessWidget {
   final double fontSize;
   final double lineHeight;
   final _ReadingPalette palette;
-  final VoidCallback onToggleChrome;
   final VoidCallback onPinchStart;
   final void Function(double scale) onPinchUpdate;
 
@@ -806,9 +847,9 @@ class _TextPageView extends StatelessWidget {
   Widget build(BuildContext context) {
     final topPad = MediaQuery.paddingOf(context).top + 56;
 
+    // Pinch-to-zoom only here — do not use onTap (it steals text selection).
     return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onToggleChrome,
+      behavior: HitTestBehavior.translucent,
       onScaleStart: (_) => onPinchStart(),
       onScaleUpdate: (details) {
         if (details.pointerCount >= 2) {
@@ -832,7 +873,12 @@ class _TextPageView extends StatelessWidget {
                   ),
                 ),
               )
-            : Text(page.text, style: _textStyle()),
+            : SelectionArea(
+                child: SelectableText(
+                  page.text,
+                  style: _textStyle(),
+                ),
+              ),
       ),
     );
   }
