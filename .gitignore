@@ -16,3 +16,5 @@ data/mp3/*
 !data/mp3/.gitkeep
 data/images/*
 !data/images/.gitkeep
+.cicd_vps_ssh_b64.txt
+.cicd_vps_ssh_private
