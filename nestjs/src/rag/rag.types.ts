@@ -52,6 +52,19 @@ export interface ChatCitation {
   }>;
 }
 
+export interface ChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatOptions {
+  topK?: number;
+  /** Hard book filter (source_file values). Empty/omit = entire corpus. */
+  sourceFiles?: string[];
+  /** Prior conversation turns (not including the current question). */
+  messages?: ChatTurn[];
+}
+
 export interface ChatMeta {
   topK: number;
   topKResolved: number;
@@ -69,6 +82,10 @@ export interface ChatMeta {
   answerStyle?: 'kinh_long' | 'mixed' | 'brief';
   /** shopaikey | nexus | hhtech | flare */
   chatProvider?: 'shopaikey' | 'nexus' | 'hhtech' | 'flare';
+  /** Applied hard book filter (normalized source_file list). */
+  sourceFiles?: string[];
+  /** Number of prior turns sent to the LLM. */
+  historyTurns?: number;
 }
 
 export interface ChatResult {

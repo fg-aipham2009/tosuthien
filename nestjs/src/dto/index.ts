@@ -1,6 +1,9 @@
 import { PartialType } from '@nestjs/mapped-types';
+import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -8,6 +11,7 @@ import {
   IsUUID,
   Max,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { GalleryImage } from '../common/gallery-image.interface';
 
@@ -309,6 +313,14 @@ export class ToggleMp3FavoriteDto {
   mp3TrackId!: string;
 }
 
+export class ChatHistoryMessageDto {
+  @IsIn(['user', 'assistant'])
+  role!: 'user' | 'assistant';
+
+  @IsString()
+  content!: string;
+}
+
 export class ChatDto {
   @IsString()
   question!: string;
@@ -318,4 +330,17 @@ export class ChatDto {
   @Min(1)
   @Max(12)
   topK?: number;
+
+  /** Hard filter: only search these OCR source files (e.g. ["21.txt","10.txt"]). Omit = all books. */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  sourceFiles?: string[];
+
+  /** Prior turns only (exclude the current question). Used for multi-turn disambiguation. */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ChatHistoryMessageDto)
+  messages?: ChatHistoryMessageDto[];
 }

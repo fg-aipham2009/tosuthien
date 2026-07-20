@@ -316,12 +316,15 @@ class ChatConversation {
     required this.title,
     required this.updatedAt,
     required this.messages,
+    this.sourceFiles = const [],
   });
 
   final String id;
   final String title;
   final DateTime updatedAt;
   final List<ChatMessage> messages;
+  /// Hard RAG book filter (`21.txt`, …). Empty = all books.
+  final List<String> sourceFiles;
 
   factory ChatConversation.fromJson(Map<String, dynamic> json) {
     return ChatConversation(
@@ -332,6 +335,9 @@ class ChatConversation {
           .whereType<Map<String, dynamic>>()
           .map(ChatMessage.fromJson)
           .toList(),
+      sourceFiles: (json['sourceFiles'] as List<dynamic>? ?? [])
+          .whereType<String>()
+          .toList(),
     );
   }
 
@@ -340,18 +346,54 @@ class ChatConversation {
         'title': title,
         'updatedAt': updatedAt.toIso8601String(),
         'messages': messages.map((m) => m.toJson()).toList(),
+        'sourceFiles': sourceFiles,
       };
 
   ChatConversation copyWith({
     String? title,
     DateTime? updatedAt,
     List<ChatMessage>? messages,
+    List<String>? sourceFiles,
   }) {
     return ChatConversation(
       id: id,
       title: title ?? this.title,
       updatedAt: updatedAt ?? this.updatedAt,
       messages: messages ?? this.messages,
+      sourceFiles: sourceFiles ?? this.sourceFiles,
     );
+  }
+}
+
+/// Book available for RAG hard-filter (`GET /rag/sources`).
+class RagSourceBook {
+  const RagSourceBook({
+    required this.id,
+    required this.title,
+    required this.sourceFile,
+    this.volume,
+    this.sortOrder = 0,
+  });
+
+  final String id;
+  final String title;
+  final String sourceFile;
+  final String? volume;
+  final int sortOrder;
+
+  factory RagSourceBook.fromJson(Map<String, dynamic> json) {
+    return RagSourceBook(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      sourceFile: json['sourceFile'] as String? ?? '',
+      volume: json['volume'] as String?,
+      sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  String get shortLabel {
+    final t = title.trim();
+    if (t.length <= 36) return t;
+    return '${t.substring(0, 36)}…';
   }
 }

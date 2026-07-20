@@ -51,6 +51,16 @@ class ChatRepository {
   final http.Client _http;
   final bool _ownsHttp;
 
+  Future<List<RagSourceBook>> fetchSources() async {
+    final list = await _client.getList('/rag/sources');
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(RagSourceBook.fromJson)
+        .where((b) => b.sourceFile.isNotEmpty)
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  }
+
   Future<
       ({
         String answer,
@@ -58,9 +68,16 @@ class ChatRepository {
         String disclaimer,
         List<ChatCitation> citations,
       })> ask(
-    String question,
-  ) async {
-    final json = await _client.post('/rag/chat', {'question': question});
+    String question, {
+    List<String> sourceFiles = const [],
+    List<Map<String, String>> messages = const [],
+  }) async {
+    final body = <String, dynamic>{
+      'question': question,
+      if (sourceFiles.isNotEmpty) 'sourceFiles': sourceFiles,
+      if (messages.isNotEmpty) 'messages': messages,
+    };
+    final json = await _client.post('/rag/chat', body);
     final citations = (json['citations'] as List<dynamic>? ?? [])
         .whereType<Map<String, dynamic>>()
         .map(ChatCitation.fromJson)
@@ -75,15 +92,24 @@ class ChatRepository {
   }
 
   /// Server-Sent Events from POST /rag/chat/stream.
-  Stream<ChatStreamEvent> askStream(String question) async* {
+  Stream<ChatStreamEvent> askStream(
+    String question, {
+    List<String> sourceFiles = const [],
+    List<Map<String, String>> messages = const [],
+  }) async* {
     final uri = Uri.parse('${ApiConfig.api}/rag/chat/stream');
+    final payload = <String, dynamic>{
+      'question': question,
+      if (sourceFiles.isNotEmpty) 'sourceFiles': sourceFiles,
+      if (messages.isNotEmpty) 'messages': messages,
+    };
     final request = http.Request('POST', uri)
       ..headers.addAll({
         'Accept': 'text/event-stream',
         'Content-Type': 'application/json; charset=utf-8',
         'Cache-Control': 'no-cache',
       })
-      ..bodyBytes = utf8.encode(jsonEncode({'question': question}));
+      ..bodyBytes = utf8.encode(jsonEncode(payload));
 
     final response = await _http.send(request);
     if (response.statusCode < 200 || response.statusCode >= 300) {

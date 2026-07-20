@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../state/chat_controller.dart';
+import '../widgets/chat_book_filter_bar.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/chat_history_sidebar.dart';
 import '../widgets/chat_message_bubble.dart';
@@ -186,9 +187,15 @@ class _ChatScreenState extends State<ChatScreen> {
         Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-            child: ChatComposer(
-              isLoading: _controller.isLoading,
-              onSend: _controller.sendMessage,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ChatBookFilterBar(controller: _controller),
+                ChatComposer(
+                  isLoading: _controller.isLoading,
+                  onSend: _controller.sendMessage,
+                ),
+              ],
             ),
           ),
         ),

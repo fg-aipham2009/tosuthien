@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatService } from './chat.service';
 import { ChatDto } from '../dto';
+import type { ChatOptions } from './rag.types';
 
 @Controller('rag')
 export class RagController {
@@ -18,7 +19,7 @@ export class RagController {
 
   @Post('chat')
   chat(@Body() dto: ChatDto) {
-    return this.chatService.chat(dto.question, dto.topK);
+    return this.chatService.chat(dto.question, this.toOptions(dto));
   }
 
   @Post('chat/stream')
@@ -48,7 +49,7 @@ export class RagController {
     try {
       for await (const event of this.chatService.chatStream(
         dto.question,
-        dto.topK,
+        this.toOptions(dto),
       )) {
         write(event);
       }
@@ -58,5 +59,16 @@ export class RagController {
     } finally {
       res.end();
     }
+  }
+
+  private toOptions(dto: ChatDto): ChatOptions {
+    return {
+      topK: dto.topK,
+      sourceFiles: dto.sourceFiles,
+      messages: dto.messages?.map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
+    };
   }
 }

@@ -14,6 +14,8 @@ import {
   ChatResult,
   ChatCitation,
   ChatStreamEvent,
+  ChatOptions,
+  ChatTurn,
 } from './rag.types';
 import { RAG_DISCLAIMER, clampTopK, CANDIDATE_POOL, AI_INTERPRETATION_MARKER } from './rag.constants';
 import {
@@ -23,6 +25,7 @@ import {
   buildIntentBrief,
 } from './rag-keywords.util';
 import { isKinhSource, sourceTier, toPrintedPage, printedPageOffset } from './rag-source.util';
+import { normalizeHistory } from './llm.service';
 import {
   maxPassageCharsForTier,
   resolveAnswerStyle,
@@ -82,9 +85,9 @@ export class ChatService {
     private readonly citationLinks: CitationLinkService,
   ) {}
 
-  async chat(question: string, topK?: number): Promise<ChatResult> {
+  async chat(question: string, options: ChatOptions = {}): Promise<ChatResult> {
     const totalStart = Date.now();
-    const prepared = await this.prepareChat(question, topK);
+    const prepared = await this.prepareChat(question, options);
     if (prepared.kind === 'empty') {
       return this.emptyResult({
         ...prepared.meta,
@@ -112,6 +115,7 @@ export class ChatService {
         blocks,
         prepared.styleContext,
         prepared.intentBrief,
+        prepared.history,
       ),
       citations,
     );
@@ -139,12 +143,12 @@ export class ChatService {
   /** SSE stream: status → delta* → done (or error via controller). */
   async *chatStream(
     question: string,
-    topK?: number,
+    options: ChatOptions = {},
   ): AsyncGenerator<ChatStreamEvent> {
     const totalStart = Date.now();
     yield { type: 'status', phase: 'retrieving' };
 
-    const prepared = await this.prepareChat(question, topK);
+    const prepared = await this.prepareChat(question, options);
     if (prepared.kind === 'empty') {
       const empty = this.emptyResult({
         ...prepared.meta,
@@ -191,6 +195,7 @@ export class ChatService {
       blocks,
       prepared.styleContext,
       prepared.intentBrief,
+      prepared.history,
     )) {
       parts.push(text);
       yield { type: 'delta', text };
@@ -225,7 +230,7 @@ export class ChatService {
 
   private async prepareChat(
     question: string,
-    topK?: number,
+    options: ChatOptions = {},
   ): Promise<
     | { kind: 'empty'; meta: ChatResult['meta'] }
     | {
@@ -234,6 +239,7 @@ export class ChatService {
         keywords: string[];
         sourceHints: string[];
         intentBrief: string;
+        history: ChatTurn[];
         hits: PassageHit[];
         blocks: string[];
         slimCitations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[];
@@ -244,16 +250,28 @@ export class ChatService {
     const q = question.trim();
     if (q.length < 2) throw new BadRequestException('Câu hỏi quá ngắn');
 
+    const sourceFiles = this.normalizeSourceFiles(options.sourceFiles);
+    const history = normalizeHistory(options.messages);
+    const topK = options.topK;
+
     const { keywords, mustGroups, topicTerms, sourceHints } = analyzeQuery(
       q,
       STOP_WORDS,
     );
-    const intentBrief = buildIntentBrief({
+    let intentBrief = buildIntentBrief({
       keywords,
       mustGroups,
       topicTerms,
       sourceHints,
     });
+    if (sourceFiles.length) {
+      intentBrief = [
+        intentBrief,
+        `Chỉ tra cứu trong sách: ${sourceFiles.join(', ')}`,
+      ]
+        .filter(Boolean)
+        .join('\n');
+    }
     const searchKeywords = expandKeywords(keywords);
     const stem = questionStem(q);
     const k = clampTopK(topK, q, keywords.length);
@@ -271,11 +289,11 @@ export class ChatService {
     const [embeddingCount, ftsCandidates, coocCandidates, kinhCandidates] =
       await Promise.all([
         this.countEmbeddings(),
-        this.searchPassagesFts(searchKeywords, CANDIDATE_POOL),
+        this.searchPassagesFts(searchKeywords, CANDIDATE_POOL, sourceFiles),
         mustGroups.length >= 2
-          ? this.searchPassagesCooccurrence(mustGroups, 15)
+          ? this.searchPassagesCooccurrence(mustGroups, 15, sourceFiles)
           : Promise.resolve([] as PassageHit[]),
-        this.searchPassagesKinhTier(kinhTerms, 22),
+        this.searchPassagesKinhTier(kinhTerms, 22, sourceFiles),
       ]);
 
     let candidates: PassageHit[];
@@ -288,6 +306,7 @@ export class ChatService {
         const vectorCandidates = await this.searchPassagesVector(
           queryVector,
           CANDIDATE_POOL,
+          sourceFiles,
         );
         candidates = this.mergeCandidates(
           kinhCandidates,
@@ -306,7 +325,6 @@ export class ChatService {
         embedError = 'embed_failed';
       }
     } else {
-      await embedPromise;
       candidates = this.mergeCandidates(
         kinhCandidates,
         this.mergeCandidates(coocCandidates, ftsCandidates),
@@ -362,6 +380,8 @@ export class ChatService {
       embedError,
       answerStyle: styleContext.style,
       chatProvider: this.ai.get().chatProvider,
+      sourceFiles: sourceFiles.length ? sourceFiles : undefined,
+      historyTurns: history.length,
     };
 
     if (!hits.length) {
@@ -383,12 +403,36 @@ export class ChatService {
       keywords,
       sourceHints,
       intentBrief,
+      history,
       hits,
       blocks,
       slimCitations,
       styleContext,
       meta,
     };
+  }
+
+  /** Normalize client sourceFiles to existing `N.txt` stems. */
+  private normalizeSourceFiles(raw?: string[] | null): string[] {
+    if (!raw?.length) return [];
+    const out = new Set<string>();
+    for (const item of raw) {
+      const name = (item ?? '').trim().toLowerCase();
+      if (!name) continue;
+      const base = name.split(/[/\\]/).pop() ?? name;
+      const file = base.endsWith('.txt') || base.endsWith('.pdf')
+        ? base.replace(/\.pdf$/i, '.txt')
+        : `${base}.txt`;
+      if (/^\d{1,2}\.txt$/.test(file)) out.add(file);
+    }
+    return [...out].sort((a, b) => Number(a.replace('.txt', '')) - Number(b.replace('.txt', '')));
+  }
+
+  private sourceFilterSql(sourceFiles: string[]): Prisma.Sql {
+    if (!sourceFiles.length) return Prisma.empty;
+    return Prisma.sql`AND r.source_file IN (${Prisma.join(
+      sourceFiles.map((f) => Prisma.sql`${f}`),
+    )})`;
   }
 
   private emptyResult(meta: ChatResult['meta']): ChatResult {
@@ -544,6 +588,7 @@ export class ChatService {
   private async searchPassagesCooccurrence(
     mustGroups: string[][],
     limit: number,
+    sourceFiles: string[] = [],
   ): Promise<PassageHit[]> {
     if (!mustGroups.length) return [];
 
@@ -554,6 +599,7 @@ export class ChatService {
       return Prisma.sql`(${Prisma.join(ors, ' OR ')})`;
     });
     const where = Prisma.join(groupConds, ' AND ');
+    const sourceSql = this.sourceFilterSql(sourceFiles);
 
     const rows = await this.prisma.$queryRaw<PassageHit[]>`
       SELECT
@@ -568,6 +614,7 @@ export class ChatService {
       FROM passages p
       JOIN rag_sources r ON r.id = p.rag_source_id
       WHERE ${where}
+        ${sourceSql}
       ORDER BY length(p.content) ASC, p.page_num NULLS LAST
       LIMIT ${limit}
     `;
@@ -579,6 +626,7 @@ export class ChatService {
   private async searchPassagesKinhTier(
     terms: string[],
     limit: number,
+    sourceFiles: string[] = [],
   ): Promise<PassageHit[]> {
     const unique = [
       ...new Set(terms.map((t) => t.trim()).filter((t) => t.length >= 2)),
@@ -588,6 +636,7 @@ export class ChatService {
     const topicOrs = unique.map(
       (t) => Prisma.sql`p.content ILIKE ${'%' + t + '%'}`,
     );
+    const sourceSql = this.sourceFilterSql(sourceFiles);
 
     const rows = await this.prisma.$queryRaw<PassageHit[]>`
       SELECT
@@ -604,6 +653,7 @@ export class ChatService {
       WHERE r.source_file NOT IN ('13.txt', '14.txt')
         AND NOT (r.title ILIKE '%duy lực ngữ lục%')
         AND (${Prisma.join(topicOrs, ' OR ')})
+        ${sourceSql}
       ORDER BY length(p.content) ASC, p.page_num NULLS LAST
       LIMIT ${limit}
     `;
@@ -661,8 +711,38 @@ export class ChatService {
     );
   }
 
-  private async searchPassagesVector(vector: number[], limit: number): Promise<PassageHit[]> {
+  private async searchPassagesVector(
+    vector: number[],
+    limit: number,
+    sourceFiles: string[] = [],
+  ): Promise<PassageHit[]> {
     const literal = this.embedding.toVectorLiteral(vector);
+
+    if (sourceFiles.length) {
+      const rows = (await this.prisma.$queryRawUnsafe(
+        `
+        SELECT
+          p.id AS "passageId",
+          p.content,
+          p.page_num AS "pageNum",
+          p.chunk_type AS "chunkType",
+          r.title,
+          r.volume,
+          r.source_file AS "sourceFile",
+          (1 - (e.embedding <=> $1::vector))::float8 AS score
+        FROM passage_embeddings e
+        JOIN passages p ON p.id = e.passage_id
+        JOIN rag_sources r ON r.id = p.rag_source_id
+        WHERE r.source_file = ANY($3::text[])
+        ORDER BY e.embedding <=> $1::vector
+        LIMIT $2
+        `,
+        literal,
+        limit,
+        sourceFiles,
+      )) as PassageHit[];
+      return rows.map((r) => ({ ...r, score: Number(r.score) }));
+    }
 
     const rows = (await this.prisma.$queryRawUnsafe(
       `
@@ -691,6 +771,7 @@ export class ChatService {
   private async searchPassagesFts(
     keywords: string[],
     limit: number,
+    sourceFiles: string[] = [],
   ): Promise<PassageHit[]> {
     if (!keywords.length) return [];
 
@@ -702,16 +783,21 @@ export class ChatService {
       for (const r of rows) if (!rowsById.has(r.passageId)) rowsById.set(r.passageId, r);
     };
 
-    merge(await this.runFtsQuery(ftsQuery, limit));
+    merge(await this.runFtsQuery(ftsQuery, limit, sourceFiles));
     if (keywords.length >= 2) {
-      merge(await this.runIlikeQuery(keywords, limit, true));
+      merge(await this.runIlikeQuery(keywords, limit, true, sourceFiles));
     }
-    merge(await this.runIlikeQuery(keywords, limit, false));
+    merge(await this.runIlikeQuery(keywords, limit, false, sourceFiles));
 
     return this.rankByKeywordHits([...rowsById.values()], keywords).slice(0, limit);
   }
 
-  private runFtsQuery(query: string, limit: number): Promise<PassageHit[]> {
+  private runFtsQuery(
+    query: string,
+    limit: number,
+    sourceFiles: string[] = [],
+  ): Promise<PassageHit[]> {
+    const sourceSql = this.sourceFilterSql(sourceFiles);
     return this.prisma.$queryRaw<PassageHit[]>`
       SELECT
         p.id AS "passageId",
@@ -728,6 +814,7 @@ export class ChatService {
       FROM passages p
       JOIN rag_sources r ON r.id = p.rag_source_id
       WHERE to_tsvector('simple', p.content) @@ plainto_tsquery('simple', ${query})
+        ${sourceSql}
       ORDER BY score DESC, p.page_num NULLS LAST
       LIMIT ${limit}
     `;
@@ -737,6 +824,7 @@ export class ChatService {
     keywords: string[],
     limit: number,
     requireAll: boolean,
+    sourceFiles: string[] = [],
   ): Promise<PassageHit[]> {
     const conditions = keywords.map(
       (k) => Prisma.sql`p.content ILIKE ${'%' + k + '%'}`,
@@ -744,6 +832,7 @@ export class ChatService {
     const where = requireAll
       ? Prisma.join(conditions, ' AND ')
       : Prisma.join(conditions, ' OR ');
+    const sourceSql = this.sourceFilterSql(sourceFiles);
 
     return this.prisma.$queryRaw<PassageHit[]>`
       SELECT
@@ -758,6 +847,7 @@ export class ChatService {
       FROM passages p
       JOIN rag_sources r ON r.id = p.rag_source_id
       WHERE ${where}
+        ${sourceSql}
       ORDER BY p.page_num NULLS LAST, length(p.content) ASC
       LIMIT ${limit}
     `;

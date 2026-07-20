@@ -6,10 +6,16 @@ import {
 } from './ai-config.service';
 import { AI_INTERPRETATION_MARKER } from './rag.constants';
 import { AnswerStyle, AnswerStyleContext } from './rag-answer-style';
+import type { ChatTurn } from './rag.types';
+
+/** Cap prior turns so retrieval context stays primary. */
+const MAX_HISTORY_MESSAGES = 8;
+const MAX_HISTORY_CHARS_PER_MSG = 2_000;
 
 /** Intent pre-prompt: map colloquial questions onto Tổ Sư Thiền terms before quoting. */
 const INTENT_RULES = `HIỂU Ý HỎI (bắt buộc trước khi trích):
 - Đọc câu hỏi + khối "Ý hỏi đã chuẩn hóa" (nếu có). Hiểu đúng thuật ngữ Tổ Sư Thiền trước khi copy nguyên văn.
+- Nếu có hội thoại trước: dùng để hiểu đại từ / "như trên" / "giải thích thêm" — nhưng PHẦN 1 vẫn chỉ copy từ ngữ cảnh RAG của lượt hiện tại.
 - Ánh xạ thường gặp:
   · thoại đầu ≈ chỗ chưa khởi niệm muốn nói; khác thoại vĩ (đã khởi niệm).
   · nghi tình / chơn nghi ≈ cái "không biết" khi tham / khán thoại đầu.
@@ -111,6 +117,32 @@ function maxTokensForStyle(style: AnswerStyle): number {
   }
 }
 
+/** Sanitize + truncate prior turns for Anthropic Messages API. */
+export function normalizeHistory(history: ChatTurn[] | undefined): ChatTurn[] {
+  if (!history?.length) return [];
+  const cleaned: ChatTurn[] = [];
+  for (const turn of history) {
+    if (turn.role !== 'user' && turn.role !== 'assistant') continue;
+    const content = (turn.content ?? '').trim().slice(0, MAX_HISTORY_CHARS_PER_MSG);
+    if (!content) continue;
+    // Anthropic requires alternating roles; merge consecutive same-role turns.
+    const last = cleaned[cleaned.length - 1];
+    if (last && last.role === turn.role) {
+      last.content = `${last.content}\n\n${content}`.slice(0, MAX_HISTORY_CHARS_PER_MSG);
+    } else {
+      cleaned.push({ role: turn.role, content });
+    }
+  }
+  // Must start with user for Anthropic when history is non-empty.
+  while (cleaned.length && cleaned[0].role !== 'user') cleaned.shift();
+  // Drop trailing assistant so the new user turn with RAG context follows cleanly.
+  while (cleaned.length && cleaned[cleaned.length - 1].role === 'assistant') {
+    // keep last assistant — it's prior answer; OK before new user message
+    break;
+  }
+  return cleaned.slice(-MAX_HISTORY_MESSAGES);
+}
+
 interface ClaudeStreamEvent {
   type: string;
   delta?: { type?: string; text?: string };
@@ -127,6 +159,7 @@ export class LlmService {
     contextBlocks: string[],
     styleContext: AnswerStyleContext,
     intentBrief = '',
+    history: ChatTurn[] = [],
   ): Promise<string> {
     const parts: string[] = [];
     for await (const delta of this.answerStream(
@@ -134,6 +167,7 @@ export class LlmService {
       contextBlocks,
       styleContext,
       intentBrief,
+      history,
     )) {
       parts.push(delta);
     }
@@ -151,6 +185,7 @@ export class LlmService {
     contextBlocks: string[],
     styleContext: AnswerStyleContext,
     intentBrief = '',
+    history: ChatTurn[] = [],
   ): AsyncGenerator<string> {
     const context = contextBlocks.join('\n\n---\n\n');
     const system = buildSystemPrompt(styleContext);
@@ -165,6 +200,7 @@ Ngữ cảnh: mỗi block có [KINH]/[NGỮ LỤC] và dòng "Trích dẫn: …"
 3) Nếu đã có nguyên văn: dòng ${AI_INTERPRETATION_MARKER} rồi diễn giải — NỀN = câu hỏi + phần 1; PHỤ = kiến thức nền nếu giúp phong phú. Giọng tự nhiên; CẤM "dựa vào đoạn trích…".
 ${context}`;
 
+    const prior = normalizeHistory(history);
     const endpoints = this.ai.get().chatEndpoints;
     let lastError: Error | null = null;
 
@@ -175,6 +211,7 @@ ${context}`;
         for await (const delta of this.streamAnthropic(
           endpoint,
           system,
+          prior,
           userContent,
           styleContext,
         )) {
@@ -202,10 +239,16 @@ ${context}`;
   private async *streamAnthropic(
     endpoint: ChatEndpoint,
     system: string,
+    prior: ChatTurn[],
     userContent: string,
     styleContext: AnswerStyleContext,
   ): AsyncGenerator<string> {
     const url = resolveAnthropicMessagesUrl(endpoint.baseUrl);
+
+    const messages = [
+      ...prior.map((m) => ({ role: m.role, content: m.content })),
+      { role: 'user' as const, content: userContent },
+    ];
 
     const res = await fetch(url, {
       method: 'POST',
@@ -219,7 +262,7 @@ ${context}`;
         max_tokens: maxTokensForStyle(styleContext.style),
         stream: true,
         system,
-        messages: [{ role: 'user', content: userContent }],
+        messages,
       }),
     });
 

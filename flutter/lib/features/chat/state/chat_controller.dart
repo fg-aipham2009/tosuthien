@@ -19,12 +19,18 @@ class ChatController extends ChangeNotifier {
   bool _loading = false;
   String? _error;
   String _statusPhase = 'retrieving';
+  List<RagSourceBook> _sources = [];
+  bool _sourcesLoading = false;
 
   /// Throttle UI rebuilds while tokens arrive.
   DateTime? _lastStreamNotify;
   static const _streamNotifyInterval = Duration(milliseconds: 48);
+  static const _maxHistoryTurns = 8;
 
   List<ChatConversation> get conversations => List.unmodifiable(_conversations);
+  List<RagSourceBook> get sources => List.unmodifiable(_sources);
+  bool get sourcesLoading => _sourcesLoading;
+
   ChatConversation? get activeConversation {
     if (_activeId == null) return null;
     for (final c in _conversations) {
@@ -34,6 +40,8 @@ class ChatController extends ChangeNotifier {
   }
 
   List<ChatMessage> get messages => activeConversation?.messages ?? const [];
+  List<String> get selectedSourceFiles =>
+      activeConversation?.sourceFiles ?? const [];
   bool get isLoading => _loading;
   String? get error => _error;
 
@@ -49,6 +57,18 @@ class ChatController extends ChangeNotifier {
     return last.role == ChatMessageRole.assistant && last.isStreaming;
   }
 
+  String get filterLabel {
+    final selected = selectedSourceFiles;
+    if (selected.isEmpty) return 'Tất cả sách';
+    if (selected.length == 1) {
+      for (final book in _sources) {
+        if (book.sourceFile == selected.first) return book.shortLabel;
+      }
+      return selected.first;
+    }
+    return '${selected.length} sách';
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();
@@ -60,6 +80,22 @@ class ChatController extends ChangeNotifier {
       _activeId = _conversations.first.id;
     }
     notifyListeners();
+    await loadSources();
+  }
+
+  Future<void> loadSources() async {
+    if (_sourcesLoading) return;
+    _sourcesLoading = true;
+    notifyListeners();
+    try {
+      _sources = await _repository.fetchSources();
+    } catch (e) {
+      // Non-fatal: chat still works without filter UI data.
+      debugPrint('loadSources failed: $e');
+    } finally {
+      _sourcesLoading = false;
+      notifyListeners();
+    }
   }
 
   void newConversation() {
@@ -69,6 +105,7 @@ class ChatController extends ChangeNotifier {
       title: 'Cuộc trò chuyện mới',
       updatedAt: DateTime.now(),
       messages: const [],
+      sourceFiles: const [],
     );
     _conversations = [conversation, ..._conversations];
     _activeId = id;
@@ -92,6 +129,37 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setSourceFiles(List<String> files) {
+    if (_activeId == null) newConversation();
+    final conversationId = _activeId!;
+    final normalized = files
+        .map((f) => f.trim())
+        .where((f) => f.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    _updateConversation(
+      conversationId,
+      (c) => c.copyWith(
+        sourceFiles: normalized,
+        updatedAt: DateTime.now(),
+      ),
+    );
+    notifyListeners();
+  }
+
+  void toggleSourceFile(String sourceFile) {
+    final current = [...selectedSourceFiles];
+    if (current.contains(sourceFile)) {
+      current.remove(sourceFile);
+    } else {
+      current.add(sourceFile);
+    }
+    setSourceFiles(current);
+  }
+
+  void clearSourceFilter() => setSourceFiles(const []);
+
   Future<void> sendMessage(String text) async {
     final question = text.trim();
     if (question.isEmpty || _loading) return;
@@ -101,6 +169,9 @@ class ChatController extends ChangeNotifier {
     }
 
     final conversationId = _activeId!;
+    final priorHistory = _buildHistoryPayload(messages);
+    final sourceFiles = selectedSourceFiles;
+
     final userMessage = ChatMessage(
       id: '${DateTime.now().microsecondsSinceEpoch}-u',
       role: ChatMessageRole.user,
@@ -150,7 +221,11 @@ class ChatController extends ChangeNotifier {
     }
 
     try {
-      await for (final event in _repository.askStream(question)) {
+      await for (final event in _repository.askStream(
+        question,
+        sourceFiles: sourceFiles,
+        messages: priorHistory,
+      )) {
         switch (event) {
           case ChatStreamStatus(:final phase):
             _statusPhase = phase;
@@ -189,6 +264,22 @@ class ChatController extends ChangeNotifier {
       await _persist();
       notifyListeners();
     }
+  }
+
+  /// Prior turns for the API (exclude the question about to be asked).
+  List<Map<String, String>> _buildHistoryPayload(List<ChatMessage> msgs) {
+    final turns = <Map<String, String>>[];
+    for (final m in msgs) {
+      if (m.isStreaming) continue;
+      final content = m.content.trim();
+      if (content.isEmpty) continue;
+      turns.add({
+        'role': m.role == ChatMessageRole.user ? 'user' : 'assistant',
+        'content': content,
+      });
+    }
+    if (turns.length <= _maxHistoryTurns) return turns;
+    return turns.sublist(turns.length - _maxHistoryTurns);
   }
 
   void _appendAssistantDelta(
