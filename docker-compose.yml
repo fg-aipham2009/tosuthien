@@ -16,6 +16,25 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-tosuthien}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-thamthien}
       POSTGRES_DB: ${POSTGRES_DB:-tosuthien}
+    # Tune for 2-core / ~4GB VPS — use both cores without starving API/embed.
+    command:
+      - postgres
+      - -c
+      - max_worker_processes=2
+      - -c
+      - max_parallel_workers=2
+      - -c
+      - max_parallel_workers_per_gather=1
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=2GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - random_page_cost=1.1
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -36,11 +55,13 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-tosuthien}:${POSTGRES_PASSWORD:-thamthien}@db:5432/${POSTGRES_DB:-tosuthien}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tosuthien}:${POSTGRES_PASSWORD:-thamthien}@db:5432/${POSTGRES_DB:-tosuthien}?connection_limit=5&pool_timeout=20
       DATA_ROOT: /data
       TEXT_BOOKS_ROOT: /text-books
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://api.tosuthien.net}
       PORT: 8000
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      UV_THREADPOOL_SIZE: ${UV_THREADPOOL_SIZE:-4}
       # host.docker.internal → embed_server.py on the Mac host (port 7997)
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL_DOCKER:-http://host.docker.internal:7997/v1}
     ports:

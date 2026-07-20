@@ -30,6 +30,14 @@ from __future__ import annotations
 import os
 from typing import List, Optional, Union
 
+# Use both VPS cores for ONNX / BLAS inside a single embed process.
+_nthreads = max(1, int(os.getenv("EMBED_THREADS", os.getenv("OMP_NUM_THREADS", "2"))))
+os.environ.setdefault("OMP_NUM_THREADS", str(_nthreads))
+os.environ.setdefault("MKL_NUM_THREADS", str(_nthreads))
+os.environ.setdefault("OPENBLAS_NUM_THREADS", str(_nthreads))
+os.environ.setdefault("ORT_NUM_THREADS", str(_nthreads))
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "true")
+
 from fastapi import FastAPI
 from fastembed import TextEmbedding
 from pydantic import BaseModel
@@ -41,8 +49,11 @@ MODEL_NAME = os.getenv(
 PORT = int(os.getenv("EMBED_PORT", "7997"))
 USES_E5_PREFIX = "e5" in MODEL_NAME.lower()
 
-print(f"Loading fastembed model: {MODEL_NAME} (first run downloads weights)...")
-_model = TextEmbedding(model_name=MODEL_NAME)
+print(
+    f"Loading fastembed model: {MODEL_NAME} "
+    f"(threads={_nthreads}, first run downloads weights)..."
+)
+_model = TextEmbedding(model_name=MODEL_NAME, threads=_nthreads)
 print("Model ready.")
 
 app = FastAPI(title="Local Embedding Server")
@@ -66,7 +77,11 @@ def _apply_prefix(texts: List[str], input_type: str) -> List[str]:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "model": MODEL_NAME}
+    return {
+        "status": "ok",
+        "model": MODEL_NAME,
+        "threads": _nthreads,
+    }
 
 
 @app.post("/v1/embeddings")
@@ -90,4 +105,12 @@ def embeddings(req: EmbeddingRequest) -> dict:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+    # One process (model is large); FastAPI runs sync handlers in a threadpool.
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=PORT,
+        workers=1,
+        limit_concurrency=32,
+        timeout_keep_alive=30,
+    )

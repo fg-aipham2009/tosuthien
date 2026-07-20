@@ -10,6 +10,8 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+ENV UV_THREADPOOL_SIZE=4
+ENV WEB_CONCURRENCY=2
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm ci --omit=dev && npx prisma generate
