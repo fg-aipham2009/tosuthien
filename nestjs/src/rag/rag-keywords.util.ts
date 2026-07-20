@@ -139,7 +139,14 @@ const TOPIC_VARIANTS: Record<string, string[]> = {
     'tánh phật',
     'tánh tâm',
   ],
-  'vô sở trụ': ['vô sở trụ', 'ứng vô sở trụ', 'vô trụ', 'không trụ vào đâu'],
+  'vô sở trụ': [
+    'vô sở trụ',
+    'ứng vô sở trụ',
+    'ưng vô sở trụ',
+    'vô trụ',
+    'không trụ vào đâu',
+    'ưng vô sở trụ nhi sanh kỳ tâm',
+  ],
   'kim cang': [
     'kim cang',
     'kinh kim cang',
@@ -509,6 +516,12 @@ export function buildIntentBrief(signals: QuerySignals): string {
   }
   if (signals.sourceHints.length) {
     lines.push(`Ưu tiên tra trong: ${signals.sourceHints.join('; ')}`);
+    const primaryFiles = resolvePrimarySourceFiles(signals.sourceHints);
+    if (primaryFiles.length) {
+      lines.push(
+        `Kinh/sách được nêu tên → ưu tiên file: ${primaryFiles.join(', ')} (trích đủ đầu–đuôi từ đúng nguồn này trước)`,
+      );
+    }
   }
   const figures = signals.mustGroups
     .flat()
@@ -520,6 +533,36 @@ export function buildIntentBrief(signals: QuerySignals): string {
     lines.push(`Nhân vật / tổ sư: ${[...new Set(figures)].join(', ')}`);
   }
   return lines.join('\n');
+}
+
+/** Map sourceHints → ingest source_file for hard ranking / pin. */
+export function resolvePrimarySourceFiles(sourceHints: string[]): string[] {
+  if (!sourceHints.length) return [];
+  const blob = sourceHints.join(' ').toLowerCase();
+  const files = new Set<string>();
+  const rules: Array<[RegExp, string]> = [
+    [/pháp bảo đàn|đàn kinh/, '4.txt'],
+    [/lăng nghiêm/, '19.txt'],
+    [/lược giảng kinh lăng nghiêm/, '15.txt'],
+    [/lăng già/, '20.txt'],
+    [/kim cang/, '18.txt'],
+    [/bồ tát giới/, '9.txt'],
+    [/nam tuyền|bửu tạng/, '1.txt'],
+    [/tín tâm minh/, '22.txt'],
+    [/duy lực ngữ lục/, '13.txt'],
+    [/tham tổ sư thiền|đường lối thực hành/, '21.txt'],
+    [/tham thiền phổ thuyết/, '7.txt'],
+    [/triệu luận/, '17.txt'],
+    [/đại thừa tuyệt đối/, '16.txt'],
+    [/danh từ thiền/, '11.txt'],
+    [/vũ trụ quan/, '10.txt'],
+  ];
+  for (const [re, file] of rules) {
+    if (re.test(blob)) files.add(file);
+  }
+  // Lăng Nghiêm: prefer commentary 15 when "lược giảng" else kinh 19; if both hints keep both
+  if (/lược giảng kinh lăng nghiêm/.test(blob)) files.add('15.txt');
+  return [...files];
 }
 
 export function analyzeQuery(

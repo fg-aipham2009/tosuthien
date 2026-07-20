@@ -42,5 +42,5 @@ export function resolveAnswerStyle(
 
 export function maxPassageCharsForTier(tier: SourceTier): number {
   // Keep neighbor windows long so the model can copy full passages uncut.
-  return tier === 'kinh' ? 12_000 : 6_000;
+  return tier === 'kinh' ? 16_000 : 8_000;
 }

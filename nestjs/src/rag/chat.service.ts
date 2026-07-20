@@ -23,6 +23,7 @@ import {
   questionStem,
   analyzeQuery,
   buildIntentBrief,
+  resolvePrimarySourceFiles,
 } from './rag-keywords.util';
 import { isKinhSource, sourceTier, toPrintedPage, printedPageOffset } from './rag-source.util';
 import { normalizeHistory } from './llm.service';
@@ -37,7 +38,7 @@ import {
 /** Cap LLM context — neighbor ±1 pages need room for full paragraphs. */
 const MAX_CONTEXT_CHARS = 36_000;
 /** Soft cap for citation quote — prefer whole paragraphs under this size. */
-const QUOTE_MAX_CHARS = 4_800;
+const QUOTE_MAX_CHARS = 8_000;
 const MAX_DISPLAY_CITATIONS = 24;
 const SENTENCE_ENDINGS = /[.!?;:…]/;
 const PARAGRAPH_SPLIT = /\n{2,}|(?=\[Trang\s+\d+\])/;
@@ -365,10 +366,16 @@ export class ChatService {
         sourceHints,
       );
 
-    const styleContext = resolveAnswerStyle(rankedHits, relevanceOf);
+    const styleContextRaw = resolveAnswerStyle(rankedHits, relevanceOf);
+    const styleContext =
+      sourceHints.length && styleContextRaw.style === 'brief'
+        ? { ...styleContextRaw, style: 'kinh_long' as const }
+        : styleContextRaw;
+    const primaryFiles = resolvePrimarySourceFiles(sourceHints);
     const hits = this.diversifyBySource(
       this.trimHitsForStyle(rankedHits, styleContext.style, relevanceOf),
       Math.max(k, 8),
+      primaryFiles,
     );
 
     const meta: ChatResult['meta'] = {
@@ -460,6 +467,7 @@ export class ChatService {
     const diversified = this.diversifyCitationsBySource(
       ranked,
       MAX_DISPLAY_CITATIONS,
+      resolvePrimarySourceFiles(sourceHints),
     );
 
     return this.citationLinks.enrichCitations(diversified);
@@ -471,16 +479,27 @@ export class ChatService {
   private diversifyCitationsBySource(
     citations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
     limit: number,
+    primaryFiles: string[] = [],
   ): Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] {
     const ranked = this.dedupeCitationsBySourcePage(citations);
-    const seenSource = new Set<string>();
+    const primary = new Set(primaryFiles.map((f) => f.toLowerCase()));
     const out: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] = [];
-    for (const c of ranked) {
+    const seen = new Set<string>();
+
+    const push = (c: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>) => {
       const key = (c.sourceFile || c.title || 'unknown').toLowerCase();
-      if (seenSource.has(key)) continue;
-      seenSource.add(key);
+      if (seen.has(key)) return;
+      seen.add(key);
       out.push(c);
+    };
+
+    for (const c of ranked) {
       if (out.length >= limit) break;
+      if (primary.has((c.sourceFile || '').toLowerCase())) push(c);
+    }
+    for (const c of ranked) {
+      if (out.length >= limit) break;
+      push(c);
     }
     return out;
   }
@@ -502,23 +521,63 @@ export class ChatService {
   }
 
   /**
-   * Prefer passages from different books so the LLM can quote diversely.
-   * One hit per book (best score kept earlier in list) — avoids near-duplicate
-   * neighbor windows (e.g. tr.129 + tr.131 both expanding over tr.130).
+   * Prefer different books; pin named-book (primaryFiles) first with up to 2 pages.
    */
-  private diversifyBySource(hits: PassageHit[], limit: number): PassageHit[] {
+  private diversifyBySource(
+    hits: PassageHit[],
+    limit: number,
+    primaryFiles: string[] = [],
+  ): PassageHit[] {
     if (hits.length <= 1) return hits;
 
     const deduped = this.dedupeHitsBySourcePage(hits);
-    const seenSource = new Set<string>();
+    const primary = new Set(primaryFiles.map((f) => f.toLowerCase()));
     const out: PassageHit[] = [];
-    for (const h of deduped) {
+    const countBySource = new Map<string, number>();
+
+    const tryPush = (h: PassageHit, maxPerSource: number) => {
       const key = (h.sourceFile || h.title || 'unknown').toLowerCase();
-      if (seenSource.has(key)) continue;
-      seenSource.add(key);
+      const n = countBySource.get(key) ?? 0;
+      if (n >= maxPerSource) return false;
+      if (
+        n > 0
+        && h.pageNum != null
+        && out.some(
+          (x) =>
+            (x.sourceFile || '').toLowerCase() === key
+            && x.pageNum != null
+            && Math.abs(x.pageNum - h.pageNum!) <= 1,
+        )
+      ) {
+        return false;
+      }
+      countBySource.set(key, n + 1);
       out.push(h);
+      return true;
+    };
+
+    // 1) Named kinh/sách first (allow 2 non-adjacent pages for full đầu–đuôi).
+    for (const h of deduped) {
       if (out.length >= limit) break;
+      const key = (h.sourceFile || '').toLowerCase();
+      if (!primary.has(key)) continue;
+      tryPush(h, 2);
     }
+
+    // 2) Fill with other books (1 each).
+    for (const h of deduped) {
+      if (out.length >= limit) break;
+      const key = (h.sourceFile || '').toLowerCase();
+      if (primary.has(key)) continue;
+      tryPush(h, 1);
+    }
+
+    // 3) If still short, allow more from primary.
+    for (const h of deduped) {
+      if (out.length >= limit) break;
+      tryPush(h, primary.has((h.sourceFile || '').toLowerCase()) ? 3 : 1);
+    }
+
     return out;
   }
 
@@ -956,7 +1015,7 @@ export class ChatService {
       }
     }
 
-    if (this.matchesSourceHints(h, sourceHints)) rank += 0.9;
+    if (this.matchesSourceHints(h, sourceHints)) rank += 2.4;
 
     return rank;
   }
@@ -1090,8 +1149,8 @@ export class ChatService {
   }
 
   /**
-   * Expand each hit with neighboring OCR pages (±1) from the same source file.
-   * Avoids missing split content (e.g. "nghi tình" across tr.127–129).
+   * Expand each hit with neighboring OCR pages (±2) from the same source file.
+   * Page-turn narratives (e.g. Pháp Bảo Đàn tr.14→15) need the lead-in on the prior page.
    */
   private async expandHitsWithNeighborPages(
     hits: PassageHit[],
@@ -1101,8 +1160,9 @@ export class ChatService {
         if (hit.pageNum == null) return hit;
 
         const center = hit.pageNum;
-        const pageStart = Math.max(1, center - 1);
-        const pageEnd = center + 1;
+        const radius = 2;
+        const pageStart = Math.max(1, center - radius);
+        const pageEnd = center + radius;
         const neighbors = await this.fetchPagesAround(
           hit.sourceFile,
           pageStart,
@@ -1199,7 +1259,7 @@ export class ChatService {
       // Neighbor windows are larger — allow more chars so 3 pages aren't truncated away.
       const pageMarkers = (h.content.match(/\[Trang\s+\d+\]/g) ?? []).length;
       const windowBonus =
-        pageMarkers > 1 ? Math.min(4_800, (pageMarkers - 1) * 2_000) : 0;
+        pageMarkers > 1 ? Math.min(12_000, (pageMarkers - 1) * 2_800) : 0;
       const body = this.trimPassageAtSentence(h.content, maxChars + windowBonus);
       const block = `${header}\n${body}`;
       if (used + block.length > MAX_CONTEXT_CHARS) break;
@@ -1494,9 +1554,9 @@ export class ChatService {
       return this.joinCompleteParagraphs(paragraphs.slice(0, 2), QUOTE_MAX_CHARS);
     }
 
-    // Matched paragraph ±1 paragraph, and expand to full HỎI–ĐÁP when present.
-    const start = Math.max(0, bestIdx - 1);
-    const end = Math.min(paragraphs.length, bestIdx + 3);
+    // Wider window so citation chips show đủ đầu–đuôi (cross-page narratives).
+    const start = Math.max(0, bestIdx - 3);
+    const end = Math.min(paragraphs.length, bestIdx + 6);
     const window = paragraphs.slice(start, end);
 
     const withQa = this.expandToQaPair(paragraphs, bestIdx);
