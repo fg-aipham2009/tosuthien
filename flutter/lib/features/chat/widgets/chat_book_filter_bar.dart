@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../state/chat_controller.dart';
 
-/// Compact filter bar + centered multi-select dialog for RAG book filter.
+/// Book filter for multi-turn RAG — always visible above the composer.
 class ChatBookFilterBar extends StatelessWidget {
   const ChatBookFilterBar({super.key, required this.controller});
 
@@ -40,7 +40,7 @@ class ChatBookFilterBar extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              'Lọc theo sách',
+                              'Chọn sách để hỏi',
                               style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -58,8 +58,8 @@ class ChatBookFilterBar extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Text(
                         selected.isEmpty
-                            ? 'Đang hỏi trong toàn bộ kho kinh sách.'
-                            : 'Đã chọn ${selected.length} sách — câu trả lời chỉ lấy từ các sách này.',
+                            ? 'Chưa chọn → hỏi trong toàn bộ kho. Tick sách để giới hạn câu trả lời (giữ qua các lượt hỏi tiếp).'
+                            : 'Đã chọn ${selected.length} sách — mọi câu hỏi tiếp theo chỉ lấy từ các sách này.',
                         style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                               color: colors.onSurfaceVariant,
                             ),
@@ -90,7 +90,6 @@ class ChatBookFilterBar extends StatelessWidget {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  // Never show sourceFile (e.g. 1.txt) to users.
                                   onChanged: (v) {
                                     setModalState(() {
                                       if (v == true) {
@@ -112,7 +111,7 @@ class ChatBookFilterBar extends StatelessWidget {
                             onPressed: () {
                               setModalState(selected.clear);
                             },
-                            child: const Text('Tất cả'),
+                            child: const Text('Tất cả sách'),
                           ),
                           const Spacer(),
                           TextButton(
@@ -144,37 +143,85 @@ class ChatBookFilterBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final selected = controller.selectedSourceFiles;
-    final label = controller.filterLabel;
+    final hasFilter = selected.isNotEmpty;
+    final title = hasFilter ? controller.filterLabel : 'Tất cả sách';
+    final subtitle = hasFilter
+        ? 'Đang lọc ${selected.length} sách — bấm để đổi (giữ qua multi-turn)'
+        : 'Bấm để chọn sách trước khi hỏi (multi-turn)';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ActionChip(
-              avatar: Icon(
-                selected.isEmpty ? Icons.menu_book_outlined : Icons.filter_alt,
-                size: 18,
-                color: colors.onSecondaryContainer,
-              ),
-              label: Text(label),
-              backgroundColor: selected.isEmpty
-                  ? colors.surfaceContainerHighest
-                  : colors.secondaryContainer,
-              onPressed: () => _openPicker(context),
+      child: Material(
+        color: hasFilter
+            ? colors.secondaryContainer
+            : colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: () => _openPicker(context),
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+            child: Row(
+              children: [
+                Icon(
+                  hasFilter ? Icons.filter_alt : Icons.menu_book_outlined,
+                  size: 22,
+                  color: hasFilter
+                      ? colors.onSecondaryContainer
+                      : colors.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Lọc sách: $title',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: hasFilter
+                                  ? colors.onSecondaryContainer
+                                  : colors.onSurface,
+                            ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: hasFilter
+                                  ? colors.onSecondaryContainer
+                                      .withValues(alpha: 0.85)
+                                  : colors.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (hasFilter)
+                  IconButton(
+                    tooltip: 'Bỏ lọc sách',
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: colors.onSecondaryContainer,
+                    ),
+                    onPressed: controller.clearSourceFilter,
+                  )
+                else
+                  Icon(
+                    Icons.expand_more,
+                    color: colors.onSurfaceVariant,
+                  ),
+                if (!hasFilter) const SizedBox(width: 8),
+              ],
             ),
-            if (selected.isNotEmpty) ...[
-              const SizedBox(width: 4),
-              IconButton(
-                tooltip: 'Bỏ lọc sách',
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.close, size: 18),
-                onPressed: controller.clearSourceFilter,
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );

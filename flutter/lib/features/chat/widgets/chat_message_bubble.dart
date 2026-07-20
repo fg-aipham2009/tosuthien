@@ -438,6 +438,7 @@ class ChatWelcome extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 'Đặt câu hỏi về giáo lý, kinh sách Hoà thượng Thích Duy Lực.\n'
+                'Có thể chọn sách ở thanh “Lọc sách” bên dưới trước khi hỏi (giữ qua các lượt).\n'
                 'Câu trả lời kèm trích dẫn nguồn để bạn tự đối chiếu.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
