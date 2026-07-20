@@ -10,7 +10,7 @@ import '../models/text_book.dart';
 
 enum _ReadingTheme { light, sepia, dark }
 
-const _bgAsset = 'assets/images/text_reader_bg_v3.png';
+const _bgAsset = 'assets/images/text_reader_bg_v4.png';
 
 /// Text-only reader — zoom, fullscreen, tap to show/hide controls.
 class TextBookReaderScreen extends StatefulWidget {

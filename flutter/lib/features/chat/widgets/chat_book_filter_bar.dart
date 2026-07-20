@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../state/chat_controller.dart';
 
-/// Compact filter bar + multi-select sheet for RAG book filter.
+/// Compact filter bar + centered multi-select dialog for RAG book filter.
 class ChatBookFilterBar extends StatelessWidget {
   const ChatBookFilterBar({super.key, required this.controller});
 
@@ -15,22 +15,27 @@ class ChatBookFilterBar extends StatelessWidget {
     if (!context.mounted) return;
 
     final selected = {...controller.selectedSourceFiles};
-    await showModalBottomSheet<void>(
+    final colors = Theme.of(context).colorScheme;
+
+    await showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
             final sources = controller.sources;
-            return SafeArea(
-              child: SizedBox(
-                height: MediaQuery.sizeOf(ctx).height * 0.72,
+            final size = MediaQuery.sizeOf(ctx);
+            return Dialog(
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 440,
+                  maxHeight: size.height * 0.78,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 12, 8),
+                      padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
                       child: Row(
                         children: [
                           Expanded(
@@ -41,18 +46,10 @@ class ChatBookFilterBar extends StatelessWidget {
                                   ),
                             ),
                           ),
-                          TextButton(
-                            onPressed: () {
-                              setModalState(selected.clear);
-                            },
-                            child: const Text('Tất cả'),
-                          ),
-                          FilledButton(
-                            onPressed: () {
-                              controller.setSourceFiles(selected.toList());
-                              Navigator.of(ctx).pop();
-                            },
-                            child: const Text('Áp dụng'),
+                          IconButton(
+                            tooltip: 'Đóng',
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            icon: const Icon(Icons.close),
                           ),
                         ],
                       ),
@@ -64,7 +61,7 @@ class ChatBookFilterBar extends StatelessWidget {
                             ? 'Đang hỏi trong toàn bộ kho kinh sách.'
                             : 'Đã chọn ${selected.length} sách — câu trả lời chỉ lấy từ các sách này.',
                         style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                              color: colors.onSurfaceVariant,
                             ),
                       ),
                     ),
@@ -77,6 +74,7 @@ class ChatBookFilterBar extends StatelessWidget {
                                   : const Text('Chưa tải được danh sách sách.'),
                             )
                           : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
                               itemCount: sources.length,
                               itemBuilder: (ctx, i) {
                                 final book = sources[i];
@@ -85,12 +83,14 @@ class ChatBookFilterBar extends StatelessWidget {
                                 return CheckboxListTile(
                                   value: checked,
                                   dense: true,
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
                                   title: Text(
                                     book.title,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  subtitle: Text(book.sourceFile),
+                                  // Never show sourceFile (e.g. 1.txt) to users.
                                   onChanged: (v) {
                                     setModalState(() {
                                       if (v == true) {
@@ -103,6 +103,32 @@ class ChatBookFilterBar extends StatelessWidget {
                                 );
                               },
                             ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                      child: Row(
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              setModalState(selected.clear);
+                            },
+                            child: const Text('Tất cả'),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Hủy'),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            onPressed: () {
+                              controller.setSourceFiles(selected.toList());
+                              Navigator.of(ctx).pop();
+                            },
+                            child: const Text('Áp dụng'),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

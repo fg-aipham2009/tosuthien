@@ -66,7 +66,7 @@ class ChatController extends ChangeNotifier {
       for (final book in _sources) {
         if (book.sourceFile == selected.first) return book.shortLabel;
       }
-      return selected.first;
+      return '1 sách';
     }
     return '${selected.length} sách';
   }
