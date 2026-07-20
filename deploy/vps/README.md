@@ -79,14 +79,18 @@ Repo → **Settings → Secrets and variables → Actions**:
 
 | Name | Value |
 |------|--------|
-| `VPS_SSH_PRIVATE_KEY` | Nội dung private key SSH vào VPS (cùng key đã add vào `authorized_keys`) |
+| `VPS_SSH_PRIVATE_KEY` | Private key SSH vào VPS (fallback) |
+| `VPS_SSH_PRIVATE_KEY_B64` | **Khuyến nghị** — cùng private key, base64 1 dòng (`base64 < key | tr -d '\\n'`) |
 
 Public key tương ứng phải có trên VPS (`~/.ssh/authorized_keys`).
 
-Hoặc CLI:
-
 ```bash
-gh secret set VPS_SSH_PRIVATE_KEY < ~/.ssh/id_ed25519_tosuthien
+# Generate deploy key (no passphrase)
+ssh-keygen -t ed25519 -N "" -f /tmp/tosuthien_cicd -C "github-actions-tosuthien"
+ssh tosuthien-vps "cat >> ~/.ssh/authorized_keys" < /tmp/tosuthien_cicd.pub
+gh secret set VPS_SSH_PRIVATE_KEY < /tmp/tosuthien_cicd
+gh secret set VPS_SSH_PRIVATE_KEY_B64 -b "$(base64 < /tmp/tosuthien_cicd | tr -d '\n')"
+rm -f /tmp/tosuthien_cicd /tmp/tosuthien_cicd.pub
 ```
 
 ### Chạy tay

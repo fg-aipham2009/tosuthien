@@ -42,7 +42,6 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       web: ${{ steps.filter.outputs.web }}
       admin: ${{ steps.filter.outputs.admin }}
-      compose: ${{ steps.filter.outputs.compose }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -60,9 +59,6 @@ jobs:
               - '.github/workflows/deploy.yml'
             admin:
               - 'vuejs/**'
-              - 'docker-compose.yml'
-            compose:
-              - 'docker-compose.yml'
 
   deploy-api:
     name: Build & deploy API
@@ -104,15 +100,27 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-
-      - name: Trust VPS host key
+      - name: Setup VPS SSH
+        env:
+          KEY_B64: ${{ secrets.VPS_SSH_PRIVATE_KEY_B64 }}
         run: |
+          set -euo pipefail
+          test -n "$KEY_B64"
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$KEY_B64" | base64 -d > ~/.ssh/tosuthien_cicd
+          chmod 600 ~/.ssh/tosuthien_cicd
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<EOF
+          Host vps
+            HostName ${VPS_HOST}
+            User ${VPS_USER}
+            IdentityFile ~/.ssh/tosuthien_cicd
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          EOF
+          chmod 600 ~/.ssh/config
+          ssh -o BatchMode=yes vps 'echo ssh_ok'
 
       - name: Deploy API on VPS
         env:
@@ -120,11 +128,10 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          ssh -o IdentitiesOnly=yes "${VPS_USER}@${VPS_HOST}" \
-            "mkdir -p ${VPS_REPO}/deploy/scripts"
+          ssh vps "mkdir -p ${VPS_REPO}/deploy/scripts"
           scp deploy/scripts/ci-deploy-api-on-vps.sh \
-            "${VPS_USER}@${VPS_HOST}:${VPS_REPO}/deploy/scripts/ci-deploy-api-on-vps.sh"
-          ssh -o IdentitiesOnly=yes "${VPS_USER}@${VPS_HOST}" \
+            "vps:${VPS_REPO}/deploy/scripts/ci-deploy-api-on-vps.sh"
+          ssh vps \
             "chmod +x ${VPS_REPO}/deploy/scripts/ci-deploy-api-on-vps.sh && \
              API_IMAGE='${API_IMAGE}' \
              GHCR_USER='${{ github.actor }}' \
@@ -164,24 +171,35 @@ jobs:
         run: |
           tar -C flutter/build/web -czf /tmp/tosuthien-web.tar.gz .
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-
-      - name: Trust VPS host key
+      - name: Setup VPS SSH
+        env:
+          KEY_B64: ${{ secrets.VPS_SSH_PRIVATE_KEY_B64 }}
         run: |
+          set -euo pipefail
+          test -n "$KEY_B64"
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$KEY_B64" | base64 -d > ~/.ssh/tosuthien_cicd
+          chmod 600 ~/.ssh/tosuthien_cicd
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<EOF
+          Host vps
+            HostName ${VPS_HOST}
+            User ${VPS_USER}
+            IdentityFile ~/.ssh/tosuthien_cicd
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          EOF
+          chmod 600 ~/.ssh/config
+          ssh -o BatchMode=yes vps 'echo ssh_ok'
 
       - name: Upload & publish on VPS
         run: |
           set -euo pipefail
-          scp /tmp/tosuthien-web.tar.gz \
-            "${VPS_USER}@${VPS_HOST}:/tmp/tosuthien-web.tar.gz"
+          scp /tmp/tosuthien-web.tar.gz "vps:/tmp/tosuthien-web.tar.gz"
           scp deploy/scripts/ci-deploy-web-on-vps.sh \
-            "${VPS_USER}@${VPS_HOST}:${VPS_REPO}/deploy/scripts/ci-deploy-web-on-vps.sh"
-          ssh -o IdentitiesOnly=yes "${VPS_USER}@${VPS_HOST}" \
+            "vps:${VPS_REPO}/deploy/scripts/ci-deploy-web-on-vps.sh"
+          ssh vps \
             "chmod +x ${VPS_REPO}/deploy/scripts/ci-deploy-web-on-vps.sh && \
              ${VPS_REPO}/deploy/scripts/ci-deploy-web-on-vps.sh"
 
@@ -195,20 +213,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-
-      - name: Trust VPS host key
+      - name: Setup VPS SSH
+        env:
+          KEY_B64: ${{ secrets.VPS_SSH_PRIVATE_KEY_B64 }}
         run: |
+          set -euo pipefail
+          test -n "$KEY_B64"
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$KEY_B64" | base64 -d > ~/.ssh/tosuthien_cicd
+          chmod 600 ~/.ssh/tosuthien_cicd
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<EOF
+          Host vps
+            HostName ${VPS_HOST}
+            User ${VPS_USER}
+            IdentityFile ~/.ssh/tosuthien_cicd
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          EOF
+          chmod 600 ~/.ssh/config
+          ssh -o BatchMode=yes vps 'echo ssh_ok'
 
       - name: Rebuild admin
         run: |
           set -euo pipefail
-          ssh -o IdentitiesOnly=yes "${VPS_USER}@${VPS_HOST}" bash -s <<'EOF'
+          ssh vps bash -s <<'EOF'
           set -euo pipefail
           cd /opt/tosu-thien
           git fetch origin main
