@@ -1,34 +1,111 @@
-/** Expand query terms for FTS / ranking (Vietnamese Zen corpus). */
+/**
+ * Query expansion for Tổ Sư Thiền corpus (HT. Thích Duy Lực).
+ * Terms mirror wording in text/*.txt — especially Đường lối thực hành,
+ * Tham Thiền Phổ Thuyết, Duy Lực Ngữ Lục, Danh Từ Thiền Học, Pháp Bảo Đàn.
+ */
+
+/** Synonym / near-synonym clusters for FTS + ranking. */
 const ALIAS_GROUPS: string[][] = [
-  ['nghi', 'nghi tình', 'chơn nghi', 'nghi căn'],
-  ['ngộ', 'giác ngộ', 'đốn ngộ', 'khai ngộ', 'minh tâm', 'kiến tánh'],
-  ['thoại', 'thoại đầu', 'thoại vĩ', 'câu thoại'],
-  ['thiền', 'tham thiền', 'tổ sư thiền'],
-  ['hôn trầm', 'tán loạn'],
-  ['phật', 'phật tánh', 'bản tánh', 'tự tánh'],
+  // Core practice
+  ['thoại đầu', 'tham thoại đầu', 'khán thoại đầu', 'câu thoại', 'câu thoại đầu', 'thoại'],
+  ['thoại vĩ', 'đuôi thoại', 'đã khởi niệm'],
+  ['nghi tình', 'chơn nghi', 'nghi căn', 'nghi', 'cái nghi', 'khởi nghi'],
+  ['tham thiền', 'tọa thiền', 'tham tổ sư thiền', 'tổ sư thiền', 'thiền'],
+  ['khán', 'khán thoại', 'nhìn chỗ không biết', 'nhìn vào chỗ không biết'],
+  ['công án', 'câu công án', 'thoại đầu công án'],
+  ['kiến tánh', 'minh tâm', 'minh tâm kiến tánh', 'ngộ đạo', 'kiến tánh thành phật'],
+  ['ngộ', 'giác ngộ', 'đốn ngộ', 'khai ngộ', 'đại ngộ', 'tiểu ngộ'],
+  ['hôn trầm', 'tán loạn', 'vọng tưởng', 'tán tâm'],
+  ['thiền bệnh', 'ba thứ bệnh', 'chấp thành bệnh', 'pháp thân bệnh', 'ngâm nước chết'],
+  ['cảnh ngữ', 'tham thiền cảnh ngữ'],
+
+  // Nature / mind
+  ['tự tánh', 'phật tánh', 'bản tánh', 'bản lai diện mục', 'bản lai', 'tánh phật', 'tánh tâm'],
+  ['vô niệm', 'ly niệm', 'chẳng trụ niệm'],
+  ['vô trụ', 'vô sở trụ', 'ứng vô sở trụ', 'không trụ'],
+  ['nhất tâm', 'nhất niệm', 'chuyên nhất'],
+  ['ý thức', 'thức thứ sáu', 'thức thứ bảy', 'mạt na', 'a lại da'],
+  ['vô thủy vô minh', 'vô minh', 'căn bản vô minh'],
+  ['đầu sào trăm thước', 'đầu sào', 'trăm thước đầu sào'],
+
+  // Path / fruit
+  ['bồ đề', 'vô thượng bồ đề', 'chánh đẳng chánh giác'],
+  ['niết bàn', 'niết-bàn', 'tịch diệt'],
+  ['sinh tử', 'sanh tử', 'luân hồi', 'sống chết'],
+  ['bát nhã', 'trí tuệ bát nhã', 'bát nhã ba la mật'],
+  ['pháp thân', 'báo thân', 'hóa thân', 'tam thân'],
+  ['tam bảo', 'tam bao', 'quy y', 'tự quy y', 'tự tánh tam bảo'],
+
+  // Scriptures / short maxims
+  ['chí đạo', 'chí đạo vô nan', 'duy hiềm giản trạch', 'giản trạch'],
+  ['kim cang', 'kinh kim cang', 'phàm sở hữu tướng', 'phàm có tướng', 'chư tướng phi tướng'],
+  ['lăng nghiêm', 'kinh lăng nghiêm', 'thủ lăng nghiêm'],
+  ['lăng già', 'kinh lăng già'],
+  ['pháp bảo đàn', 'đàn kinh', 'kinh pháp bảo đàn'],
+  ['bồ tát giới', 'giới bồ tát', 'thập trọng', 'tứ thập bát khinh', 'phạm võng'],
+
+  // Famous gong'an wording variants
+  ['chém mèo', 'chặt mèo', 'chém con mèo', 'chặt con mèo', 'nam tuyền chém mèo', 'giành con mèo'],
   ['bốn', '4', 'tứ'],
-  ['bệnh', 'thiền bệnh', 'ba thứ bệnh', 'chấp thành bệnh'],
-  ['tam bảo', 'tam bao', 'quy y', 'tự quy y'],
-  ['chém mèo', 'chặt mèo', 'chém con mèo', 'chặt con mèo', 'nam tuyền chém mèo'],
-  ['chí đạo', 'chí đạo vô nan', 'duy hiềm giản trạch'],
-  ['bồ tát giới', 'giới bồ tát', 'thập trọng', 'tứ thập bát khinh'],
 ];
 
 /** Known figures — enriches parsed segments, not the only signal. */
 const FIGURE_PHRASES: string[][] = [
-  ['bác sơn', 'bác sơn thiền sư', 'hòa thượng bác sơn', 'đại sư bác sơn'],
-  ['lai quả', 'lai quả thiền sư'],
-  ['hư vân', 'hư vân thiền sư'],
-  ['lục tổ', 'lục tổ huệ năng', 'huệ năng', 'ngài lục tổ'],
-  ['minh bổn', 'minh bổn thiền sư', 'trung phong'],
-  ['nguyệt khê', 'nguyệt khê thiền sư'],
-  ['động sơn', 'vân môn', 'triệu châu', 'lâm tế', 'bá trượng'],
+  ['duy lực', 'thích duy lực', 'ht duy lực', 'hòa thượng duy lực', 'ht. thích duy lực'],
+  ['lục tổ', 'lục tổ huệ năng', 'huệ năng', 'ngài lục tổ', 'đại sư huệ năng'],
   ['nam tuyền', 'nam tuyền phổ nguyện', 'vương lão sư'],
-  ['duy lực', 'thích duy lực', 'ht duy lực', 'hòa thượng duy lực'],
+  ['triệu châu', 'triệu châu tòng thẩm', 'con chó có phật tánh'],
+  ['lâm tế', 'lâm tế nghĩa huyền', 'lâm tế ngữ lục'],
+  ['trung phong', 'minh bổn', 'minh bổn thiền sư', 'trung phong pháp ngữ'],
+  ['bác sơn', 'bác sơn thiền sư', 'hòa thượng bác sơn', 'đại sư bác sơn'],
+  ['hư vân', 'hư vân thiền sư'],
+  ['lai quả', 'lai quả thiền sư'],
+  ['nguyệt khê', 'nguyệt khê thiền sư'],
+  ['động sơn', 'động sơn lương giới'],
+  ['vân môn', 'vân môn văn yển'],
+  ['bá trượng', 'bách trượng', 'bá trượng hoài hải'],
+  ['mã tổ', 'mã tổ đạo nhất'],
+  ['hoàng bá', 'hoàng bá hy vận'],
+  ['đạt ma', 'bồ đề đạt ma', 'sơ tổ đạt ma'],
+  ['tăng triệu', 'tăng triệu', 'triệu luận'],
+  ['tam tổ', 'tam tổ tăng xán', 'tăng xán', 'tín tâm minh'],
 ];
 
 /** Corpus wording may differ from user phrasing. */
 const TOPIC_VARIANTS: Record<string, string[]> = {
+  'thoại đầu': [
+    'thoại đầu',
+    'tham thoại đầu',
+    'khán thoại đầu',
+    'câu thoại',
+    'câu thoại đầu',
+    'chưa khởi niệm',
+    'đầu tiên lời nói',
+  ],
+  'thoại vĩ': ['thoại vĩ', 'đã khởi niệm muốn nói', 'đuôi của thoại'],
+  'nghi tình': [
+    'nghi tình',
+    'chơn nghi',
+    'nghi căn',
+    'cái không biết',
+    'chỗ không biết',
+    'khởi nghi',
+  ],
+  'tham tổ sư thiền': [
+    'tham tổ sư thiền',
+    'tổ sư thiền',
+    'tham thiền',
+    'đường lối thực hành',
+    'cách tham thiền',
+    'phương pháp tham thiền',
+  ],
+  'kiến tánh': [
+    'kiến tánh',
+    'minh tâm kiến tánh',
+    'minh tâm',
+    'thấy tánh',
+    'ngộ tự tánh',
+  ],
   'thiền bệnh': [
     'thiền bệnh',
     'ba thứ bệnh',
@@ -36,9 +113,10 @@ const TOPIC_VARIANTS: Record<string, string[]> = {
     'pháp thân bệnh',
     'ngâm nước chết',
     'cảnh ngữ về thiền bệnh',
+    'hôn trầm',
+    'tán loạn',
   ],
-  'thoại đầu': ['thoại đầu', 'câu thoại', 'câu thoại đầu'],
-  'nghi tình': ['nghi tình', 'chơn nghi', 'nghi căn'],
+  'công án': ['công án', 'câu công án', 'thoại đầu công án'],
   'quy y tam bảo': [
     'quy y tam bảo',
     'quy y tam bao',
@@ -51,30 +129,56 @@ const TOPIC_VARIANTS: Record<string, string[]> = {
     'quy y tăng',
     'tam bảo',
   ],
-  'từ nghi đến ngộ': ['từ nghi đến ngộ', 'nghi đến ngộ', 'nghi ngộ'],
-  'sinh tử': ['sinh tử', 'sanh tử', 'luân hồi', 'chết đi về đâu'],
-  'tự tánh': ['tự tánh', 'phật tánh', 'bản tánh', 'tánh phật', 'tánh tâm', 'tánh tánh'],
+  'từ nghi đến ngộ': ['từ nghi đến ngộ', 'nghi đến ngộ', 'nghi ngộ', 'do nghi được ngộ'],
+  'sinh tử': ['sinh tử', 'sanh tử', 'luân hồi', 'chết đi về đâu', 'sống chết'],
+  'tự tánh': [
+    'tự tánh',
+    'phật tánh',
+    'bản tánh',
+    'bản lai diện mục',
+    'tánh phật',
+    'tánh tâm',
+  ],
+  'vô sở trụ': ['vô sở trụ', 'ứng vô sở trụ', 'vô trụ', 'không trụ vào đâu'],
   'kim cang': [
     'kim cang',
     'kinh kim cang',
     'phàm sở hữu tướng',
     'phàm có tướng',
     'chư tướng phi tướng',
+    'ly tứ cú tuyệt bách phi',
   ],
-  'nam tuyền chặt mèo': [
+  'chí đạo vô nan': [
+    'chí đạo',
+    'chí đạo vô nan',
+    'duy hiềm giản trạch',
+    'giản trạch',
+    'tín tâm minh',
+  ],
+  'nam tuyền chém mèo': [
     'nam tuyền chém mèo',
     'nam tuyền chặt mèo',
     'chém mèo',
     'chặt mèo',
     'giành con mèo',
   ],
+  'bồ tát giới': [
+    'bồ tát giới',
+    'giới bồ tát',
+    'thập trọng',
+    'tứ thập bát khinh',
+    'phạm võng',
+  ],
+  'lăng nghiêm': ['lăng nghiêm', 'kinh lăng nghiêm', 'thủ lăng nghiêm', 'lược giảng kinh lăng nghiêm'],
+  'lăng già': ['lăng già', 'kinh lăng già'],
+  'pháp bảo đàn': ['pháp bảo đàn', 'đàn kinh', 'kinh pháp bảo đàn', 'lục tổ đàn kinh'],
 };
 
 export interface QuerySignals {
   keywords: string[];
   /** AND groups for co-occurrence SQL (≥1 term hit per group). */
   mustGroups: string[][];
-  /** Prefer passages from these scripture titles (e.g. Pháp Bảo Đàn, not only Ngữ Lục). */
+  /** Prefer passages from these scripture titles. */
   sourceHints: string[];
   /** Topic terms for primary-source search. */
   topicTerms: string[];
@@ -83,11 +187,12 @@ export interface QuerySignals {
 const FILLER_WORDS = new Set([
   'ngài', 'nói', 'về', 'thế', 'nào', 'gì', 'sao', 'như', 'cho', 'biết',
   'theo', 'trong', 'của', 'là', 'có', 'không', 'được', 'khi', 'ai', 'đâu',
-  'xin', 'hỏi', 'tra', 'cứu',
+  'xin', 'hỏi', 'tra', 'cứu', 'giúp', 'mình', 'con', 'em', 'anh', 'chị',
+  'bạn', 'với', 'nhé', 'ạ', 'ơi', 'làm', 'cách', 'những', 'các', 'một',
 ]);
 
 const FLUFF_RE =
-  /\s+(như thế nào|ra sao|là gì|là sao|nghĩa là gì|có nghĩa gì|\?.*)$/u;
+  /\s+(như thế nào|ra sao|là gì|là sao|nghĩa là gì|có nghĩa gì|như thế nào ạ|\?.*)$/u;
 
 const HONORIFIC_RE = /^(?:ngài|ht\.?|hòa thượng|thiền sư|đại sư|tổ)\s+/u;
 
@@ -119,12 +224,17 @@ function parseStructuredQuery(lower: string): { figure?: string; topic?: string 
   if (topicTheo) out.topic = trimFluff(topicTheo[1]);
 
   const sayAbout = lower.match(
-    /(?:ngài\s+|ht\.?\s+|hòa thượng\s+|thiền sư\s+)?(.+?)\s+(?:nói|dạy|giải|bàn)\s+về\s+(.+)$/u,
+    /(?:ngài\s+|ht\.?\s+|hòa thượng\s+|thiền sư\s+)?(.+?)\s+(?:nói|dạy|giảng|giải|bàn|chỉ)\s+về\s+(.+)$/u,
   );
   if (sayAbout) {
     out.figure = out.figure ?? trimFluff(sayAbout[1]);
     out.topic = out.topic ?? trimFluff(sayAbout[2]);
   }
+
+  const howTo = lower.match(
+    /(?:làm sao|làm thế nào|cách(?: nào)?|phải(?: làm)? sao)\s+(?:để\s+)?(.+)$/u,
+  );
+  if (howTo && !out.topic) out.topic = trimFluff(howTo[1]);
 
   if (!out.topic) {
     const laGi = lower.match(
@@ -255,30 +365,46 @@ function buildMustGroups(lower: string): string[][] {
   return mergeMustGroups(groups);
 }
 
-/** Map figure/topic to the original scripture file, not HT Duy Lực commentary. */
+/** Map figure/topic to scripture titles used in rag_sources.title. */
 function resolveSourceHints(lower: string, mustGroups: string[][]): string[] {
   const hints = new Set<string>();
   const blob = `${lower} ${mustGroups.flat().join(' ')}`;
 
-  if (/pháp bảo đàn|phap bao dan|kinh pháp bảo đàn/.test(blob)) {
+  if (/pháp bảo đàn|phap bao dan|kinh pháp bảo đàn|đàn kinh/.test(blob)) {
     hints.add('pháp bảo đàn');
   }
   if (/lục tổ|huệ năng|luc to|hue nang/.test(blob)) {
     hints.add('pháp bảo đàn');
   }
-  if (/bác sơn|bac son/.test(blob)) {
-    hints.add('phương pháp tu trì');
-    hints.add('tham thiền cảnh ngữ');
+  if (/bác sơn|bac son|cảnh ngữ/.test(blob)) {
+    hints.add('tham thiền phổ thuyết');
+    hints.add('cội nguồn truyền thừa');
   }
   if (/lâm tế|lam te/.test(blob)) {
     hints.add('lâm tế ngữ lục');
+    hints.add('trung phong');
+  }
+  if (/trung phong|minh bổn/.test(blob)) {
+    hints.add('trung phong pháp ngữ');
   }
   if (/hư vân|hu van/.test(blob)) {
-    hints.add('yếu chỉ tham thiền');
+    hints.add('cội nguồn truyền thừa');
+    hints.add('thiền thất khai thị lục');
   }
-  if (/đường lối thực hành|duong loi thuc hanh|tham tổ sư thiền|tham to su thien/.test(blob)) {
+  if (
+    /đường lối thực hành|duong loi thuc hanh|tham tổ sư thiền|tham to su thien|cách tham thiền|phương pháp tham/.test(
+      blob,
+    )
+  ) {
     hints.add('tham tổ sư thiền');
     hints.add('đường lối thực hành tham tổ sư thiền');
+    hints.add('tham thiền phổ thuyết');
+  }
+  if (/thoại đầu|nghi tình|khán thoại|tham thoại/.test(blob)) {
+    hints.add('đường lối thực hành tham tổ sư thiền');
+    hints.add('vũ trụ quan');
+    hints.add('tham thiền phổ thuyết');
+    hints.add('duy lực ngữ lục');
   }
   if (/kim cang|kinh kim cang/.test(blob)) {
     hints.add('lược giảng kinh kim cang');
@@ -289,17 +415,17 @@ function resolveSourceHints(lower: string, mustGroups: string[][]): string[] {
     hints.add('nam tuyền ngữ lục');
     hints.add('bửu tạng luận');
   }
-  if (/bồ tát giới|bo tat gioi|thập trọng|tứ thập bát khinh/.test(blob)) {
+  if (/bồ tát giới|bo tat gioi|thập trọng|tứ thập bát khinh|phạm võng/.test(blob)) {
     hints.add('lược giảng bồ tát giới');
     hints.add('bồ tát giới');
   }
   if (
     /duy lực ngữ lục/.test(blob)
-    || (/duy lực/.test(blob) && /ngữ lục|quyển hạ|quyển thượng/.test(blob))
+    || (/duy lực/.test(blob) && /ngữ lục|quyển hạ|quyển thượng|tham thiền/.test(blob))
   ) {
     hints.add('duy lực ngữ lục');
   }
-  if (/tín tâm minh|tin tam minh|chí đạo vô nan/.test(blob)) {
+  if (/tín tâm minh|tin tam minh|chí đạo vô nan|giản trạch/.test(blob)) {
     hints.add('tín tâm minh');
     hints.add('lược giảng tín tâm minh');
   }
@@ -309,6 +435,15 @@ function resolveSourceHints(lower: string, mustGroups: string[][]): string[] {
   }
   if (/lăng già|lang gia/.test(blob)) {
     hints.add('kinh lăng già');
+  }
+  if (/triệu luận|tăng triệu|tăng triệu/.test(blob)) {
+    hints.add('triệu luận');
+  }
+  if (/danh từ thiền|thuật ngữ thiền/.test(blob)) {
+    hints.add('danh từ thiền học');
+  }
+  if (/đại thừa tuyệt đối/.test(blob)) {
+    hints.add('đại thừa tuyệt đối luận');
   }
   return [...hints];
 }
@@ -352,7 +487,7 @@ export function expandKeywords(keywords: string[]): string[] {
       }
     }
   }
-  return [...out].slice(0, 20);
+  return [...out].slice(0, 24);
 }
 
 export function questionStem(query: string): string {
@@ -360,6 +495,31 @@ export function questionStem(query: string): string {
     .replace(/\b(là gì|là sao|như thế nào|ra sao|nghĩa là gì|có nghĩa gì)\b/gu, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * Short intent brief for the LLM user message (API-side "pre-prompt").
+ * Helps map colloquial questions onto corpus terminology without a 2nd LLM call.
+ */
+export function buildIntentBrief(signals: QuerySignals): string {
+  const lines: string[] = [];
+  const topics = signals.topicTerms.slice(0, 8);
+  if (topics.length) {
+    lines.push(`Thuật ngữ Tổ Sư Thiền liên quan: ${topics.join(', ')}`);
+  }
+  if (signals.sourceHints.length) {
+    lines.push(`Ưu tiên tra trong: ${signals.sourceHints.join('; ')}`);
+  }
+  const figures = signals.mustGroups
+    .flat()
+    .filter((t) =>
+      FIGURE_PHRASES.some((g) => g.includes(t) || overlaps(t, g[0])),
+    )
+    .slice(0, 6);
+  if (figures.length) {
+    lines.push(`Nhân vật / tổ sư: ${[...new Set(figures)].join(', ')}`);
+  }
+  return lines.join('\n');
 }
 
 export function analyzeQuery(
@@ -386,7 +546,7 @@ export function analyzeQuery(
   }
 
   return {
-    keywords: [...new Set(keywords)].slice(0, 12),
+    keywords: [...new Set(keywords)].slice(0, 14),
     mustGroups,
     sourceHints: resolveSourceHints(lower, mustGroups),
     topicTerms: extractTopicTerms(mustGroups),

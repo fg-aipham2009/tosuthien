@@ -7,7 +7,22 @@ import {
 import { AI_INTERPRETATION_MARKER } from './rag.constants';
 import { AnswerStyle, AnswerStyleContext } from './rag-answer-style';
 
+/** Intent pre-prompt: map colloquial questions onto Tổ Sư Thiền terms before quoting. */
+const INTENT_RULES = `HIỂU Ý HỎI (bắt buộc trước khi trích):
+- Đọc câu hỏi + khối "Ý hỏi đã chuẩn hóa" (nếu có). Hiểu đúng thuật ngữ Tổ Sư Thiền trước khi copy nguyên văn.
+- Ánh xạ thường gặp:
+  · thoại đầu ≈ chỗ chưa khởi niệm muốn nói; khác thoại vĩ (đã khởi niệm).
+  · nghi tình / chơn nghi ≈ cái "không biết" khi tham / khán thoại đầu.
+  · tham tổ sư thiền ≈ tham thoại đầu + khán thoại đầu, giữ nghi tình — không phải niệm Phật lần chuỗi.
+  · kiến tánh / minh tâm ≈ thấy tự tánh; tự tánh ≈ Phật tánh / bản lai diện mục.
+  · công án / câu thoại ≈ phương tiện kích nghi, không phải giải thích lý thuyết suông.
+- Nếu user nói kiểu đời thường ("làm sao ngồi thiền", "nghĩa là gì", "chặt mèo") → tra đúng thuật ngữ trong ngữ cảnh (tham thiền / công án Nam Tuyền chém mèo…).
+- Ưu tiên đoạn khớp đúng chủ đề đã chuẩn hóa; không lấy đoạn chỉ trùng từ chung ("thiền", "phật") nếu lệch ý hỏi.
+- Vẫn CHỈ được copy nguyên văn có trong ngữ cảnh — không bịa thuật ngữ mới vào phần 1.`;
+
 const BASE_RULES = `Bạn là trợ lý TRA CỨU kinh sách Tổ Sư Thiền (lời dạy HT. Thích Duy Lực).
+
+${INTENT_RULES}
 
 Câu trả lời gồm ĐÚNG 2 PHẦN:
 
@@ -110,12 +125,14 @@ export class LlmService {
     question: string,
     contextBlocks: string[],
     styleContext: AnswerStyleContext,
+    intentBrief = '',
   ): Promise<string> {
     const parts: string[] = [];
     for await (const delta of this.answerStream(
       question,
       contextBlocks,
       styleContext,
+      intentBrief,
     )) {
       parts.push(delta);
     }
@@ -132,14 +149,19 @@ export class LlmService {
     question: string,
     contextBlocks: string[],
     styleContext: AnswerStyleContext,
+    intentBrief = '',
   ): AsyncGenerator<string> {
     const context = contextBlocks.join('\n\n---\n\n');
     const system = buildSystemPrompt(styleContext);
+    const intentBlock = intentBrief.trim()
+      ? `\nÝ hỏi đã chuẩn hóa (API):\n${intentBrief.trim()}\n`
+      : '';
     const userContent = `Câu hỏi: ${question.trim()}
-
+${intentBlock}
 Ngữ cảnh: mỗi block có [KINH]/[NGỮ LỤC] và dòng "Trích dẫn: …".
-1) PHẦN NGUYÊN VĂN (answer): tổng hợp NHIỀU nguồn — COPY đoạn DÀI đủ ý; mỗi đoạn — (Tên kinh, tr.X) đúng một trang ([Trang N]). TUYỆT ĐỐI không chế / không cắt / không paraphrase. Ưu tiên 4–8 đoạn từ nhiều sách.
-2) Nếu đã có nguyên văn: dòng ${AI_INTERPRETATION_MARKER} rồi diễn giải — NỀN = câu hỏi + phần 1; PHỤ = kiến thức nền nếu giúp phong phú. Giọng tự nhiên; CẤM "dựa vào đoạn trích…".
+1) Đọc "Ý hỏi đã chuẩn hóa" (nếu có) rồi mới chọn đoạn khớp.
+2) PHẦN NGUYÊN VĂN (answer): tổng hợp NHIỀU nguồn — COPY đoạn DÀI đủ ý; mỗi đoạn — (Tên kinh, tr.X) đúng một trang ([Trang N]). TUYỆT ĐỐI không chế / không cắt / không paraphrase. Ưu tiên 4–8 đoạn từ nhiều sách.
+3) Nếu đã có nguyên văn: dòng ${AI_INTERPRETATION_MARKER} rồi diễn giải — NỀN = câu hỏi + phần 1; PHỤ = kiến thức nền nếu giúp phong phú. Giọng tự nhiên; CẤM "dựa vào đoạn trích…".
 ${context}`;
 
     const endpoints = this.ai.get().chatEndpoints;

@@ -8,11 +8,10 @@ const NGU_LUC_FILES = new Set(['13.txt', '14.txt']);
 
 /**
  * OCR/PDF file page → printed page number on the scan.
- * Vũ trụ quan (10): file page N shows printed header N+2 (e.g. --- 128 --- → "130").
+ * After aligning text/*.txt markers to printed headers, offset is 0 for all books.
+ * Keep this map only if a future source still mismatches.
  */
-const PRINTED_PAGE_OFFSET_BY_STEM: Record<string, number> = {
-  '10': 2,
-};
+const PRINTED_PAGE_OFFSET_BY_STEM: Record<string, number> = {};
 
 function sourceStem(sourceFile: string | null | undefined): string {
   if (!sourceFile) return '';

@@ -16,7 +16,12 @@ import {
   ChatStreamEvent,
 } from './rag.types';
 import { RAG_DISCLAIMER, clampTopK, CANDIDATE_POOL, AI_INTERPRETATION_MARKER } from './rag.constants';
-import { expandKeywords, questionStem, analyzeQuery } from './rag-keywords.util';
+import {
+  expandKeywords,
+  questionStem,
+  analyzeQuery,
+  buildIntentBrief,
+} from './rag-keywords.util';
 import { isKinhSource, sourceTier, toPrintedPage, printedPageOffset } from './rag-source.util';
 import {
   maxPassageCharsForTier,
@@ -106,6 +111,7 @@ export class ChatService {
         prepared.q,
         blocks,
         prepared.styleContext,
+        prepared.intentBrief,
       ),
       citations,
     );
@@ -184,6 +190,7 @@ export class ChatService {
       prepared.q,
       blocks,
       prepared.styleContext,
+      prepared.intentBrief,
     )) {
       parts.push(text);
       yield { type: 'delta', text };
@@ -226,6 +233,7 @@ export class ChatService {
         q: string;
         keywords: string[];
         sourceHints: string[];
+        intentBrief: string;
         hits: PassageHit[];
         blocks: string[];
         slimCitations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[];
@@ -240,6 +248,12 @@ export class ChatService {
       q,
       STOP_WORDS,
     );
+    const intentBrief = buildIntentBrief({
+      keywords,
+      mustGroups,
+      topicTerms,
+      sourceHints,
+    });
     const searchKeywords = expandKeywords(keywords);
     const stem = questionStem(q);
     const k = clampTopK(topK, q, keywords.length);
@@ -368,6 +382,7 @@ export class ChatService {
       q,
       keywords,
       sourceHints,
+      intentBrief,
       hits,
       blocks,
       slimCitations,
@@ -413,12 +428,25 @@ export class ChatService {
     citations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
     limit: number,
   ): Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] {
-    if (citations.length <= limit) return citations;
+    if (citations.length <= limit) {
+      return this.dedupeCitationsBySourcePage(citations);
+    }
 
+    const ranked = this.dedupeCitationsBySourcePage(citations);
     const queues = new Map<string, Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[]>();
-    for (const c of citations) {
+    for (const c of ranked) {
       const key = c.sourceFile || c.title || 'unknown';
       const list = queues.get(key) ?? [];
+      if (list.length >= 2) continue;
+      if (
+        c.pageNum != null
+        && list.some(
+          (x) =>
+            x.pageNum != null && Math.abs((x.pageNum ?? 0) - c.pageNum!) <= 1,
+        )
+      ) {
+        continue;
+      }
       list.push(c);
       queues.set(key, list);
     }
@@ -434,16 +462,47 @@ export class ChatService {
     return out;
   }
 
+  private dedupeCitationsBySourcePage(
+    citations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
+  ): Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] {
+    const best = new Map<string, Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>>();
+    for (const c of citations) {
+      const page = c.pageNum ?? -1;
+      const key = `${c.sourceFile || c.title || 'unknown'}::${page}`;
+      const prev = best.get(key);
+      if (!prev || Number(c.score) > Number(prev.score)) {
+        best.set(key, c);
+      }
+    }
+    const keep = new Set(best.values());
+    return citations.filter((c) => keep.has(c));
+  }
+
   /**
    * Prefer passages from different books so the LLM can quote diversely.
+   * Also drop same-book same-page duplicates (neighbor ±1 often overlaps).
+   * Cap 2 hits per book to avoid near-duplicate quotes from adjacent pages.
    */
   private diversifyBySource(hits: PassageHit[], limit: number): PassageHit[] {
     if (hits.length <= 1) return hits;
 
+    const deduped = this.dedupeHitsBySourcePage(hits);
+
     const queues = new Map<string, PassageHit[]>();
-    for (const h of hits) {
+    for (const h of deduped) {
       const key = h.sourceFile || h.title || 'unknown';
       const list = queues.get(key) ?? [];
+      if (list.length >= 2) continue;
+      // Skip pages adjacent to one already queued from this book (±1).
+      if (
+        h.pageNum != null
+        && list.some(
+          (x) =>
+            x.pageNum != null && Math.abs(x.pageNum - h.pageNum!) <= 1,
+        )
+      ) {
+        continue;
+      }
       list.push(h);
       queues.set(key, list);
     }
@@ -457,6 +516,21 @@ export class ChatService {
       i++;
     }
     return out;
+  }
+
+  /** Keep the best-scoring hit per (sourceFile, pageNum). */
+  private dedupeHitsBySourcePage(hits: PassageHit[]): PassageHit[] {
+    const best = new Map<string, PassageHit>();
+    for (const h of hits) {
+      const page = h.pageNum ?? -1;
+      const key = `${h.sourceFile || h.title || 'unknown'}::${page}`;
+      const prev = best.get(key);
+      if (!prev || Number(h.score) > Number(prev.score)) {
+        best.set(key, h);
+      }
+    }
+    const keep = new Set(best.values());
+    return hits.filter((h) => keep.has(h));
   }
 
   private citationRank(
