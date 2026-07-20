@@ -400,7 +400,7 @@ def main() -> None:
     if not db_url:
         raise SystemExit("DATABASE_URL not set in .env")
 
-    targets = [TEXT_DIR / f"{i}.txt" for i in range(1, 22)]
+    targets = [TEXT_DIR / f"{i}.txt" for i in range(1, 23)]
     existing = [p for p in targets if p.exists()]
     missing = [p for p in targets if not p.exists()]
 

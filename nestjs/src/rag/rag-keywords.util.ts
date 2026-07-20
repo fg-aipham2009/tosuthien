@@ -9,6 +9,9 @@ const ALIAS_GROUPS: string[][] = [
   ['bốn', '4', 'tứ'],
   ['bệnh', 'thiền bệnh', 'ba thứ bệnh', 'chấp thành bệnh'],
   ['tam bảo', 'tam bao', 'quy y', 'tự quy y'],
+  ['chém mèo', 'chặt mèo', 'chém con mèo', 'chặt con mèo', 'nam tuyền chém mèo'],
+  ['chí đạo', 'chí đạo vô nan', 'duy hiềm giản trạch'],
+  ['bồ tát giới', 'giới bồ tát', 'thập trọng', 'tứ thập bát khinh'],
 ];
 
 /** Known figures — enriches parsed segments, not the only signal. */
@@ -20,6 +23,8 @@ const FIGURE_PHRASES: string[][] = [
   ['minh bổn', 'minh bổn thiền sư', 'trung phong'],
   ['nguyệt khê', 'nguyệt khê thiền sư'],
   ['động sơn', 'vân môn', 'triệu châu', 'lâm tế', 'bá trượng'],
+  ['nam tuyền', 'nam tuyền phổ nguyện', 'vương lão sư'],
+  ['duy lực', 'thích duy lực', 'ht duy lực', 'hòa thượng duy lực'],
 ];
 
 /** Corpus wording may differ from user phrasing. */
@@ -49,6 +54,20 @@ const TOPIC_VARIANTS: Record<string, string[]> = {
   'từ nghi đến ngộ': ['từ nghi đến ngộ', 'nghi đến ngộ', 'nghi ngộ'],
   'sinh tử': ['sinh tử', 'sanh tử', 'luân hồi', 'chết đi về đâu'],
   'tự tánh': ['tự tánh', 'phật tánh', 'bản tánh', 'tánh phật', 'tánh tâm', 'tánh tánh'],
+  'kim cang': [
+    'kim cang',
+    'kinh kim cang',
+    'phàm sở hữu tướng',
+    'phàm có tướng',
+    'chư tướng phi tướng',
+  ],
+  'nam tuyền chặt mèo': [
+    'nam tuyền chém mèo',
+    'nam tuyền chặt mèo',
+    'chém mèo',
+    'chặt mèo',
+    'giành con mèo',
+  ],
 };
 
 export interface QuerySignals {
@@ -260,6 +279,36 @@ function resolveSourceHints(lower: string, mustGroups: string[][]): string[] {
   if (/đường lối thực hành|duong loi thuc hanh|tham tổ sư thiền|tham to su thien/.test(blob)) {
     hints.add('tham tổ sư thiền');
     hints.add('đường lối thực hành tham tổ sư thiền');
+  }
+  if (/kim cang|kinh kim cang/.test(blob)) {
+    hints.add('lược giảng kinh kim cang');
+    hints.add('kinh kim cang');
+    hints.add('chư kinh tập yếu');
+  }
+  if (/nam tuyền|chém mèo|chặt mèo|bửu tạng luận|buu tang luan/.test(blob)) {
+    hints.add('nam tuyền ngữ lục');
+    hints.add('bửu tạng luận');
+  }
+  if (/bồ tát giới|bo tat gioi|thập trọng|tứ thập bát khinh/.test(blob)) {
+    hints.add('lược giảng bồ tát giới');
+    hints.add('bồ tát giới');
+  }
+  if (
+    /duy lực ngữ lục/.test(blob)
+    || (/duy lực/.test(blob) && /ngữ lục|quyển hạ|quyển thượng/.test(blob))
+  ) {
+    hints.add('duy lực ngữ lục');
+  }
+  if (/tín tâm minh|tin tam minh|chí đạo vô nan/.test(blob)) {
+    hints.add('tín tâm minh');
+    hints.add('lược giảng tín tâm minh');
+  }
+  if (/lăng nghiêm|lang nghiem/.test(blob)) {
+    hints.add('kinh lăng nghiêm');
+    hints.add('lược giảng kinh lăng nghiêm');
+  }
+  if (/lăng già|lang gia/.test(blob)) {
+    hints.add('kinh lăng già');
   }
   return [...hints];
 }
