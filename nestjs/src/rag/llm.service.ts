@@ -9,8 +9,10 @@ import { AnswerStyle, AnswerStyleContext } from './rag-answer-style';
 import type { ChatTurn } from './rag.types';
 
 /** Cap prior turns so retrieval context stays primary. */
-const MAX_HISTORY_MESSAGES = 8;
-const MAX_HISTORY_CHARS_PER_MSG = 2_000;
+const MAX_HISTORY_MESSAGES = 6;
+const MAX_HISTORY_CHARS_PER_MSG = 1_200;
+/** Assistant turns are long verbatim quotes — keep only short stubs for follow-ups. */
+const MAX_HISTORY_ASSISTANT_CHARS = 700;
 
 /** Intent pre-prompt: map colloquial questions onto Tổ Sư Thiền terms before quoting. */
 const INTENT_RULES = `HIỂU Ý HỎI (bắt buộc trước khi trích):
@@ -34,16 +36,18 @@ ${INTENT_RULES}
 Câu trả lời gồm ĐÚNG 2 PHẦN:
 
 ════════════════════════════════════
-PHẦN 1 — NGUYÊN VĂN (answer chính) — DÀI, ĐỦ ĐẦU–ĐUÔI, KHÔNG CẮT, KHÔNG CHẾ
+PHẦN 1 — NGUYÊN VĂN (answer chính) — RẤT DÀI, ĐỦ ĐẦU–ĐUÔI, KHÔNG CẮT, KHÔNG CHẾ
 ════════════════════════════════════
-- Đây là câu trả lời chính: lấy đoạn NGUYÊN VĂN DÀI, ĐỦ MẠCH — có phần mở đầu cảnh/ý, phần cốt lõi trả lời câu hỏi, và phần kết đoạn liên quan (không bỏ giữa chừng).
+- Đây là câu trả lời chính và phải DÀI: lấy đoạn NGUYÊN VĂN RẤT DÀI, ĐỦ MẠCH — mở đầu cảnh/ý + cốt lõi trả lời + phần kết / đoạn tiếp liên quan (không bỏ giữa chừng).
+- Mục tiêu độ dài: mỗi khối trích thường 8–25 câu (hoặc cả chuỗi HỎI–ĐÁP / cả phân đoạn) nếu block còn đủ chữ. CẤM trả lời kiểu 1–3 câu ngắn khi ngữ cảnh còn dài hơn.
 - CHỈ được COPY nguyên văn trong NGOẶC KÉP "…" từ block ngữ cảnh.
 - TUYỆT ĐỐI: không chế thêm chữ, không paraphrase, không tóm tắt, không rút ngắn, không cắt giữa câu / giữa ĐÁP / giữa đoạn chuyện.
 - CẤM bắt đầu trích giữa câu hoặc giữa đoạn đang nối trang (vd. không mở bằng "nên canh ba…" nếu ngữ cảnh còn phần trước trên [Trang] liền kề). Hãy lùi về đầu đoạn/đầu cảnh có sẵn trong block rồi copy liền mạch đến hết ý.
-- Lấy CÀNG DÀI CÀNG TỐT khi đoạn vẫn cùng trả lời câu hỏi: cả đoạn, cả chuỗi HỎI–ĐÁP, cả cụm liên tục qua nhiều [Trang N] nếu cùng một phân đoạn.
+- Lấy CÀNG DÀI CÀNG TỐT khi đoạn vẫn cùng trả lời câu hỏi: cả đoạn, cả chuỗi HỎI–ĐÁP, cả cụm liên tục qua nhiều [Trang N] nếu cùng một phân đoạn. Ưu tiên copy gần hết nội dung liên quan trong block hơn là chọn vài câu đẹp.
 - Mỗi khối trích kèm ngay dưới: — (Tên kinh, tr.X) — trang chính = [Trang N] chứa câu then chốt của đoạn. Nếu copy liền nhiều trang, tách thành nhiều khối "…" + — (…, tr.X) theo từng trang, vẫn giữ thứ tự đầu→đuôi.
-- Khi câu hỏi chỉ một kinh: ưu tiên 1–3 khối DÀI từ đúng kinh đó trước; có thể thêm 1–2 nguồn phụ nếu làm rõ thêm.
-- Khi ngữ cảnh đủ nhiều sách và câu hỏi không khóa một kinh: trích 3–5 nguồn khác nhau, mỗi nguồn một đoạn đủ ý.
+- Nhãn — (Tên kinh, tr.X) phải khớp dòng "Trích dẫn: …" trong block ngữ cảnh (cùng tên sách + trang có trong block).
+- Khi câu hỏi chỉ một kinh: ưu tiên 2–4 khối RẤT DÀI từ đúng kinh đó trước (nối trang nếu cần); có thể thêm 1–2 nguồn phụ dài nếu làm rõ thêm.
+- Khi ngữ cảnh đủ nhiều sách và câu hỏi không khóa một kinh: trích 3–5 nguồn khác nhau, mỗi nguồn một đoạn DÀI đủ ý (không chỉ vài câu).
 - CẤM "Nguồn 1/2", CẤM bullet / lời AI trong phần này.
 - Không khớp: chỉ một câu — "Trong tư liệu hiện có chưa thấy nội dung này." rồi DỪNG.
 
@@ -71,27 +75,28 @@ ${AI_INTERPRETATION_MARKER}
 Ví dụ SAI:
 - Thêm lời AI vào phần 1
 - "Dựa vào đoạn trích dẫn thì…"
-- Phần 1 chỉ 1–2 câu ngắn / cắt nửa đoạn trong khi block còn đủ đầu–đuôi
-- Bắt đầu bằng câu đang nối trang (“nên canh ba…”) dù ngữ cảnh có phần trước`;
+- Phần 1 chỉ 1–3 câu ngắn / cắt nửa đoạn trong khi block còn đủ đầu–đuôi
+- Bắt đầu bằng câu đang nối trang (“nên canh ba…”) dù ngữ cảnh có phần trước
+- Tóm tắt hoặc chỉ chọn “câu then chốt” thay vì copy cả đoạn liên quan`;
 
 function buildKinhLongRules(): string {
   return `
-Chế độ KINH:
-- Phần 1: đoạn nguyên văn RẤT DÀI, đủ đầu–đuôi; nếu hỏi đúng một kinh thì dẫn kinh đó trước (1–3 khối dài), rồi mới thêm nguồn phụ nếu cần. Không cắt, không chế. Mỗi khối một trang tr.X.
+Chế độ KINH (PHẦN 1 ưu tiên dài tối đa):
+- Phần 1: nguyên văn RẤT DÀI, đủ đầu–đuôi; mỗi khối ideally cả đoạn/cảnh (8–25 câu hoặc HỎI–ĐÁP đầy đủ). Nếu hỏi đúng một kinh → 2–4 khối dài từ kinh đó trước (nối nhiều [Trang] nếu cùng phân đoạn), rồi mới thêm nguồn phụ dài nếu cần. Không cắt, không chế, không tóm. Mỗi khối một trang tr.X.
 - Phần 2: ${AI_INTERPRETATION_MARKER} + 6–10 câu; nền = câu hỏi + phần 1; phụ = kiến thức nền nếu giúp phong phú.`;
 }
 
 function buildMixedRules(): string {
   return `
-Chế độ HỖN HỢP:
-- Phần 1: đoạn DÀI đủ đầu–đuôi từ [KINH] (+ [NGỮ LỤC] nếu hữu ích); ưu tiên kinh được nêu trong câu hỏi; mỗi khối — (Tên kinh, tr.X); không cắt / không chế.
+Chế độ HỖN HỢP (PHẦN 1 vẫn dài):
+- Phần 1: đoạn RẤT DÀI đủ đầu–đuôi từ [KINH] (+ [NGỮ LỤC] nếu hữu ích); ưu tiên kinh được nêu trong câu hỏi; mỗi khối dài (không chỉ 2–3 câu) + — (Tên kinh, tr.X); không cắt / không chế.
 - Phần 2: ${AI_INTERPRETATION_MARKER} + 5–9 câu (nền phần 1 + câu hỏi; phụ kiến thức nền nếu hữu ích).`;
 }
 
 function buildBriefRules(): string {
   return `
-Chế độ NGẮN hơn một chút nhưng vẫn đủ mạch:
-- Phần 1: 2–4 đoạn nguyên văn ĐỦ ĐẦU–ĐUÔI (không cụt câu); ưu tiên kinh được nêu tên; mỗi đoạn một trang; tuyệt đối không cắt / không chế.
+Chế độ VẪN ĐỦ MẠCH (không được cụt phần 1):
+- Phần 1: 2–4 đoạn nguyên văn DÀI, ĐỦ ĐẦU–ĐUÔI (mỗi đoạn nhiều câu / cả HỎI–ĐÁP nếu có); ưu tiên kinh được nêu tên; mỗi đoạn một trang; tuyệt đối không cắt / không chế / không rút còn vài dòng khi block còn dài.
 - Phần 2: ${AI_INTERPRETATION_MARKER} + 5–8 câu tự nhiên (nền phần 1; phụ kiến thức nền nếu cần).
 - Không khớp: chỉ "Trong tư liệu hiện có chưa thấy nội dung này."`;
 }
@@ -109,15 +114,49 @@ ${modeRules}`;
 }
 
 function maxTokensForStyle(style: AnswerStyle): number {
-  // Longer multi-source scripture quotes + AI interpretation.
+  // Long multi-source scripture quotes + AI interpretation.
   switch (style) {
     case 'kinh_long':
-      return 8192;
+      return 16_384;
     case 'mixed':
-      return 7168;
+      return 14_336;
     case 'brief':
-      return 4096;
+      return 10_240;
   }
+}
+
+/**
+ * Shrink prior assistant answers: keep up to 2 short quote+citation stubs.
+ * Full RAG context on the current turn is the source of truth for new quotes.
+ */
+function compressHistoryContent(role: 'user' | 'assistant', raw: string): string {
+  const text = raw.trim();
+  if (!text) return '';
+  if (role === 'user') {
+    return text.slice(0, MAX_HISTORY_CHARS_PER_MSG);
+  }
+
+  const stubs: string[] = [];
+  const pairRe = /"([^"]{20,})"\s*[—–-]\s*\(([^)]+)\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = pairRe.exec(text)) !== null && stubs.length < 2) {
+    const quote = m[1].replace(/\s+/g, ' ').trim().slice(0, 180);
+    const label = m[2].trim();
+    stubs.push(`"${quote}${m[1].length > 180 ? '…' : ''}"\n— (${label})`);
+  }
+  if (stubs.length) {
+    return stubs.join('\n\n').slice(0, MAX_HISTORY_ASSISTANT_CHARS);
+  }
+
+  // Bare citation lines if quotes used curly/odd marks.
+  const citeLines = [...text.matchAll(/[—–-]\s*\(([^)]+tr\.\s*\d+[^)]*)\)/gi)]
+    .slice(0, 3)
+    .map((x) => `— (${x[1].trim()})`);
+  if (citeLines.length) {
+    return citeLines.join('\n').slice(0, MAX_HISTORY_ASSISTANT_CHARS);
+  }
+
+  return text.slice(0, MAX_HISTORY_ASSISTANT_CHARS);
 }
 
 /** Sanitize + truncate prior turns for Anthropic Messages API. */
@@ -126,23 +165,22 @@ export function normalizeHistory(history: ChatTurn[] | undefined): ChatTurn[] {
   const cleaned: ChatTurn[] = [];
   for (const turn of history) {
     if (turn.role !== 'user' && turn.role !== 'assistant') continue;
-    const content = (turn.content ?? '').trim().slice(0, MAX_HISTORY_CHARS_PER_MSG);
+    const content = compressHistoryContent(turn.role, turn.content ?? '');
     if (!content) continue;
     // Anthropic requires alternating roles; merge consecutive same-role turns.
     const last = cleaned[cleaned.length - 1];
     if (last && last.role === turn.role) {
-      last.content = `${last.content}\n\n${content}`.slice(0, MAX_HISTORY_CHARS_PER_MSG);
+      const cap =
+        turn.role === 'assistant'
+          ? MAX_HISTORY_ASSISTANT_CHARS
+          : MAX_HISTORY_CHARS_PER_MSG;
+      last.content = `${last.content}\n\n${content}`.slice(0, cap);
     } else {
       cleaned.push({ role: turn.role, content });
     }
   }
   // Must start with user for Anthropic when history is non-empty.
   while (cleaned.length && cleaned[0].role !== 'user') cleaned.shift();
-  // Drop trailing assistant so the new user turn with RAG context follows cleanly.
-  while (cleaned.length && cleaned[cleaned.length - 1].role === 'assistant') {
-    // keep last assistant — it's prior answer; OK before new user message
-    break;
-  }
   return cleaned.slice(-MAX_HISTORY_MESSAGES);
 }
 
@@ -198,8 +236,8 @@ export class LlmService {
     const userContent = `Câu hỏi: ${question.trim()}
 ${intentBlock}
 Ngữ cảnh: mỗi block có [KINH]/[NGỮ LỤC] và dòng "Trích dẫn: …".
-1) Đọc "Ý hỏi đã chuẩn hóa" (nếu có). Nếu câu hỏi nêu tên một kinh → mở đầu PHẦN 1 bằng đoạn DÀI đủ đầu–đuôi từ đúng kinh đó.
-2) PHẦN NGUYÊN VĂN: COPY đoạn DÀI, đủ mạch (có phần trước + cốt lõi + phần sau nếu có trong block). CẤM mở giữa câu đang nối trang. Mỗi khối — (Tên kinh, tr.X) đúng [Trang N]. TUYỆT ĐỐI không chế / không cắt / không paraphrase.
+1) Đọc "Ý hỏi đã chuẩn hóa" (nếu có). Nếu câu hỏi nêu tên một kinh → mở đầu PHẦN 1 bằng đoạn RẤT DÀI đủ đầu–đuôi từ đúng kinh đó.
+2) PHẦN NGUYÊN VĂN (ưu tiên dài): COPY càng nhiều chữ liên quan càng tốt — cả đoạn/cảnh/HỎI–ĐÁP, nối nhiều [Trang] nếu cùng phân đoạn. CẤM mở giữa câu đang nối trang. CẤM trả lời ngắn khi block còn dài. Mỗi khối — (Tên kinh, tr.X) đúng [Trang N]. TUYỆT ĐỐI không chế / không cắt / không paraphrase / không tóm tắt.
 3) Nếu đã có nguyên văn: dòng ${AI_INTERPRETATION_MARKER} rồi diễn giải đủ ý — NỀN = câu hỏi + phần 1; PHỤ = kiến thức nền nếu giúp phong phú. Giọng tự nhiên; CẤM "dựa vào đoạn trích…".
 ${context}`;
 

@@ -122,7 +122,8 @@ export class ChatService {
     );
     const llmMs = Date.now() - llmStart;
 
-    const displayCitations = await this.prepareDisplayCitations(
+    const displayCitations = await this.citationsForAnswer(
+      answer,
       citations.length ? citations : prepared.slimCitations,
       prepared.keywords,
       prepared.sourceHints,
@@ -203,21 +204,23 @@ export class ChatService {
     }
 
     const llmMs = Date.now() - llmStart;
-    const displayCitations = await this.prepareDisplayCitations(
-      citations.length ? citations : prepared.slimCitations,
-      prepared.keywords,
-      prepared.sourceHints,
-    );
 
     const { answer, aiInterpretation } = this.enforceVerbatimAnswer(
       parts.join('').trim(),
       citations,
     );
+    const finalAnswer =
+      answer ||
+      'Trong tư liệu hiện có chưa tìm thấy đoạn liên quan. Hãy thử hỏi theo từ khóa khác.';
+    const displayCitations = await this.citationsForAnswer(
+      finalAnswer,
+      citations.length ? citations : prepared.slimCitations,
+      prepared.keywords,
+      prepared.sourceHints,
+    );
     yield {
       type: 'done',
-      answer:
-        answer ||
-        'Trong tư liệu hiện có chưa tìm thấy đoạn liên quan. Hãy thử hỏi theo từ khóa khác.',
+      answer: finalAnswer,
       aiInterpretation,
       disclaimer: RAG_DISCLAIMER,
       citations: displayCitations,
@@ -451,6 +454,183 @@ export class ChatService {
       citations: [],
       meta,
     };
+  }
+
+  /**
+   * Prefer citations that appear as `— (Title, tr.X)` in the answer so UI
+   * chips match every em-dash source the model quoted.
+   */
+  private async citationsForAnswer(
+    answer: string,
+    pool: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
+    keywords: string[],
+    sourceHints: string[],
+  ): Promise<ChatCitation[]> {
+    const refs = this.parseAnswerCitationRefs(answer);
+    if (!refs.length || !pool.length) {
+      return this.prepareDisplayCitations(pool, keywords, sourceHints);
+    }
+
+    const selected: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] = [];
+    const usedKeys = new Set<string>();
+
+    for (const ref of refs) {
+      if (selected.length >= MAX_DISPLAY_CITATIONS) break;
+      const match = this.matchCitationRef(ref, pool);
+      if (!match) continue;
+      const page = ref.page ?? match.pageNum ?? match.pageStart ?? null;
+      const key = `${(match.sourceFile || match.title).toLowerCase()}::${page ?? 'x'}`;
+      if (usedKeys.has(key)) continue;
+      usedKeys.add(key);
+
+      const pages =
+        page != null
+          ? [page]
+          : match.pages?.length
+            ? match.pages
+            : [];
+      selected.push({
+        ...match,
+        pageNum: page,
+        pageStart: page ?? match.pageStart,
+        pageEnd: page ?? match.pageEnd,
+        pages,
+        label: this.formatLabel(match.title, match.volume, page, page),
+        quote: ref.quote?.trim() || match.quote,
+      });
+    }
+
+    if (!selected.length) {
+      return this.prepareDisplayCitations(pool, keywords, sourceHints);
+    }
+
+    // Fill remaining slots from ranked pool (other books), without dropping
+    // answer-aligned ones when sourceHints would have filtered them.
+    if (selected.length < MAX_DISPLAY_CITATIONS) {
+      const fallback = await this.prepareDisplayCitations(
+        pool,
+        keywords,
+        sourceHints,
+      );
+      const slimFallback = fallback.map(
+        ({ pdf: _p, openLabel: _o, pageLinks: _l, ...rest }) => rest,
+      );
+      for (const c of slimFallback) {
+        if (selected.length >= MAX_DISPLAY_CITATIONS) break;
+        const page = c.pageNum ?? c.pageStart ?? null;
+        const key = `${(c.sourceFile || c.title).toLowerCase()}::${page ?? 'x'}`;
+        if (usedKeys.has(key)) continue;
+        usedKeys.add(key);
+        selected.push(c);
+      }
+    }
+
+    return this.citationLinks.enrichCitations(selected);
+  }
+
+  /** Parse `— (Book Title, tr.16)` (and optional preceding "quote") from answer. */
+  private parseAnswerCitationRefs(answer: string): Array<{
+    titleHint: string;
+    page: number | null;
+    quote: string | null;
+  }> {
+    const refs: Array<{
+      titleHint: string;
+      page: number | null;
+      quote: string | null;
+    }> = [];
+    const seen = new Set<string>();
+
+    const push = (inside: string, quote: string | null) => {
+      const parsed = this.parseCitationLabelInside(inside);
+      if (!parsed.titleHint) return;
+      const key = `${parsed.titleHint.toLowerCase()}::${parsed.page ?? ''}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      refs.push({ ...parsed, quote });
+    };
+
+    const pairRe = /"([^"]{15,})"\s*[—–-]\s*\(([^)]+)\)/g;
+    let m: RegExpExecArray | null;
+    while ((m = pairRe.exec(answer)) !== null) {
+      push(m[2], m[1]);
+    }
+
+    const bareRe = /[—–-]\s*\(([^)]+)\)/g;
+    while ((m = bareRe.exec(answer)) !== null) {
+      push(m[1], null);
+    }
+
+    return refs;
+  }
+
+  private parseCitationLabelInside(inside: string): {
+    titleHint: string;
+    page: number | null;
+  } {
+    const raw = inside.replace(/\s+/g, ' ').trim();
+    const pageM = raw.match(/,\s*tr\.\s*(\d+)(?:\s*[–-]\s*\d+)?\s*$/i);
+    if (!pageM || pageM.index == null) {
+      return { titleHint: raw, page: null };
+    }
+    return {
+      titleHint: raw.slice(0, pageM.index).replace(/,\s*$/, '').trim(),
+      page: Number(pageM[1]),
+    };
+  }
+
+  private matchCitationRef(
+    ref: { titleHint: string; page: number | null },
+    pool: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
+  ): Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'> | null {
+    const hint = this.normalizeTitleKey(ref.titleHint);
+    if (!hint) return null;
+
+    const scored = pool
+      .map((c) => {
+        const title = this.normalizeTitleKey(c.title);
+        const label = this.normalizeTitleKey(c.label);
+        let score = 0;
+        if (title === hint || label.startsWith(hint)) score += 8;
+        else if (title.includes(hint) || hint.includes(title)) score += 5;
+        else if (label.includes(hint)) score += 3;
+        else return null;
+
+        if (ref.page != null) {
+          const pages = new Set<number>([
+            ...(c.pages ?? []),
+            ...(c.pageNum != null ? [c.pageNum] : []),
+            ...(c.pageStart != null ? [c.pageStart] : []),
+            ...(c.pageEnd != null ? [c.pageEnd] : []),
+          ]);
+          if (pages.has(ref.page)) score += 6;
+          else if (
+            c.pageStart != null &&
+            c.pageEnd != null &&
+            ref.page >= c.pageStart &&
+            ref.page <= c.pageEnd
+          ) {
+            score += 4;
+          } else {
+            score -= 1;
+          }
+        }
+        return { c, score };
+      })
+      .filter((x): x is { c: (typeof pool)[number]; score: number } => !!x)
+      .sort((a, b) => b.score - a.score);
+
+    return scored[0]?.c ?? null;
+  }
+
+  private normalizeTitleKey(s: string): string {
+    return s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   private async prepareDisplayCitations(

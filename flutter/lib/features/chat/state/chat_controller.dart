@@ -25,7 +25,9 @@ class ChatController extends ChangeNotifier {
   /// Throttle UI rebuilds while tokens arrive.
   DateTime? _lastStreamNotify;
   static const _streamNotifyInterval = Duration(milliseconds: 48);
-  static const _maxHistoryTurns = 8;
+  static const _maxHistoryTurns = 6;
+  static const _maxHistoryUserChars = 800;
+  static const _maxHistoryAssistantChars = 700;
 
   List<ChatConversation> get conversations => List.unmodifiable(_conversations);
   List<RagSourceBook> get sources => List.unmodifiable(_sources);
@@ -267,11 +269,12 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Prior turns for the API (exclude the question about to be asked).
+  /// Compress long assistant quotes so the request stays small; API also trims.
   List<Map<String, String>> _buildHistoryPayload(List<ChatMessage> msgs) {
     final turns = <Map<String, String>>[];
     for (final m in msgs) {
       if (m.isStreaming) continue;
-      final content = m.content.trim();
+      final content = _compressHistoryContent(m);
       if (content.isEmpty) continue;
       turns.add({
         'role': m.role == ChatMessageRole.user ? 'user' : 'assistant',
@@ -280,6 +283,47 @@ class ChatController extends ChangeNotifier {
     }
     if (turns.length <= _maxHistoryTurns) return turns;
     return turns.sublist(turns.length - _maxHistoryTurns);
+  }
+
+  String _compressHistoryContent(ChatMessage m) {
+    final raw = m.content.trim();
+    if (raw.isEmpty) return '';
+    if (m.role == ChatMessageRole.user) {
+      return raw.length <= _maxHistoryUserChars
+          ? raw
+          : raw.substring(0, _maxHistoryUserChars);
+    }
+
+    final stubs = <String>[];
+    final pairRe = RegExp(r'"([^"]{20,})"\s*[—–-]\s*\(([^)]+)\)');
+    for (final match in pairRe.allMatches(raw)) {
+      if (stubs.length >= 2) break;
+      final quote = match.group(1)!.replaceAll(RegExp(r'\s+'), ' ').trim();
+      final short = quote.length > 180 ? '${quote.substring(0, 180)}…' : quote;
+      stubs.add('"$short"\n— (${match.group(2)!.trim()})');
+    }
+    if (stubs.isNotEmpty) {
+      final joined = stubs.join('\n\n');
+      return joined.length <= _maxHistoryAssistantChars
+          ? joined
+          : joined.substring(0, _maxHistoryAssistantChars);
+    }
+
+    final cites = RegExp(r'[—–-]\s*\(([^)]+tr\.\s*\d+[^)]*)\)', caseSensitive: false)
+        .allMatches(raw)
+        .take(3)
+        .map((m) => '— (${m.group(1)!.trim()})')
+        .toList();
+    if (cites.isNotEmpty) {
+      final joined = cites.join('\n');
+      return joined.length <= _maxHistoryAssistantChars
+          ? joined
+          : joined.substring(0, _maxHistoryAssistantChars);
+    }
+
+    return raw.length <= _maxHistoryAssistantChars
+        ? raw
+        : raw.substring(0, _maxHistoryAssistantChars);
   }
 
   void _appendAssistantDelta(
