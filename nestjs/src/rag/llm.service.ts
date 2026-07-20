@@ -36,6 +36,7 @@ PHẦN 1 — NGUYÊN VĂN (answer chính) — DÀI, KHÔNG CẮT, KHÔNG CHẾ
 - Mỗi đoạn kèm ngay dưới: — (Tên kinh, tr.X) — ĐÚNG một trang = số [Trang N] của đoạn vừa copy. Nếu copy liền 2–3 trang, tách thành nhiều đoạn trích, mỗi đoạn một trang + một dòng — (…, tr.X).
 - CẤM "Nguồn 1/2", CẤM bullet / lời AI trong phần này.
 - Khi ngữ cảnh đủ ≥3 sách: trích ít nhất 3 nguồn; nếu đủ ≥5 sách: cố gắng ≥4–5 nguồn khác nhau.
+- Mỗi sách chỉ trích 1 đoạn chính (không lặp 2 đoạn gần nhau cùng một cuốn).
 - Không khớp: chỉ một câu — "Trong tư liệu hiện có chưa thấy nội dung này." rồi DỪNG.
 
 ════════════════════════════════════

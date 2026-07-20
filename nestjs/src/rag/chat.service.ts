@@ -428,36 +428,15 @@ export class ChatService {
     citations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
     limit: number,
   ): Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] {
-    if (citations.length <= limit) {
-      return this.dedupeCitationsBySourcePage(citations);
-    }
-
     const ranked = this.dedupeCitationsBySourcePage(citations);
-    const queues = new Map<string, Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[]>();
-    for (const c of ranked) {
-      const key = c.sourceFile || c.title || 'unknown';
-      const list = queues.get(key) ?? [];
-      if (list.length >= 2) continue;
-      if (
-        c.pageNum != null
-        && list.some(
-          (x) =>
-            x.pageNum != null && Math.abs((x.pageNum ?? 0) - c.pageNum!) <= 1,
-        )
-      ) {
-        continue;
-      }
-      list.push(c);
-      queues.set(key, list);
-    }
-
-    const buckets = [...queues.values()];
+    const seenSource = new Set<string>();
     const out: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] = [];
-    let i = 0;
-    while (out.length < limit && buckets.some((b) => b.length > 0)) {
-      const bucket = buckets[i % buckets.length];
-      if (bucket.length) out.push(bucket.shift()!);
-      i++;
+    for (const c of ranked) {
+      const key = (c.sourceFile || c.title || 'unknown').toLowerCase();
+      if (seenSource.has(key)) continue;
+      seenSource.add(key);
+      out.push(c);
+      if (out.length >= limit) break;
     }
     return out;
   }
@@ -480,40 +459,21 @@ export class ChatService {
 
   /**
    * Prefer passages from different books so the LLM can quote diversely.
-   * Also drop same-book same-page duplicates (neighbor ±1 often overlaps).
-   * Cap 2 hits per book to avoid near-duplicate quotes from adjacent pages.
+   * One hit per book (best score kept earlier in list) — avoids near-duplicate
+   * neighbor windows (e.g. tr.129 + tr.131 both expanding over tr.130).
    */
   private diversifyBySource(hits: PassageHit[], limit: number): PassageHit[] {
     if (hits.length <= 1) return hits;
 
     const deduped = this.dedupeHitsBySourcePage(hits);
-
-    const queues = new Map<string, PassageHit[]>();
-    for (const h of deduped) {
-      const key = h.sourceFile || h.title || 'unknown';
-      const list = queues.get(key) ?? [];
-      if (list.length >= 2) continue;
-      // Skip pages adjacent to one already queued from this book (±1).
-      if (
-        h.pageNum != null
-        && list.some(
-          (x) =>
-            x.pageNum != null && Math.abs(x.pageNum - h.pageNum!) <= 1,
-        )
-      ) {
-        continue;
-      }
-      list.push(h);
-      queues.set(key, list);
-    }
-
-    const buckets = [...queues.values()];
+    const seenSource = new Set<string>();
     const out: PassageHit[] = [];
-    let i = 0;
-    while (out.length < limit && buckets.some((b) => b.length > 0)) {
-      const bucket = buckets[i % buckets.length];
-      if (bucket.length) out.push(bucket.shift()!);
-      i++;
+    for (const h of deduped) {
+      const key = (h.sourceFile || h.title || 'unknown').toLowerCase();
+      if (seenSource.has(key)) continue;
+      seenSource.add(key);
+      out.push(h);
+      if (out.length >= limit) break;
     }
     return out;
   }
