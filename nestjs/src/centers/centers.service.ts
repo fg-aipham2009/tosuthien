@@ -144,7 +144,7 @@ export class CentersService {
     return { deleted: true };
   }
 
-  async setMainImage(id: string, url: string) {
+  async setMainImage(id: string, url: string | null) {
     await this.findOne(id);
     return this.prisma.center.update({
       where: { id },

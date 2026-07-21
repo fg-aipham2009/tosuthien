@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Delete,
   Param,
   ParseUUIDPipe,
   UploadedFile,
@@ -103,5 +104,19 @@ export class UploadController {
     @UploadedFiles() files: Express.Multer.File[],
   ) {
     return this.service.uploadCenterGalleryBatch(id, files);
+  }
+
+  @Post('pdfs/:id/cover')
+  @UseInterceptors(FileInterceptor('file', UPLOAD_OPTS))
+  uploadPdfCover(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.service.uploadPdfCover(id, file);
+  }
+
+  @Delete('pdfs/:id/cover')
+  clearPdfCover(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.clearPdfCover(id);
   }
 }

@@ -37,29 +37,19 @@ class BookTile extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Container(
-                width: 52,
-                height: 68,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      colors.primaryContainer,
-                      colors.primary.withValues(alpha: 0.85),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colors.shadow.withValues(alpha: 0.12),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 52,
+                  height: 68,
+                  child: book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty
+                      ? Image.network(
+                          book.coverImageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _CoverFallback(colors: colors),
+                        )
+                      : _CoverFallback(colors: colors),
                 ),
-                child: Icon(Icons.menu_book_rounded,
-                    color: colors.onPrimaryContainer),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -154,5 +144,28 @@ class BookTile extends StatelessWidget {
         SnackBar(content: Text('Tải thất bại: $e')),
       );
     }
+  }
+}
+
+class _CoverFallback extends StatelessWidget {
+  const _CoverFallback({required this.colors});
+
+  final ColorScheme colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.primaryContainer,
+            colors.primary.withValues(alpha: 0.85),
+          ],
+        ),
+      ),
+      child: Icon(Icons.menu_book_rounded, color: colors.onPrimaryContainer),
+    );
   }
 }

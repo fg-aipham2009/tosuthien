@@ -11,6 +11,7 @@ class BookPdf {
     required this.storagePath,
     required this.publicUrl,
     this.pageCount,
+    this.coverImageUrl,
     this.sortOrder = 0,
     this.lastPage,
     this.lastReadAt,
@@ -25,6 +26,7 @@ class BookPdf {
   final String storagePath;
   final String publicUrl;
   final int? pageCount;
+  final String? coverImageUrl;
   final int sortOrder;
   final int? lastPage;
   final DateTime? lastReadAt;
@@ -65,6 +67,7 @@ class BookPdf {
       storagePath: json['storagePath'] as String,
       publicUrl: json['publicUrl'] as String,
       pageCount: _asInt(json['pageCount']),
+      coverImageUrl: json['coverImageUrl'] as String?,
       sortOrder: _asInt(json['sortOrder']) ?? 0,
       lastPage: _asInt(json['lastPage']),
       lastReadAt: lastReadAt,

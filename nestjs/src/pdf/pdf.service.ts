@@ -80,6 +80,14 @@ export class PdfService {
     });
   }
 
+  async setCoverImage(id: string, url: string | null) {
+    await this.findOne(id);
+    return this.prisma.pdfFile.update({
+      where: { id },
+      data: { coverImageUrl: url },
+    });
+  }
+
   async update(id: string, dto: UpdatePdfDto) {
     await this.findOne(id);
     const data: Prisma.PdfFileUpdateInput = {
@@ -90,6 +98,9 @@ export class PdfService {
       pageCount: dto.pageCount,
       sortOrder: dto.sortOrder,
     };
+    if (dto.coverImageUrl !== undefined) {
+      data.coverImageUrl = dto.coverImageUrl;
+    }
     if (dto.filename) {
       const storagePath = `pdf/${dto.filename}`;
       data.storagePath = storagePath;

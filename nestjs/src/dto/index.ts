@@ -203,6 +203,10 @@ export class CreatePdfDto {
   @IsOptional()
   @IsInt()
   sortOrder?: number;
+
+  @IsOptional()
+  @IsString()
+  coverImageUrl?: string;
 }
 
 export class UpdatePdfDto extends PartialType(CreatePdfDto) {}

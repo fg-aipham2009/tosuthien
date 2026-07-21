@@ -19,6 +19,7 @@ model PdfFile {
   publicUrl     String   @map("public_url")
   pageCount     Int?     @map("page_count")
   fileSizeBytes BigInt?  @map("file_size_bytes")
+  coverImageUrl String?  @map("cover_image_url")
   sortOrder     Int      @default(0) @map("sort_order")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -91,6 +92,7 @@ model PassageEmbedding {
 
   passage Passage @relation(fields: [passageId], references: [id], onDelete: Cascade)
 
+  @@index([embedding], map: "idx_passage_embeddings_hnsw")
   @@map("passage_embeddings")
 }
 

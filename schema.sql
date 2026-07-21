@@ -1,336 +1,662 @@
--- =============================================================================
--- Schema — App Tổ Sư Thiền (Hoà thượng Thích Duy Lực)
--- PostgreSQL 15+ | extension pgvector
 --
--- Database name:  tosuthien
--- User / pass:     tosuthien / thamthien
--- Tạo DB:         CREATE DATABASE tosuthien;
--- Chạy schema:    psql -U tosuthien -d tosuthien -f schema.sql
+-- PostgreSQL database dump
 --
--- Kiến trúc (PDF và RAG tách hẳn — không FK, không bảng chung):
---   PDF     → pdf_files        → VPS /data/pdf/           → Tab Kinh sách
---   RAG     → rag_sources + passages + passage_embeddings → Tab Hỏi đáp (text/*.txt)
---   Media   → media_categories (shared) + mp3_tracks | youtube_videos
---   Centers → centers + courses
---   Reading → reading_progress (device_id + PDF page, không cần đăng nhập)
+
+\restrict Lrjl9MRr7lYdcN7npZbwTnwJ0BlbvJP3Iu8QBV0v1u090gUk17k3F2lvexb0Nbf
+
+-- Dumped from database version 16.14 (Debian 16.14-1.pgdg12+1)
+-- Dumped by pg_dump version 16.14 (Debian 16.14-1.pgdg12+1)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
 --
--- Tài liệu: docs/README.md
--- =============================================================================
+-- Name: vector; Type: EXTENSION; Schema: -; Owner: -
+--
 
-CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
 
--- =============================================================================
--- 1. PDF — riêng biệt, chỉ phục vụ đọc (Tab Kinh sách)
--- Path gốc VPS: /data/pdf/
--- Không liên kết RAG — cùng tên file (13.pdf / 13.txt) chỉ là quy ước đặt tên
--- =============================================================================
 
-CREATE TABLE pdf_files (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug            TEXT UNIQUE NOT NULL,
-  title           TEXT NOT NULL,
-  volume          TEXT,
-  author          TEXT NOT NULL DEFAULT 'Hòa thượng Thích Duy Lực',
-  filename        TEXT NOT NULL,              -- '13.pdf'
-  folder_path     TEXT NOT NULL DEFAULT 'pdf/',
-  storage_path    TEXT NOT NULL UNIQUE,       -- 'pdf/13.pdf'
-  public_url      TEXT NOT NULL,              -- 'https://domain.com/pdf/13.pdf'
-  page_count      INT,
-  file_size_bytes BIGINT,
-  sort_order      INT DEFAULT 0,
-  created_at      TIMESTAMPTZ DEFAULT now()
+--
+-- Name: EXTENSION vector; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION vector IS 'vector data type and ivfflat and hnsw access methods';
+
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: centers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.centers (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    slug text,
+    temple_name text NOT NULL,
+    abbot_name text,
+    address text,
+    phone text,
+    abbot_phone text,
+    google_maps_url text,
+    lat double precision,
+    lng double precision,
+    activity_hours text,
+    rules text,
+    customs text,
+    main_image_url text,
+    gallery_images jsonb DEFAULT '[]'::jsonb NOT NULL,
+    detail_content text,
+    sort_order integer DEFAULT 0,
+    is_published boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now(),
+    abbot_rank text,
+    abbot_title text,
+    org_role text,
+    gender_section text,
+    region text,
+    country_code text,
+    province text
 );
 
-CREATE INDEX idx_pdf_files_sort ON pdf_files(sort_order);
 
--- Tiến độ đọc PDF theo máy (UUID app gửi lên, header X-Device-Id)
--- LEFT JOIN khi list sách → trả luôn last_page, mở đúng trang
-CREATE TABLE reading_progress (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  device_id    TEXT NOT NULL,                  -- UUID sinh 1 lần trên Flutter
-  pdf_file_id  UUID NOT NULL REFERENCES pdf_files(id) ON DELETE CASCADE,
-  last_page    INT NOT NULL DEFAULT 1 CHECK (last_page >= 1),
-  updated_at   TIMESTAMPTZ DEFAULT now(),
-  UNIQUE (device_id, pdf_file_id)
+--
+-- Name: COLUMN centers.gender_section; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.centers.gender_section IS 'TANG | NI';
+
+
+--
+-- Name: COLUMN centers.region; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.centers.region IS 'BAC | TRUNG | NAM | NUOC_NGOAI';
+
+
+--
+-- Name: courses; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.courses (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    title text NOT NULL,
+    start_date date,
+    end_date date,
+    center_id uuid,
+    contact text,
+    description text,
+    created_at timestamp with time zone DEFAULT now(),
+    type text,
+    recurrence text,
+    day_start integer,
+    day_end integer,
+    weekday integer,
+    schedule_text text,
+    sort_order integer DEFAULT 0 NOT NULL
 );
 
-CREATE INDEX idx_reading_progress_device ON reading_progress(device_id);
-CREATE INDEX idx_reading_progress_pdf ON reading_progress(pdf_file_id);
 
--- =============================================================================
--- 2. RAG — riêng biệt, chỉ phục vụ hỏi đáp (Tab Hỏi đáp)
--- Nguồn: text/*.txt → ingest.py → passages → embed.py
--- Không dùng PDF, không FK sang pdf_files
--- =============================================================================
+--
+-- Name: COLUMN courses.type; Type: COMMENT; Schema: public; Owner: -
+--
 
-CREATE TABLE rag_sources (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug          TEXT UNIQUE NOT NULL,
-  title         TEXT NOT NULL,
-  volume        TEXT,
-  author        TEXT NOT NULL DEFAULT 'Hòa thượng Thích Duy Lực',
-  source_file   TEXT NOT NULL UNIQUE,         -- '13.txt'
-  folder_path   TEXT NOT NULL DEFAULT 'text/',
-  status        TEXT NOT NULL DEFAULT 'pending'
-                  CHECK (status IN ('pending', 'ingested', 'embedded')),
-  chunk_count   INT DEFAULT 0,
-  ingested_at   TIMESTAMPTZ,
-  embedded_at   TIMESTAMPTZ,
-  sort_order    INT DEFAULT 0,
-  created_at    TIMESTAMPTZ DEFAULT now()
+COMMENT ON COLUMN public.courses.type IS 'REGULAR | SPRING | WINTER | AN_CU | OTHER';
+
+
+--
+-- Name: COLUMN courses.recurrence; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.courses.recurrence IS 'ONCE | WEEKLY | MONTHLY_RANGE | YEARLY | SELF_PRACTICE';
+
+
+--
+-- Name: media_categories; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.media_categories (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    slug text NOT NULL,
+    name text NOT NULL,
+    description text,
+    sort_order integer DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now()
 );
 
-CREATE INDEX idx_rag_sources_status ON rag_sources(status);
-CREATE INDEX idx_rag_sources_sort ON rag_sources(sort_order);
 
-CREATE TABLE passages (
-  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  rag_source_id  UUID NOT NULL REFERENCES rag_sources(id) ON DELETE CASCADE,
-  page_num       INT,
-  chunk_type     TEXT NOT NULL DEFAULT 'prose'
-                   CHECK (chunk_type IN ('qa', 'prose', 'verse')),
-  question_num   INT,
-  content        TEXT NOT NULL,
-  metadata       JSONB DEFAULT '{}',
-  created_at     TIMESTAMPTZ DEFAULT now()
+--
+-- Name: mp3_favorites; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.mp3_favorites (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    device_id text NOT NULL,
+    mp3_track_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
 );
 
-CREATE INDEX idx_passages_rag_page ON passages(rag_source_id, page_num);
-CREATE INDEX idx_passages_chunk_type ON passages(chunk_type);
-CREATE INDEX idx_passages_fts ON passages USING gin(to_tsvector('simple', content));
 
-CREATE TABLE passage_embeddings (
-  passage_id  UUID PRIMARY KEY REFERENCES passages(id) ON DELETE CASCADE,
-  embedding   vector(384) NOT NULL,
-  model       TEXT,
-  created_at  TIMESTAMPTZ DEFAULT now()
+--
+-- Name: mp3_tracks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.mp3_tracks (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    category_id uuid NOT NULL,
+    title text NOT NULL,
+    year integer NOT NULL,
+    recorded_at date,
+    location text,
+    description text,
+    folder_path text NOT NULL,
+    filename text NOT NULL,
+    storage_path text NOT NULL,
+    public_url text NOT NULL,
+    duration_sec integer,
+    file_size_bytes bigint,
+    sort_order integer DEFAULT 0,
+    is_published boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now()
 );
 
--- CREATE INDEX idx_passage_embeddings_hnsw
---   ON passage_embeddings USING hnsw (embedding vector_cosine_ops);
 
--- Lịch sử chat: lưu local trên Flutter (SQLite/Hive), không bảng server — không đăng nhập
+--
+-- Name: passage_embeddings; Type: TABLE; Schema: public; Owner: -
+--
 
--- =============================================================================
--- 4. MEDIA — MP3 and YouTube in separate tables; shared media_categories
--- MP3 path on VPS: /data/audio/
--- e.g. duy-luc/phap-thoai-to-su-thien/1993/
--- =============================================================================
-
-CREATE TABLE media_categories (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug        TEXT UNIQUE NOT NULL,
-  name        TEXT NOT NULL,
-  description TEXT,
-  sort_order  INT DEFAULT 0,
-  created_at  TIMESTAMPTZ DEFAULT now()
+CREATE TABLE public.passage_embeddings (
+    passage_id uuid NOT NULL,
+    embedding public.vector(384) NOT NULL,
+    model text,
+    created_at timestamp with time zone DEFAULT now()
 );
 
-CREATE TABLE mp3_tracks (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  category_id     UUID NOT NULL REFERENCES media_categories(id) ON DELETE RESTRICT,
-  title           TEXT NOT NULL,
-  year            INT NOT NULL,
-  recorded_at     DATE,
-  location        TEXT,
-  description     TEXT,
-  folder_path     TEXT NOT NULL,
-  filename        TEXT NOT NULL,
-  storage_path    TEXT NOT NULL UNIQUE,
-  public_url      TEXT NOT NULL,
-  duration_sec    INT,
-  file_size_bytes BIGINT,
-  sort_order      INT DEFAULT 0,
-  is_published    BOOLEAN DEFAULT true,
-  created_at      TIMESTAMPTZ DEFAULT now()
+
+--
+-- Name: passages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passages (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    rag_source_id uuid NOT NULL,
+    page_num integer,
+    chunk_type text DEFAULT 'prose'::text NOT NULL,
+    question_num integer,
+    content text NOT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT passages_chunk_type_check CHECK ((chunk_type = ANY (ARRAY['qa'::text, 'prose'::text, 'verse'::text])))
 );
 
-CREATE INDEX idx_mp3_tracks_category ON mp3_tracks(category_id);
-CREATE INDEX idx_mp3_tracks_year ON mp3_tracks(year);
-CREATE INDEX idx_mp3_tracks_category_year ON mp3_tracks(category_id, year DESC);
-CREATE INDEX idx_mp3_tracks_folder ON mp3_tracks(folder_path);
 
--- MP3 favorites theo máy (UUID app gửi lên, giống reading_progress)
-CREATE TABLE mp3_favorites (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  device_id    TEXT NOT NULL,
-  mp3_track_id UUID NOT NULL REFERENCES mp3_tracks(id) ON DELETE CASCADE,
-  created_at   TIMESTAMPTZ DEFAULT now(),
-  UNIQUE (device_id, mp3_track_id)
+--
+-- Name: pdf_files; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pdf_files (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    slug text NOT NULL,
+    title text NOT NULL,
+    volume text,
+    author text DEFAULT 'Hòa thượng Thích Duy Lực'::text NOT NULL,
+    filename text NOT NULL,
+    folder_path text DEFAULT 'pdf/'::text NOT NULL,
+    storage_path text NOT NULL,
+    public_url text NOT NULL,
+    page_count integer,
+    file_size_bytes bigint,
+    cover_image_url text,
+    sort_order integer DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now()
 );
 
-CREATE INDEX idx_mp3_favorites_device ON mp3_favorites(device_id);
-CREATE INDEX idx_mp3_favorites_track ON mp3_favorites(mp3_track_id);
 
-CREATE TABLE youtube_videos (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  category_id     UUID NOT NULL REFERENCES media_categories(id) ON DELETE RESTRICT,
-  title           TEXT NOT NULL,
-  youtube_id      TEXT NOT NULL,
-  channel         TEXT DEFAULT 'Hoà thượng Thích Duy Lực',
-  year            INT,
-  published_at    DATE,
-  description     TEXT,
-  sort_order      INT DEFAULT 0,
-  is_published    BOOLEAN DEFAULT true,
-  created_at      TIMESTAMPTZ DEFAULT now()
+--
+-- Name: rag_sources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.rag_sources (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    slug text NOT NULL,
+    title text NOT NULL,
+    volume text,
+    author text DEFAULT 'Hòa thượng Thích Duy Lực'::text NOT NULL,
+    source_file text NOT NULL,
+    folder_path text DEFAULT 'text/'::text NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL,
+    chunk_count integer DEFAULT 0,
+    ingested_at timestamp with time zone,
+    embedded_at timestamp with time zone,
+    sort_order integer DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT rag_sources_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'ingested'::text, 'embedded'::text])))
 );
 
-CREATE INDEX idx_youtube_videos_category ON youtube_videos(category_id);
-CREATE INDEX idx_youtube_videos_year ON youtube_videos(year);
-CREATE INDEX idx_youtube_videos_category_year ON youtube_videos(category_id, year DESC);
 
--- =============================================================================
--- 5. MEDITATION CENTERS & COURSES
--- =============================================================================
+--
+-- Name: reading_progress; Type: TABLE; Schema: public; Owner: -
+--
 
-CREATE TABLE centers (
-  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug             TEXT UNIQUE,
-  temple_name      TEXT NOT NULL,
-  abbot_name       TEXT,
-  address          TEXT NOT NULL,
-  phone            TEXT,
-  abbot_phone      TEXT,
-  google_maps_url  TEXT,
-  lat              DOUBLE PRECISION,
-  lng              DOUBLE PRECISION,
-  activity_hours   TEXT,
-  rules            TEXT,
-  customs          TEXT,
-  main_image_url   TEXT,                       -- ảnh chính (cover)
-  gallery_images   JSONB NOT NULL DEFAULT '[]', -- ảnh phụ [{url, caption?, sort_order}]
-  detail_content   TEXT,                       -- trang giới thiệu chi tiết (HTML/Markdown)
-  sort_order       INT DEFAULT 0,
-  is_published     BOOLEAN DEFAULT true,
-  created_at       TIMESTAMPTZ DEFAULT now()
+CREATE TABLE public.reading_progress (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    device_id text NOT NULL,
+    pdf_file_id uuid NOT NULL,
+    last_page integer DEFAULT 1 NOT NULL,
+    updated_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT reading_progress_last_page_check CHECK ((last_page >= 1))
 );
 
-CREATE INDEX idx_centers_sort ON centers(sort_order);
 
-CREATE TABLE courses (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title       TEXT NOT NULL,
-  start_date  DATE,
-  end_date    DATE,
-  center_id   UUID REFERENCES centers(id) ON DELETE SET NULL,
-  contact     TEXT,
-  description TEXT,
-  created_at  TIMESTAMPTZ DEFAULT now()
+--
+-- Name: youtube_videos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.youtube_videos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    category_id uuid NOT NULL,
+    title text NOT NULL,
+    youtube_id text NOT NULL,
+    channel text DEFAULT 'Hoà thượng Thích Duy Lực'::text,
+    year integer,
+    published_at date,
+    description text,
+    sort_order integer DEFAULT 0,
+    is_published boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now()
 );
--- =============================================================================
--- SEED — thiền đường (tùy chọn)
--- =============================================================================
--- INSERT INTO centers (
---   slug, temple_name, abbot_name, address, phone, abbot_phone,
---   google_maps_url, lat, lng, activity_hours, rules, customs,
---   main_image_url, gallery_images, detail_content, sort_order
--- ) VALUES (
---   'Chùa Từ Ân',
---   'HT. Thích ...',
---   'Quận 11, TP. Hồ Chí Minh',
---   '028xxxxxxxx',
---   '09xxxxxxxx',
---   'https://maps.google.com/?q=Chùa+Từ+Ân+Quận+11',
---   10.762622, 106.660172,
---   '5h00–11h00 sáng; 14h00–21h00 chiều',
---   'Giữ im lặng trong thiền đường. Tắt điện thoại khi vào chánh điện.',
---   'Vào chánh điện chắp tay, vái 3 lạy. Mặc trang phục trang nhã.',
---   1
--- );
--- =============================================================================
--- SEED — mục media (dùng chung cho MP3 và YouTube)
--- =============================================================================
 
-INSERT INTO media_categories (slug, name, sort_order) VALUES
-  ('phap-thoai-to-su-thien', 'Pháp thoại Tổ Sư Thiền', 1),
-  ('thien-huong-dan',        'Hướng dẫn thiền',         2),
-  ('phap-hoi',               'Pháp hội',                3),
-  ('tung-kinh',              'Tụng kinh',               4);
--- =============================================================================
--- SEED — PDF (1.pdf … 14.pdf) — xem docker/postgres/migrations/004-seed-pdf-files.sql
--- Copy file: kinhsach/*.pdf → /data/pdf/
--- =============================================================================
--- psql -U tosuthien -d tosuthien -f docker/postgres/migrations/004-seed-pdf-files.sql
 
--- =============================================================================
--- SEED — RAG text (bỏ comment sau khi có file text/*.txt)
--- =============================================================================
--- INSERT INTO rag_sources (slug, title, volume, source_file, sort_order) VALUES
---   ('duy-luc-ngu-luc-ha-rag',     'DUY LỰC NGỮ LỤC', 'QUYỂN HẠ',      '13.txt', 1),
---   ('duy-luc-ngu-luc-thuong-rag', 'DUY LỰC NGỮ LỤC', 'QUYỂN THƯỢNG', '14.txt', 2);
+--
+-- Name: centers centers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
--- =============================================================================
--- SEED — MP3 mẫu
--- =============================================================================
--- INSERT INTO mp3_tracks (
---   category_id, title, year, recorded_at, location,
---   folder_path, filename, storage_path, public_url, duration_sec
--- )
--- SELECT c.id,
---   'Pháp thoại Tổ Sư Thiền — buổi 1',
---   1993, '1993-10-20', 'Chùa Từ Ân, Q.11',
---   'duy-luc/phap-thoai-to-su-thien/1993/',
---   '1993-10-20-tu-an-01.mp3',
---   'duy-luc/phap-thoai-to-su-thien/1993/1993-10-20-tu-an-01.mp3',
---   'https://DOMAIN/audio/duy-luc/phap-thoai-to-su-thien/1993/1993-10-20-tu-an-01.mp3',
---   3600
--- FROM media_categories c WHERE c.slug = 'phap-thoai-to-su-thien';
+ALTER TABLE ONLY public.centers
+    ADD CONSTRAINT centers_pkey PRIMARY KEY (id);
 
--- =============================================================================
--- SEED — YouTube sample
--- =============================================================================
--- INSERT INTO youtube_videos (category_id, title, year, youtube_id)
--- SELECT c.id, 'Pháp thoại Tổ Sư Thiền', 1993, 'VIDEO_ID'
--- FROM media_categories c WHERE c.slug = 'phap-thoai-to-su-thien';
 
--- =============================================================================
--- Query — MP3 by category + year
--- =============================================================================
--- SELECT DISTINCT t.year, t.folder_path
--- FROM mp3_tracks t
--- JOIN media_categories c ON c.id = t.category_id
--- WHERE c.slug = 'phap-thoai-to-su-thien'
--- ORDER BY t.year DESC;
+--
+-- Name: centers centers_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
--- SELECT t.title, t.filename, t.public_url, t.duration_sec
--- FROM mp3_tracks t
--- JOIN media_categories c ON c.id = t.category_id
--- WHERE c.slug = 'phap-thoai-to-su-thien' AND t.year = 1993
--- ORDER BY t.recorded_at, t.sort_order;
+ALTER TABLE ONLY public.centers
+    ADD CONSTRAINT centers_slug_key UNIQUE (slug);
 
--- =============================================================================
--- Query — YouTube same category
--- =============================================================================
--- SELECT v.title, v.youtube_id, v.year
--- FROM youtube_videos v
--- JOIN media_categories c ON c.id = v.category_id
--- WHERE c.slug = 'phap-thoai-to-su-thien'
--- ORDER BY v.year DESC NULLS LAST, v.sort_order;
--- =============================================================================
--- Query — RAG
--- =============================================================================
--- SELECT p.page_num, p.content, r.title, r.volume,
---        1 - (e.embedding <=> :query_vector::vector) AS score
--- FROM passage_embeddings e
--- JOIN passages p ON p.id = e.passage_id
--- JOIN rag_sources r ON r.id = p.rag_source_id
--- ORDER BY e.embedding <=> :query_vector::vector
--- LIMIT 8;
 
--- =============================================================================
--- Query — PDF list + trang đã đọc (LEFT JOIN)
--- =============================================================================
--- SELECT p.id, p.slug, p.title, p.volume, p.public_url,
---        rp.last_page, rp.updated_at AS last_read_at
--- FROM pdf_files p
--- LEFT JOIN reading_progress rp
---   ON rp.pdf_file_id = p.id AND rp.device_id = :device_id
--- ORDER BY p.sort_order;
+--
+-- Name: courses courses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
--- Upsert khi user đọc / chuyển trang:
--- INSERT INTO reading_progress (device_id, pdf_file_id, last_page)
--- VALUES (:device_id, :pdf_file_id, :page)
--- ON CONFLICT (device_id, pdf_file_id) DO UPDATE SET
---   last_page = EXCLUDED.last_page,
---   updated_at = now();
+ALTER TABLE ONLY public.courses
+    ADD CONSTRAINT courses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: media_categories media_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.media_categories
+    ADD CONSTRAINT media_categories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: media_categories media_categories_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.media_categories
+    ADD CONSTRAINT media_categories_slug_key UNIQUE (slug);
+
+
+--
+-- Name: mp3_favorites mp3_favorites_device_id_mp3_track_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mp3_favorites
+    ADD CONSTRAINT mp3_favorites_device_id_mp3_track_id_key UNIQUE (device_id, mp3_track_id);
+
+
+--
+-- Name: mp3_favorites mp3_favorites_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mp3_favorites
+    ADD CONSTRAINT mp3_favorites_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: mp3_tracks mp3_tracks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mp3_tracks
+    ADD CONSTRAINT mp3_tracks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: mp3_tracks mp3_tracks_storage_path_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mp3_tracks
+    ADD CONSTRAINT mp3_tracks_storage_path_key UNIQUE (storage_path);
+
+
+--
+-- Name: passage_embeddings passage_embeddings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passage_embeddings
+    ADD CONSTRAINT passage_embeddings_pkey PRIMARY KEY (passage_id);
+
+
+--
+-- Name: passages passages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passages
+    ADD CONSTRAINT passages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pdf_files pdf_files_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pdf_files
+    ADD CONSTRAINT pdf_files_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pdf_files pdf_files_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pdf_files
+    ADD CONSTRAINT pdf_files_slug_key UNIQUE (slug);
+
+
+--
+-- Name: pdf_files pdf_files_storage_path_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pdf_files
+    ADD CONSTRAINT pdf_files_storage_path_key UNIQUE (storage_path);
+
+
+--
+-- Name: rag_sources rag_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rag_sources
+    ADD CONSTRAINT rag_sources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: rag_sources rag_sources_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rag_sources
+    ADD CONSTRAINT rag_sources_slug_key UNIQUE (slug);
+
+
+--
+-- Name: rag_sources rag_sources_source_file_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rag_sources
+    ADD CONSTRAINT rag_sources_source_file_key UNIQUE (source_file);
+
+
+--
+-- Name: reading_progress reading_progress_device_id_pdf_file_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.reading_progress
+    ADD CONSTRAINT reading_progress_device_id_pdf_file_id_key UNIQUE (device_id, pdf_file_id);
+
+
+--
+-- Name: reading_progress reading_progress_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.reading_progress
+    ADD CONSTRAINT reading_progress_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: youtube_videos youtube_videos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.youtube_videos
+    ADD CONSTRAINT youtube_videos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_centers_province; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_centers_province ON public.centers USING btree (province);
+
+
+--
+-- Name: idx_centers_region; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_centers_region ON public.centers USING btree (region);
+
+
+--
+-- Name: idx_centers_sort; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_centers_sort ON public.centers USING btree (sort_order);
+
+
+--
+-- Name: idx_courses_center; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_courses_center ON public.courses USING btree (center_id);
+
+
+--
+-- Name: idx_courses_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_courses_type ON public.courses USING btree (type);
+
+
+--
+-- Name: idx_mp3_favorites_device; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mp3_favorites_device ON public.mp3_favorites USING btree (device_id);
+
+
+--
+-- Name: idx_mp3_favorites_track; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mp3_favorites_track ON public.mp3_favorites USING btree (mp3_track_id);
+
+
+--
+-- Name: idx_mp3_tracks_category; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mp3_tracks_category ON public.mp3_tracks USING btree (category_id);
+
+
+--
+-- Name: idx_mp3_tracks_category_year; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mp3_tracks_category_year ON public.mp3_tracks USING btree (category_id, year DESC);
+
+
+--
+-- Name: idx_mp3_tracks_folder; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mp3_tracks_folder ON public.mp3_tracks USING btree (folder_path);
+
+
+--
+-- Name: idx_mp3_tracks_year; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mp3_tracks_year ON public.mp3_tracks USING btree (year);
+
+
+--
+-- Name: idx_passage_embeddings_hnsw; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passage_embeddings_hnsw ON public.passage_embeddings USING hnsw (embedding public.vector_cosine_ops);
+
+
+--
+-- Name: idx_passages_chunk_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passages_chunk_type ON public.passages USING btree (chunk_type);
+
+
+--
+-- Name: idx_passages_fts; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passages_fts ON public.passages USING gin (to_tsvector('simple'::regconfig, content));
+
+
+--
+-- Name: idx_passages_rag_page; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passages_rag_page ON public.passages USING btree (rag_source_id, page_num);
+
+
+--
+-- Name: idx_pdf_files_sort; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pdf_files_sort ON public.pdf_files USING btree (sort_order);
+
+
+--
+-- Name: idx_rag_sources_sort; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rag_sources_sort ON public.rag_sources USING btree (sort_order);
+
+
+--
+-- Name: idx_rag_sources_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rag_sources_status ON public.rag_sources USING btree (status);
+
+
+--
+-- Name: idx_reading_progress_device; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_reading_progress_device ON public.reading_progress USING btree (device_id);
+
+
+--
+-- Name: idx_reading_progress_pdf; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_reading_progress_pdf ON public.reading_progress USING btree (pdf_file_id);
+
+
+--
+-- Name: idx_youtube_videos_category; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_youtube_videos_category ON public.youtube_videos USING btree (category_id);
+
+
+--
+-- Name: idx_youtube_videos_category_year; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_youtube_videos_category_year ON public.youtube_videos USING btree (category_id, year DESC);
+
+
+--
+-- Name: idx_youtube_videos_year; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_youtube_videos_year ON public.youtube_videos USING btree (year);
+
+
+--
+-- Name: courses courses_center_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.courses
+    ADD CONSTRAINT courses_center_id_fkey FOREIGN KEY (center_id) REFERENCES public.centers(id) ON DELETE SET NULL;
+
+
+--
+-- Name: mp3_favorites mp3_favorites_mp3_track_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mp3_favorites
+    ADD CONSTRAINT mp3_favorites_mp3_track_id_fkey FOREIGN KEY (mp3_track_id) REFERENCES public.mp3_tracks(id) ON DELETE CASCADE;
+
+
+--
+-- Name: mp3_tracks mp3_tracks_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mp3_tracks
+    ADD CONSTRAINT mp3_tracks_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.media_categories(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: passage_embeddings passage_embeddings_passage_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passage_embeddings
+    ADD CONSTRAINT passage_embeddings_passage_id_fkey FOREIGN KEY (passage_id) REFERENCES public.passages(id) ON DELETE CASCADE;
+
+
+--
+-- Name: passages passages_rag_source_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passages
+    ADD CONSTRAINT passages_rag_source_id_fkey FOREIGN KEY (rag_source_id) REFERENCES public.rag_sources(id) ON DELETE CASCADE;
+
+
+--
+-- Name: reading_progress reading_progress_pdf_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.reading_progress
+    ADD CONSTRAINT reading_progress_pdf_file_id_fkey FOREIGN KEY (pdf_file_id) REFERENCES public.pdf_files(id) ON DELETE CASCADE;
+
+
+--
+-- Name: youtube_videos youtube_videos_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.youtube_videos
+    ADD CONSTRAINT youtube_videos_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.media_categories(id) ON DELETE RESTRICT;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict Lrjl9MRr7lYdcN7npZbwTnwJ0BlbvJP3Iu8QBV0v1u090gUk17k3F2lvexb0Nbf
+

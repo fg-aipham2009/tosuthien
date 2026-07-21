@@ -8,6 +8,7 @@ const router = useRouter();
 const activeMenu = computed(() => {
   if (route.path.startsWith('/centers')) return '/centers';
   if (route.path.startsWith('/files')) return '/files';
+  if (route.path.startsWith('/books')) return '/books';
   if (route.path.startsWith('/youtube')) return '/youtube';
   return route.path;
 });
@@ -34,6 +35,10 @@ function go(path: string) {
         <el-menu-item index="/centers">
           <el-icon><Location /></el-icon>
           <span>Thiền viện / Thiền đường</span>
+        </el-menu-item>
+        <el-menu-item index="/books">
+          <el-icon><Reading /></el-icon>
+          <span>Kinh sách (ảnh bìa)</span>
         </el-menu-item>
         <el-menu-item index="/files">
           <el-icon><FolderOpened /></el-icon>

@@ -37,6 +37,7 @@ CREATE TABLE pdf_files (
   public_url      TEXT NOT NULL,              -- 'https://domain.com/pdf/13.pdf'
   page_count      INT,
   file_size_bytes BIGINT,
+  cover_image_url TEXT,
   sort_order      INT DEFAULT 0,
   created_at      TIMESTAMPTZ DEFAULT now()
 );

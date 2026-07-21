@@ -36,6 +36,7 @@ export type TextBookSummary = {
   blankPages: number;
   source: string | null;
   pdfFileId: string | null;
+  coverImageUrl: string | null;
   lastPage: number | null;
   lastReadAt: Date | null;
 };
@@ -96,12 +97,12 @@ export class TextBooksService {
     if (ready.length === 0) return [];
 
     const pdfs = await this.prisma.pdfFile.findMany({
-      select: { id: true, filename: true },
+      select: { id: true, filename: true, coverImageUrl: true },
     });
-    const pdfByStem = new Map<string, string>();
+    const pdfByStem = new Map<string, { id: string; coverImageUrl: string | null }>();
     for (const pdf of pdfs) {
       const stem = pdf.filename.replace(/\.pdf$/i, '');
-      pdfByStem.set(stem, pdf.id);
+      pdfByStem.set(stem, { id: pdf.id, coverImageUrl: pdf.coverImageUrl });
     }
 
     const progressMap = new Map<string, { lastPage: number; updatedAt: Date }>();
@@ -118,8 +119,8 @@ export class TextBooksService {
     }
 
     return ready.map((b) => {
-      const pdfFileId = pdfByStem.get(b.id) ?? null;
-      const rp = pdfFileId ? progressMap.get(pdfFileId) : undefined;
+      const linked = pdfByStem.get(b.id) ?? null;
+      const rp = linked ? progressMap.get(linked.id) : undefined;
       return {
         id: b.id,
         title: b.title || `Kinh sách ${b.id}`,
@@ -127,7 +128,8 @@ export class TextBooksService {
         pageCount: b.pageCount || 0,
         blankPages: b.blankPages || 0,
         source: b.source || null,
-        pdfFileId,
+        pdfFileId: linked?.id ?? null,
+        coverImageUrl: linked?.coverImageUrl ?? null,
         lastPage: rp?.lastPage ?? null,
         lastReadAt: rp?.updatedAt ?? null,
       };
@@ -142,7 +144,7 @@ export class TextBooksService {
 
     const pdf = await this.prisma.pdfFile.findFirst({
       where: { filename: `${id}.pdf` },
-      select: { id: true },
+      select: { id: true, coverImageUrl: true },
     });
     let lastPage: number | null = null;
     let lastReadAt: Date | null = null;
@@ -164,6 +166,7 @@ export class TextBooksService {
       blankPages: meta.blankPages || 0,
       source: meta.source || null,
       pdfFileId: pdf?.id ?? null,
+      coverImageUrl: pdf?.coverImageUrl ?? null,
       lastPage,
       lastReadAt,
     };

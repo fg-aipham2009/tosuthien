@@ -277,14 +277,29 @@ class _TextBookTile extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Container(
-                width: 52,
-                height: 68,
-                decoration: BoxDecoration(
-                  gradient: AppTheme.mp3AccentGradient,
-                  borderRadius: BorderRadius.circular(8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 52,
+                  height: 68,
+                  child: book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty
+                      ? Image.network(
+                          book.coverImageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.mp3AccentGradient,
+                            ),
+                            child: const Icon(Icons.article_rounded, color: Colors.white),
+                          ),
+                        )
+                      : DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: AppTheme.mp3AccentGradient,
+                          ),
+                          child: const Icon(Icons.article_rounded, color: Colors.white),
+                        ),
                 ),
-                child: const Icon(Icons.article_rounded, color: Colors.white),
               ),
               const SizedBox(width: 14),
               Expanded(

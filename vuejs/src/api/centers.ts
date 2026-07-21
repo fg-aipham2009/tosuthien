@@ -28,20 +28,31 @@ export async function deleteCenter(id: string): Promise<void> {
 export async function uploadCenterMain(id: string, file: File): Promise<Center> {
   const form = new FormData();
   form.append('file', file);
-  const { data } = await http.post<Center>(`/upload/centers/${id}/main`, form);
+  const { data } = await http.post<Center>(`/upload/centers/${id}/main`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data;
 }
 
-export async function uploadCenterGallery(id: string, files: File[]): Promise<unknown> {
+export async function clearCenterMainImage(id: string): Promise<Center> {
+  const { data } = await http.delete<Center>(`/centers/${id}/main-image`);
+  return data;
+}
+
+export async function uploadCenterGallery(id: string, files: File[]): Promise<Center> {
   if (files.length === 1) {
     const form = new FormData();
     form.append('file', files[0]);
-    const { data } = await http.post(`/upload/centers/${id}/gallery`, form);
+    const { data } = await http.post<Center>(`/upload/centers/${id}/gallery`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   }
   const form = new FormData();
   for (const f of files) form.append('files', f);
-  const { data } = await http.post(`/upload/centers/${id}/gallery/batch`, form);
+  const { data } = await http.post<Center>(`/upload/centers/${id}/gallery/batch`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data;
 }
 

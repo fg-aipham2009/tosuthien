@@ -7,6 +7,7 @@ class TextBook {
     this.blankPages = 0,
     this.source,
     this.pdfFileId,
+    this.coverImageUrl,
     this.lastPage,
     this.lastReadAt,
   });
@@ -18,6 +19,7 @@ class TextBook {
   final int blankPages;
   final String? source;
   final String? pdfFileId;
+  final String? coverImageUrl;
   final int? lastPage;
   final DateTime? lastReadAt;
 
@@ -36,6 +38,7 @@ class TextBook {
       blankPages: _asInt(json['blankPages']) ?? 0,
       source: json['source'] as String?,
       pdfFileId: json['pdfFileId'] as String?,
+      coverImageUrl: json['coverImageUrl'] as String?,
       lastPage: _asInt(json['lastPage']),
       lastReadAt: lastReadAt,
     );

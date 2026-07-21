@@ -56,4 +56,9 @@ export class CentersController {
   ) {
     return this.service.removeGalleryImage(id, url);
   }
+
+  @Delete(':id/main-image')
+  clearMainImage(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.setMainImage(id, null);
+  }
 }

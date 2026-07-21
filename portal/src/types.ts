@@ -37,6 +37,7 @@ export interface BookPdf {
   publicUrl: string
   storagePath?: string
   pageCount?: number | null
+  coverImageUrl?: string | null
   lastPage?: number | null
   sortOrder?: number
 }
@@ -48,6 +49,7 @@ export interface TextBook {
   pageCount?: number
   /** Leading blank/front-matter pages to skip when opening. */
   blankPages?: number
+  coverImageUrl?: string | null
   lastPage?: number | null
   sortOrder?: number
 }

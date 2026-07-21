@@ -134,9 +134,15 @@ watch(
         <RouterLink class="group flex h-full flex-col gap-2.5" :to="bookLink(b)">
           <div
             class="relative flex aspect-[3/4.2] flex-col justify-between overflow-hidden rounded-2xl p-3 text-white shadow-md shadow-brand-deep/20 transition duration-200 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:shadow-brand-deep/30"
-            :style="coverStyle(i)"
+            :style="b.coverImageUrl ? undefined : coverStyle(i)"
             aria-hidden="true"
           >
+            <img
+              v-if="b.coverImageUrl"
+              :src="b.coverImageUrl"
+              :alt="b.title"
+              class="absolute inset-0 size-full object-cover"
+            />
             <div
               class="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,rgba(0,0,0,.45)_100%),radial-gradient(circle_at_20%_15%,rgba(255,255,255,.18),transparent_42%)]"
             />

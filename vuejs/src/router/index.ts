@@ -34,6 +34,12 @@ const router = createRouter({
           meta: { title: 'Quản lý file' },
         },
         {
+          path: 'books',
+          name: 'books',
+          component: () => import('@/views/BooksView.vue'),
+          meta: { title: 'Kinh sách — ảnh bìa' },
+        },
+        {
           path: 'youtube',
           name: 'youtube',
           component: () => import('@/views/YoutubeView.vue'),

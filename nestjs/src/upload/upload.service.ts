@@ -11,6 +11,7 @@ import { MediaService } from '../media/media.service';
 const IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 const MP3_EXT = new Set(['.mp3']);
 const PDF_EXT = new Set(['.pdf']);
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15 MiB
 
 interface Mp3UploadBody {
   categoryId: string;
@@ -68,7 +69,7 @@ export class UploadService {
     this.requireFiles(files);
     const folder = this.normalizeFolder(folderPath);
     const images = files.map((file) => {
-      this.assertExt(file, IMAGE_EXT, 'Hình ảnh');
+      this.assertImage(file);
       const { rel, url, size } = this.saveFile(path.join(MEDIA_DIRS.images, folder), file);
       return { filename: path.basename(rel), url, size };
     });
@@ -76,8 +77,8 @@ export class UploadService {
   }
 
   async uploadCenterMain(id: string, file: Express.Multer.File) {
-    this.assertExt(file, IMAGE_EXT, 'Hình ảnh');
-    const ext = path.extname(file.originalname) || '.jpg';
+    this.assertImage(file);
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
     const { url } = this.saveFile(
       MEDIA_DIRS.images,
       file,
@@ -92,12 +93,12 @@ export class UploadService {
     caption?: string,
     sortOrder?: number,
   ) {
-    this.assertExt(file, IMAGE_EXT, 'Hình ảnh');
-    const ext = path.extname(file.originalname) || '.jpg';
+    this.assertImage(file);
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
     const { url } = this.saveFile(
       MEDIA_DIRS.images,
       file,
-      path.join('centers', id, `gallery-${Date.now()}${ext}`),
+      path.join('centers', id, `gallery-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`),
     );
     return this.centersService.addGalleryImage(id, {
       url,
@@ -108,11 +109,25 @@ export class UploadService {
 
   async uploadCenterGalleryBatch(id: string, files: Express.Multer.File[]) {
     this.requireFiles(files);
-    const gallery = [];
     for (let i = 0; i < files.length; i++) {
-      gallery.push(await this.uploadCenterGallery(id, files[i], undefined, i));
+      await this.uploadCenterGallery(id, files[i], undefined, i);
     }
-    return { count: gallery.length, centerId: id, gallery };
+    return this.centersService.findOne(id);
+  }
+
+  async uploadPdfCover(id: string, file: Express.Multer.File) {
+    this.assertImage(file);
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    const { url } = this.saveFile(
+      MEDIA_DIRS.images,
+      file,
+      path.join('books', id, `cover${ext}`),
+    );
+    return this.pdfService.setCoverImage(id, url);
+  }
+
+  async clearPdfCover(id: string) {
+    return this.pdfService.setCoverImage(id, null);
   }
 
   private async saveMp3(file: Express.Multer.File, body: Mp3UploadBody) {
@@ -140,6 +155,13 @@ export class UploadService {
   private requireFiles(files: Express.Multer.File[]) {
     if (!files?.length) {
       throw new BadRequestException('Cần ít nhất 1 file (field: files)');
+    }
+  }
+
+  private assertImage(file: Express.Multer.File) {
+    this.assertExt(file, IMAGE_EXT, 'Hình ảnh');
+    if (file.size > MAX_IMAGE_BYTES) {
+      throw new BadRequestException('Hình ảnh tối đa 15MB');
     }
   }
 

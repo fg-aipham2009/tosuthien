@@ -124,11 +124,18 @@ export interface Mp3Track {
   categoryId: string;
   title: string;
   year: number;
+  recordedAt?: string | null;
+  location?: string | null;
+  description?: string | null;
   folderPath: string;
   filename: string;
+  storagePath?: string;
   publicUrl: string;
+  durationSec?: number | null;
+  fileSizeBytes?: number | string | null;
   isPublished: boolean;
   sortOrder: number;
+  createdAt?: string;
   category?: MediaCategory;
 }
 
@@ -137,12 +144,49 @@ export interface YoutubeVideo {
   categoryId: string;
   title: string;
   youtubeId: string;
-  channel: string;
+  channel: string | null;
   year: number | null;
+  publishedAt?: string | null;
   description: string | null;
   sortOrder: number;
   isPublished: boolean;
+  createdAt?: string;
   category?: MediaCategory;
+}
+
+/** Matches pdf_files table (admin / API). */
+export interface PdfFile {
+  id: string;
+  slug: string;
+  title: string;
+  volume?: string | null;
+  author: string;
+  filename: string;
+  folderPath: string;
+  storagePath: string;
+  publicUrl: string;
+  pageCount?: number | null;
+  fileSizeBytes?: number | string | null;
+  coverImageUrl?: string | null;
+  sortOrder: number;
+  createdAt: string;
+}
+
+/** Matches rag_sources table. */
+export interface RagSource {
+  id: string;
+  slug: string;
+  title: string;
+  volume?: string | null;
+  author: string;
+  sourceFile: string;
+  folderPath: string;
+  status: string;
+  chunkCount: number;
+  ingestedAt?: string | null;
+  embeddedAt?: string | null;
+  sortOrder: number;
+  createdAt: string;
 }
 
 export interface YoutubeFormData {

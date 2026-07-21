@@ -2,12 +2,13 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import type { FormInstance, FormRules, UploadUserFile } from 'element-plus';
+import type { FormInstance, FormRules, UploadRawFile } from 'element-plus';
 import {
   fetchCenter,
   createCenter,
   updateCenter,
   uploadCenterMain,
+  clearCenterMainImage,
   uploadCenterGallery,
   removeGalleryImage,
   fetchCourses,
@@ -55,6 +56,23 @@ const form = reactive({
 const mainImageUrl = ref<string | null>(null);
 const gallery = ref<GalleryImage[]>([]);
 const courses = ref<Course[]>([]);
+const uploadingMain = ref(false);
+const uploadingGallery = ref(false);
+
+const IMAGE_MAX = 15 * 1024 * 1024;
+const IMAGE_OK = /\.(jpe?g|png|webp|gif)$/i;
+
+function assertImage(file: File) {
+  if (!IMAGE_OK.test(file.name)) {
+    ElMessage.warning('Chỉ nhận JPG, PNG, WEBP, GIF');
+    return false;
+  }
+  if (file.size > IMAGE_MAX) {
+    ElMessage.warning('Ảnh tối đa 15MB');
+    return false;
+  }
+  return true;
+}
 
 const courseDialog = ref(false);
 const editingCourse = ref<Course | null>(null);
@@ -175,26 +193,46 @@ async function save() {
   }
 }
 
-async function onMainUpload(file: UploadUserFile) {
-  if (!centerId.value || !file.raw) return false;
+async function onMainUpload(file: UploadRawFile) {
+  if (!centerId.value || !assertImage(file)) return false;
+  uploadingMain.value = true;
   try {
-    const updated = await uploadCenterMain(centerId.value, file.raw);
+    const updated = await uploadCenterMain(centerId.value, file);
     mainImageUrl.value = updated.mainImageUrl;
     ElMessage.success('Đã cập nhật ảnh chính');
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : 'Upload thất bại');
+  } finally {
+    uploadingMain.value = false;
   }
   return false;
 }
 
-async function onGalleryUpload(file: UploadUserFile) {
-  if (!centerId.value || !file.raw) return false;
+async function onClearMain() {
+  if (!centerId.value || !mainImageUrl.value) return;
   try {
-    await uploadCenterGallery(centerId.value, [file.raw]);
-    await loadCenter();
+    await ElMessageBox.confirm('Xóa ảnh đại diện?', 'Xác nhận', { type: 'warning' });
+    await clearCenterMainImage(centerId.value);
+    mainImageUrl.value = null;
+    ElMessage.success('Đã xóa ảnh đại diện');
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') {
+      ElMessage.error(e instanceof Error ? e.message : 'Xóa thất bại');
+    }
+  }
+}
+
+async function onGalleryUpload(file: UploadRawFile) {
+  if (!centerId.value || !assertImage(file)) return false;
+  uploadingGallery.value = true;
+  try {
+    const updated = await uploadCenterGallery(centerId.value, [file]);
+    gallery.value = parseGallery(updated.galleryImages);
     ElMessage.success('Đã thêm ảnh');
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : 'Upload thất bại');
+  } finally {
+    uploadingGallery.value = false;
   }
   return false;
 }
@@ -428,31 +466,45 @@ watch(() => route.params.id, loadCenter);
 
       <template v-if="!isNew && centerId">
         <div class="form-section-title">Ảnh đại diện</div>
-        <div style="display: flex; gap: 16px; align-items: flex-start">
+        <p class="hint">JPG / PNG / WEBP / GIF · tối đa 15MB. Ảnh này hiện trên danh sách và trang chi tiết.</p>
+        <div class="main-row">
           <el-image
             v-if="mainImageUrl"
             :src="mainImageUrl"
             fit="cover"
-            style="width: 160px; height: 120px; border-radius: 8px"
+            class="main-preview"
+            :preview-src-list="[mainImageUrl]"
           />
-          <el-upload :show-file-list="false" :auto-upload="true" accept="image/*" :before-upload="onMainUpload">
-            <el-button>{{ mainImageUrl ? 'Đổi ảnh chính' : 'Upload ảnh chính' }}</el-button>
-          </el-upload>
+          <div v-else class="main-preview empty">Chưa có ảnh</div>
+          <div class="main-actions">
+            <el-upload
+              :show-file-list="false"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              :disabled="uploadingMain"
+              :before-upload="onMainUpload"
+            >
+              <el-button type="primary" :loading="uploadingMain">
+                {{ mainImageUrl ? 'Đổi ảnh chính' : 'Upload ảnh chính' }}
+              </el-button>
+            </el-upload>
+            <el-button v-if="mainImageUrl" type="danger" plain @click="onClearMain">Xóa ảnh</el-button>
+          </div>
         </div>
 
         <div class="form-section-title">Thư viện ảnh</div>
+        <p class="hint">Thêm nhiều ảnh gallery cho trang chi tiết thiền đường.</p>
         <el-upload
           :show-file-list="false"
-          :auto-upload="true"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/gif"
           multiple
+          :disabled="uploadingGallery"
           :before-upload="onGalleryUpload"
         >
-          <el-button type="primary" plain>Thêm ảnh gallery</el-button>
+          <el-button type="primary" plain :loading="uploadingGallery">Thêm ảnh gallery</el-button>
         </el-upload>
         <div v-if="gallery.length" class="gallery-grid">
           <div v-for="img in gallery" :key="img.url" class="gallery-item">
-            <img :src="img.url" :alt="img.caption ?? ''">
+            <el-image :src="img.url" fit="cover" :preview-src-list="gallery.map((g) => g.url)" />
             <div class="actions">
               <el-button size="small" type="danger" link @click="onRemoveGallery(img.url)">Xóa</el-button>
             </div>
@@ -562,3 +614,92 @@ watch(() => route.params.id, loadCenter);
     </el-dialog>
   </div>
 </template>
+
+<style scoped>
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.form-section-title {
+  margin: 28px 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 20px;
+}
+
+.hint {
+  margin: 0 0 12px;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.main-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.main-preview {
+  width: 200px;
+  height: 150px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+.main-preview.empty {
+  display: grid;
+  place-items: center;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+.main-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.gallery-item {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  aspect-ratio: 4 / 3;
+  background: #f9fafb;
+}
+
+.gallery-item :deep(.el-image) {
+  width: 100%;
+  height: 100%;
+}
+
+.gallery-item .actions {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 6px;
+  padding: 0 4px;
+}
+</style>
