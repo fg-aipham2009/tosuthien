@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import type { ChatCitation, ChatMessage } from '../../types'
 import {
   citationBody,
   defaultFilePage,
-  resolveCitationPdfId,
+  resolveCitationPdfFileUrl,
   scriptureOnly,
   tappablePages,
 } from '../../lib/openCitation'
@@ -14,7 +13,6 @@ const props = defineProps<{
   message: ChatMessage
 }>()
 
-const router = useRouter()
 const openingKey = ref<string | null>(null)
 const openError = ref('')
 
@@ -33,16 +31,11 @@ async function openCitation(c: ChatCitation, filePage?: number) {
   if (openingKey.value) return
   openingKey.value = key
   try {
-    const id = await resolveCitationPdfId(c)
-    if (!id) {
+    const href = await resolveCitationPdfFileUrl(c, page)
+    if (!href) {
       openError.value = 'Chưa gắn được bản PDF cho trích dẫn này.'
       return
     }
-    const href = router.resolve({
-      name: 'book-pdf',
-      params: { id },
-      query: { page: String(page) },
-    }).href
     const opened = window.open(href, '_blank', 'noopener,noreferrer')
     if (!opened) {
       openError.value = 'Trình duyệt đang chặn tab mới — cho phép popup rồi thử lại.'
