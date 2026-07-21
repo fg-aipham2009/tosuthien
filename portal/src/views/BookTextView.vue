@@ -14,7 +14,7 @@ const page = ref(1)
 const loading = ref(true)
 const error = ref('')
 const pdfId = ref<string | null>(null)
-const fontScale = ref(1.12)
+const fontScale = ref(1.52)
 
 const current = computed(() => pages.value.find((p) => p.page === page.value))
 
