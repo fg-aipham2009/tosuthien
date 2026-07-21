@@ -38,11 +38,15 @@ async function openCitation(c: ChatCitation, filePage?: number) {
       openError.value = 'Chưa gắn được bản PDF cho trích dẫn này.'
       return
     }
-    await router.push({
+    const href = router.resolve({
       name: 'book-pdf',
       params: { id },
       query: { page: String(page) },
-    })
+    }).href
+    const opened = window.open(href, '_blank', 'noopener,noreferrer')
+    if (!opened) {
+      openError.value = 'Trình duyệt đang chặn tab mới — cho phép popup rồi thử lại.'
+    }
   } catch (e) {
     openError.value = e instanceof Error ? e.message : 'Không mở được trang kinh'
   } finally {
