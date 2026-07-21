@@ -88,6 +88,20 @@ export class Mp3Controller {
 export class Mp3FoldersController {
   constructor(private readonly service: MediaService) {}
 
+  /** Distinct folder paths (lightweight — for lazy UI like Flutter). */
+  @Get()
+  listFolders(
+    @Query('category') category?: string,
+    @Query('year') year?: string,
+    @Query('all') all?: string,
+  ) {
+    return this.service.findMp3FolderPaths(
+      category,
+      year ? parseInt(year, 10) : undefined,
+      all === 'true',
+    );
+  }
+
   /** Stream a zip of all .mp3 files in one folder (store — no recompress). */
   @Get('zip')
   zipFolder(@Query('folder') folder: string | undefined, @Res() res: Response) {
@@ -117,6 +131,20 @@ export class Mp3FoldersController {
       archive.file(f.abs, { name: f.name });
     }
     void archive.finalize();
+  }
+}
+
+@Controller('mp3/years')
+export class Mp3YearsController {
+  constructor(private readonly service: MediaService) {}
+
+  @Get()
+  listYears(
+    @Query('category') category?: string,
+    @Query('folder') folder?: string,
+    @Query('all') all?: string,
+  ) {
+    return this.service.findMp3Years(category, folder, all === 'true');
   }
 }
 

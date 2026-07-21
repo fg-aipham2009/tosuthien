@@ -77,6 +77,48 @@ export class MediaService {
     });
   }
 
+  /** Distinct folder paths for lazy album browsing (no track payloads). */
+  async findMp3FolderPaths(
+    categorySlug?: string,
+    year?: number,
+    includeUnpublished = false,
+  ): Promise<string[]> {
+    const rows = await this.prisma.mp3Track.findMany({
+      where: {
+        ...(includeUnpublished ? {} : { isPublished: true }),
+        ...(categorySlug && { category: { slug: categorySlug } }),
+        ...(year && { year }),
+      },
+      distinct: ['folderPath'],
+      select: { folderPath: true },
+      orderBy: { folderPath: 'asc' },
+    });
+    return rows.map((r) => r.folderPath);
+  }
+
+  /** Distinct years for year chips without loading tracks. */
+  async findMp3Years(
+    categorySlug?: string,
+    folderPath?: string,
+    includeUnpublished = false,
+  ): Promise<number[]> {
+    const normalizedFolder = folderPath
+      ? (folderPath.endsWith('/') ? folderPath : `${folderPath}/`)
+      : undefined;
+
+    const rows = await this.prisma.mp3Track.findMany({
+      where: {
+        ...(includeUnpublished ? {} : { isPublished: true }),
+        ...(categorySlug && { category: { slug: categorySlug } }),
+        ...(normalizedFolder && { folderPath: normalizedFolder }),
+      },
+      distinct: ['year'],
+      select: { year: true },
+      orderBy: { year: 'desc' },
+    });
+    return rows.map((r) => r.year);
+  }
+
   async createMp3(dto: CreateMp3Dto) {
     const storagePath = `${dto.folderPath.replace(/\/$/, '')}/${dto.filename}`;
     return this.prisma.mp3Track.create({

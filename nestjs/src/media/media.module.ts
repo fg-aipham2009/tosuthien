@@ -4,6 +4,7 @@ import {
   MediaCategoriesController,
   Mp3Controller,
   Mp3FoldersController,
+  Mp3YearsController,
   Mp3FavoritesController,
   YoutubeController,
 } from './media.controller';
@@ -14,6 +15,7 @@ import { PublicUrlService } from '../common/public-url.service';
     MediaCategoriesController,
     Mp3Controller,
     Mp3FoldersController,
+    Mp3YearsController,
     Mp3FavoritesController,
     YoutubeController,
   ],
