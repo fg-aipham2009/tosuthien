@@ -9,7 +9,7 @@ const state = reactive({
   index: 0,
   playing: false,
   loading: false,
-  expanded: false,
+  visible: false,
   position: 0,
   duration: 0,
   shuffle: false,
@@ -31,15 +31,17 @@ function tick() {
     clearTick()
     return
   }
-  state.position = howl.seek() as number
+  const pos = howl.seek()
+  state.position = typeof pos === 'number' ? pos : 0
   raf = requestAnimationFrame(tick)
 }
 
 function syncMediaSession() {
   if (!('mediaSession' in navigator)) return
   const t = state.queue[state.index]
-  if (!t) {
+  if (!t || !state.visible) {
     navigator.mediaSession.metadata = null
+    navigator.mediaSession.playbackState = 'none'
     return
   }
   navigator.mediaSession.metadata = new MediaMetadata({
@@ -57,7 +59,6 @@ function rebuildOrder() {
       const j = Math.floor(Math.random() * (i + 1))
       ;[order[i], order[j]] = [order[j], order[i]]
     }
-    // Keep current track first in shuffle bag.
     const cur = order.indexOf(state.index)
     if (cur > 0) {
       order.splice(cur, 1)
@@ -79,6 +80,7 @@ function loadAndPlay(index: number) {
   if (!track?.publicUrl) return
   unload()
   state.index = index
+  state.visible = true
   state.loading = true
   state.error = ''
   state.position = 0
@@ -87,7 +89,7 @@ function loadAndPlay(index: number) {
 
   howl = new Howl({
     src: [track.publicUrl],
-    html5: true, // better for long MP3 / streaming on mobile
+    html5: true,
     preload: true,
     onload: () => {
       state.duration = howl?.duration() || 0
@@ -118,11 +120,10 @@ function loadAndPlay(index: number) {
       }
       const advanced = advance(+1)
       if (!advanced && state.repeat === 'all' && state.queue.length) {
-        const first = order[0] ?? 0
-        loadAndPlay(first)
+        loadAndPlay(order[0] ?? 0)
       } else if (!advanced) {
         state.playing = false
-        state.position = 0
+        state.position = state.duration || 0
         syncMediaSession()
       }
     },
@@ -135,7 +136,6 @@ function loadAndPlay(index: number) {
       state.loading = false
       state.playing = false
       state.error = `Lỗi phát: ${String(err)}`
-      // Unlock autoplay on some mobile browsers.
       howl?.once('unlock', () => {
         void howl?.play()
       })
@@ -173,7 +173,8 @@ function next() {
 }
 
 function prev() {
-  if ((howl?.seek() as number) > 3) {
+  const cur = typeof howl?.seek() === 'number' ? (howl!.seek() as number) : 0
+  if (cur > 3) {
     howl?.seek(0)
     state.position = 0
     return
@@ -184,10 +185,24 @@ function prev() {
 }
 
 function seek(seconds: number) {
-  if (!howl) return
-  const t = Math.max(0, Math.min(seconds, state.duration || seconds))
+  if (!howl || !state.duration) return
+  const t = Math.max(0, Math.min(seconds, state.duration))
   howl.seek(t)
   state.position = t
+}
+
+function stopAndClose() {
+  unload()
+  state.playing = false
+  state.loading = false
+  state.visible = false
+  state.position = 0
+  state.duration = 0
+  state.error = ''
+  state.queue = []
+  state.index = 0
+  order = []
+  syncMediaSession()
 }
 
 function bindMediaSessionHandlers() {
@@ -198,29 +213,37 @@ function bindMediaSessionHandlers() {
   navigator.mediaSession.setActionHandler('pause', () => pause())
   navigator.mediaSession.setActionHandler('previoustrack', () => prev())
   navigator.mediaSession.setActionHandler('nexttrack', () => next())
+  navigator.mediaSession.setActionHandler('stop', () => stopAndClose())
   navigator.mediaSession.setActionHandler('seekto', (details) => {
     if (typeof details.seekTime === 'number') seek(details.seekTime)
   })
 }
 
 export function usePlayer() {
-  const current = computed(() => state.queue[state.index] ?? null)
+  const current = computed(() =>
+    state.visible ? (state.queue[state.index] ?? null) : null,
+  )
   const progress = computed(() =>
     state.duration > 0 ? Math.min(1, state.position / state.duration) : 0,
   )
+  const queueLabel = computed(() => {
+    if (!state.queue.length || !state.visible) return ''
+    return `${state.index + 1}/${state.queue.length}`
+  })
   const hasPrev = computed(() => {
     if (!order.length) return state.index > 0
-    return order.indexOf(state.index) > 0
+    return order.indexOf(state.index) > 0 || state.repeat === 'all'
   })
   const hasNext = computed(() => {
     if (!order.length) return state.index < state.queue.length - 1
-    return order.indexOf(state.index) < order.length - 1
+    return order.indexOf(state.index) < order.length - 1 || state.repeat === 'all'
   })
 
   function playQueue(tracks: Mp3Track[], startIndex = 0) {
+    if (!tracks.length) return
     state.queue = tracks
     state.index = Math.max(0, Math.min(startIndex, tracks.length - 1))
-    state.expanded = true
+    state.visible = true
     rebuildOrder()
     bindMediaSessionHandlers()
     loadAndPlay(state.index)
@@ -237,7 +260,7 @@ export function usePlayer() {
 
   function seekRatio(ratio: number) {
     if (!state.duration) return
-    seek(ratio * state.duration)
+    seek(Math.max(0, Math.min(1, ratio)) * state.duration)
   }
 
   function toggleShuffle() {
@@ -247,10 +270,6 @@ export function usePlayer() {
 
   function cycleRepeat() {
     state.repeat = state.repeat === 'off' ? 'all' : state.repeat === 'all' ? 'one' : 'off'
-  }
-
-  function setExpanded(v: boolean) {
-    state.expanded = v
   }
 
   function formatTime(sec: number) {
@@ -265,6 +284,7 @@ export function usePlayer() {
     state: readonly(state),
     current,
     progress,
+    queueLabel,
     hasPrev,
     hasNext,
     playQueue,
@@ -275,7 +295,7 @@ export function usePlayer() {
     seekRatio,
     toggleShuffle,
     cycleRepeat,
-    setExpanded,
+    stopAndClose,
     formatTime,
   }
 }

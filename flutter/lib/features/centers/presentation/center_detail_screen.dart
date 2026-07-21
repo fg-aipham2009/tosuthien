@@ -137,6 +137,10 @@ class _CenterDetailScreenState extends State<CenterDetailScreen> {
                       center.province!,
                     center.region.label,
                   ].where((e) => e.isNotEmpty).join('\n'),
+                  onValueTap: center.googleMapsUrl != null &&
+                          center.googleMapsUrl!.trim().isNotEmpty
+                      ? () => openGoogleMaps(context, center.googleMapsUrl!)
+                      : null,
                 ),
                 if (center.contactPhone != null) ...[
                   const SizedBox(height: 10),
@@ -289,15 +293,24 @@ class _InfoRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.action,
+    this.onValueTap,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final Widget? action;
+  final VoidCallback? onValueTap;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final valueStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: onValueTap != null ? colors.primary : null,
+          decoration: onValueTap != null ? TextDecoration.underline : null,
+          decorationColor: onValueTap != null ? colors.primary : null,
+        );
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -310,11 +323,17 @@ class _InfoRow extends StatelessWidget {
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: colors.onSurfaceVariant,
                     ),
               ),
               const SizedBox(height: 2),
-              SelectableText(value),
+              if (onValueTap != null)
+                InkWell(
+                  onTap: onValueTap,
+                  child: Text(value, style: valueStyle),
+                )
+              else
+                SelectableText(value, style: valueStyle),
             ],
           ),
         ),

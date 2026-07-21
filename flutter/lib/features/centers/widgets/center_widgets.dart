@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/center_models.dart';
 
@@ -210,6 +211,10 @@ class CenterListTile extends StatelessWidget {
                   label: 'Địa chỉ',
                   value: address,
                   maxLines: 2,
+                  onValueTap: center.googleMapsUrl != null &&
+                          center.googleMapsUrl!.trim().isNotEmpty
+                      ? () => openGoogleMaps(context, center.googleMapsUrl!)
+                      : null,
                 ),
               ],
               if (courses.isNotEmpty) ...[
@@ -344,6 +349,10 @@ class _InfoLine extends StatelessWidget {
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: onValueTap != null ? colors.primary : null,
+                    decoration:
+                        onValueTap != null ? TextDecoration.underline : null,
+                    decorationColor:
+                        onValueTap != null ? colors.primary : null,
                     height: 1.3,
                   ),
             ),
@@ -396,4 +405,21 @@ Future<void> copyPhone(BuildContext context, String phone) async {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text('Đã sao chép SĐT: $phone')),
   );
+}
+
+Future<void> openGoogleMaps(BuildContext context, String url) async {
+  final uri = Uri.tryParse(url.trim());
+  if (uri == null) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Link Google Maps không hợp lệ')),
+    );
+    return;
+  }
+  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Không mở được Google Maps')),
+    );
+  }
 }

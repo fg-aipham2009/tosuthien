@@ -42,7 +42,18 @@ onMounted(async () => {
       <dl class="divide-y divide-black/10 border-y border-black/10">
         <div v-if="center.address" class="py-3">
           <dt class="mb-1 text-xs font-semibold tracking-wider text-brand uppercase">Địa chỉ</dt>
-          <dd>{{ center.address }}</dd>
+          <dd>
+            <a
+              v-if="center.googleMapsUrl"
+              class="text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand"
+              :href="center.googleMapsUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ center.address }}
+            </a>
+            <template v-else>{{ center.address }}</template>
+          </dd>
         </div>
         <div v-if="center.phone" class="py-3">
           <dt class="mb-1 text-xs font-semibold tracking-wider text-brand uppercase">Điện thoại</dt>
