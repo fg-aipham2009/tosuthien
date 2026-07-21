@@ -21,7 +21,7 @@ class AppTab {
 
   static const tabs = [
     AppTab(
-      title: 'Hỏi đáp',
+      title: 'Hỏi Đáp',
       icon: Icons.chat_bubble_outline,
       selectedIcon: Icons.chat_bubble,
       screen: ChatScreen(),

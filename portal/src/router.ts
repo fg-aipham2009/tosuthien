@@ -7,7 +7,19 @@ const router = createRouter({
       path: '/',
       name: 'chat',
       component: () => import('./views/ChatView.vue'),
-      meta: { title: 'Hỏi đáp' },
+      meta: { title: 'Hỏi Đáp' },
+    },
+    {
+      path: '/mp3',
+      name: 'mp3',
+      component: () => import('./views/Mp3View.vue'),
+      meta: { title: 'MP3' },
+    },
+    {
+      path: '/mp3/:slug',
+      name: 'mp3-album',
+      component: () => import('./views/Mp3AlbumView.vue'),
+      meta: { title: 'Album MP3' },
     },
     {
       path: '/kinh-sach',
@@ -26,18 +38,6 @@ const router = createRouter({
       name: 'book-text',
       component: () => import('./views/BookTextView.vue'),
       meta: { title: 'Đọc chữ' },
-    },
-    {
-      path: '/mp3',
-      name: 'mp3',
-      component: () => import('./views/Mp3View.vue'),
-      meta: { title: 'MP3 khai thị' },
-    },
-    {
-      path: '/mp3/:slug',
-      name: 'mp3-album',
-      component: () => import('./views/Mp3AlbumView.vue'),
-      meta: { title: 'Album MP3' },
     },
     {
       path: '/thien-duong',

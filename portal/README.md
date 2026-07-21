@@ -6,9 +6,9 @@
 
 | Tab | Route | API |
 |-----|-------|-----|
-| Hỏi đáp | `/` | `POST /api/rag/chat/stream` + `GET /api/rag/sources` |
-| Kinh sách | `/kinh-sach` | `/api/pdfs`, `/api/text-books` |
+| Hỏi Đáp | `/` | `POST /api/rag/chat/stream` + `GET /api/rag/sources` |
 | MP3 | `/mp3` | `/api/media/categories`, `/api/mp3/tracks` |
+| Kinh sách | `/kinh-sach` | `/api/pdfs`, `/api/text-books` |
 | Thiền đường | `/thien-duong` | `/api/centers` |
 
 ## Dev
