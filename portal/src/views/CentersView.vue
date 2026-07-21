@@ -138,14 +138,14 @@ function courseChipClass(type?: string | null): string {
     <p v-if="loading" class="text-muted">Đang tải…</p>
     <p v-else-if="error" class="text-red-800">{{ error }}</p>
 
-    <ul v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-      <li v-for="c in centers" :key="c.id" class="min-h-[28rem]">
+    <ul v-else class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <li v-for="c in centers" :key="c.id">
         <RouterLink
-          class="flex h-full flex-col overflow-hidden rounded-2xl border border-black/10 bg-surface transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md"
+          class="flex h-full items-stretch overflow-hidden rounded-2xl border border-black/10 bg-surface transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md"
           :to="`/thien-duong/${c.id}`"
         >
           <div
-            class="flex min-h-0 w-full shrink-0 grow-0 basis-1/2 items-center justify-center overflow-hidden bg-brand/10 text-brand"
+            class="aspect-square w-1/2 shrink-0 self-start overflow-hidden bg-brand/10 text-brand"
           >
             <img
               v-if="resolveMediaUrl(c.mainImageUrl)"
@@ -156,7 +156,7 @@ function courseChipClass(type?: string | null): string {
             <span v-else class="text-4xl" aria-hidden="true">禅</span>
           </div>
 
-          <div class="flex min-h-0 flex-1 flex-col p-4">
+          <div class="flex min-w-0 w-1/2 flex-1 flex-col p-4">
             <strong class="font-serif text-lg leading-snug font-semibold">{{ c.templeName }}</strong>
             <div class="mt-2 flex flex-wrap gap-1.5">
               <span
