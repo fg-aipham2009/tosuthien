@@ -14,9 +14,22 @@ const page = ref(1)
 const loading = ref(true)
 const error = ref('')
 const pdfId = ref<string | null>(null)
-const fontScale = ref(1.05)
+const fontScale = ref(1.12)
 
 const current = computed(() => pages.value.find((p) => p.page === page.value))
+
+/** Reflow OCR soft line-breaks so text fills the reading width. */
+const displayText = computed(() => {
+  const raw =
+    current.value?.text ||
+    (current.value?.isBlank ? '(Trang trống)' : 'Không có nội dung')
+  return raw
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((para) => para.replace(/\n+/g, ' ').replace(/[ \t]+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n')
+})
 
 function isContentPage(p?: TextBookPage | null) {
   return !!p && !p.isBlank && p.text.trim().length > 0
@@ -42,10 +55,6 @@ async function loadWindow(center: number) {
   pages.value = [...map.values()].sort((a, b) => a.page - b.page)
 }
 
-/**
- * Leading pages were padded to match printed book numbers (blankPages).
- * Find the first page that actually has text — never open on those blanks.
- */
 async function resolveFirstContentPage(hintBlank: number): Promise<number> {
   const hint = Math.max(1, hintBlank + 1)
   const probeTo = Math.min(pageCount.value || hint + 20, hint + 24)
@@ -53,7 +62,6 @@ async function resolveFirstContentPage(hintBlank: number): Promise<number> {
   const hit = pages.value.find((p) => p.page >= hint && isContentPage(p))
   if (hit) return hit.page
 
-  // Wider probe from page 1 if metadata hint missed.
   const data = await fetchTextPages(String(route.params.id), 1, probeTo)
   pageCount.value = data.pageCount
   for (const p of data.pages) {
@@ -87,7 +95,6 @@ onMounted(async () => {
     firstContentPage.value = await resolveFirstContentPage(book.value.blankPages ?? 0)
 
     const saved = book.value.lastPage || 0
-    // Resume only inside content range; otherwise open first page with text.
     page.value = saved >= firstContentPage.value ? saved : firstContentPage.value
 
     const stem = String(route.params.id)
@@ -123,69 +130,64 @@ watch(page, async (p) => {
 </script>
 
 <template>
-  <div class="mx-auto flex w-full max-w-5xl flex-col gap-3 lg:max-w-6xl xl:max-w-7xl">
-    <div class="flex items-center justify-between">
+  <div class="-mx-4 flex min-h-full w-[calc(100%+2rem)] flex-col sm:-mx-6 sm:w-[calc(100%+3rem)] lg:-mx-8 lg:w-[calc(100%+4rem)] xl:-mx-10 xl:w-[calc(100%+5rem)]">
+    <div class="flex flex-wrap items-center gap-3 border-b border-black/10 bg-surface px-4 py-3 sm:px-6 lg:px-8">
       <RouterLink class="text-sm font-semibold text-brand" to="/kinh-sach">← Đọc chữ</RouterLink>
-      <span class="rounded-full bg-[#efe6df] px-2.5 py-1 text-[0.72rem] font-bold tracking-wider text-brand">
-        Chữ
-      </span>
-    </div>
-
-    <h1 class="font-serif text-2xl leading-snug font-bold lg:text-3xl">
-      {{ book?.title || 'Đọc chữ' }}
-    </h1>
-    <p v-if="book?.author" class="text-sm text-muted">{{ book.author }}</p>
-    <p v-if="error" class="text-red-800">{{ error }}</p>
-
-    <div
-      class="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-2xl border border-black/10 bg-surface/95 px-3 py-2.5 backdrop-blur"
-    >
-      <button
-        type="button"
-        class="rounded-full border border-black/10 bg-white px-3.5 py-2 text-sm font-semibold text-brand disabled:opacity-40"
-        :disabled="page <= firstContentPage"
-        @click="prev"
-      >
-        Trước
-      </button>
-      <span class="min-w-16 text-center text-sm font-semibold">{{ page }} / {{ pageCount || '…' }}</span>
-      <button
-        type="button"
-        class="rounded-full border border-black/10 bg-white px-3.5 py-2 text-sm font-semibold text-brand disabled:opacity-40"
-        :disabled="pageCount > 0 && page >= pageCount"
-        @click="next"
-      >
-        Sau
-      </button>
-      <div class="ml-auto flex gap-1.5">
+      <div class="min-w-0 flex-1">
+        <h1 class="truncate font-serif text-base font-bold sm:text-lg">
+          {{ book?.title || 'Đọc chữ' }}
+        </h1>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          class="size-9 rounded-lg border border-black/10 bg-white font-bold text-brand"
+          class="rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm font-semibold text-brand disabled:opacity-40"
+          :disabled="page <= firstContentPage"
+          @click="prev"
+        >
+          Trước
+        </button>
+        <span class="min-w-16 text-center text-sm font-semibold">{{ page }} / {{ pageCount || '…' }}</span>
+        <button
+          type="button"
+          class="rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm font-semibold text-brand disabled:opacity-40"
+          :disabled="pageCount > 0 && page >= pageCount"
+          @click="next"
+        >
+          Sau
+        </button>
+        <button
+          type="button"
+          class="size-8 rounded-lg border border-black/10 bg-white font-bold text-brand"
           title="Thu nhỏ"
-          @click="fontScale = Math.max(0.9, fontScale - 0.08)"
+          @click="fontScale = Math.max(0.95, fontScale - 0.08)"
         >
           A−
         </button>
         <button
           type="button"
-          class="size-9 rounded-lg border border-black/10 bg-white font-bold text-brand"
+          class="size-8 rounded-lg border border-black/10 bg-white font-bold text-brand"
           title="Phóng to"
-          @click="fontScale = Math.min(1.5, fontScale + 0.08)"
+          @click="fontScale = Math.min(1.55, fontScale + 0.08)"
         >
           A+
         </button>
       </div>
     </div>
 
-    <p v-if="loading" class="text-muted">Đang tải…</p>
+    <p v-if="error" class="px-4 pt-3 text-red-800 sm:px-6 lg:px-8">{{ error }}</p>
+    <p v-if="loading" class="px-4 py-8 text-muted sm:px-6 lg:px-8">Đang tải…</p>
+
     <article
       v-else
-      class="rounded-2xl border border-black/10 bg-gradient-to-b from-[#fffdf9] to-[#f7f0e8] px-5 py-6 shadow-sm sm:px-8 sm:py-8 lg:px-12 lg:py-10"
+      class="min-h-[70vh] flex-1 bg-gradient-to-b from-[#fffdf9] to-[#f3ebe3] px-5 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10 xl:px-16"
       :style="{ fontSize: `${fontScale}rem` }"
     >
-      <pre
-        class="m-0 font-serif text-[1.08em] leading-[1.8] break-words whitespace-pre-wrap text-[#2a211c]"
-      >{{ current?.text || (current?.isBlank ? '(Trang trống)' : 'Không có nội dung') }}</pre>
+      <div
+        class="mx-auto w-full max-w-none font-serif leading-[1.85] break-words whitespace-pre-wrap text-[#2a211c]"
+      >
+        {{ displayText }}
+      </div>
     </article>
   </div>
 </template>
