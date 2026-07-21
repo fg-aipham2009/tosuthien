@@ -694,8 +694,8 @@ export class ChatService {
   }
 
   /**
-   * One UI card per adjacent page cluster of the same book.
-   * e.g. tr.3 + tr.4 + tr.5 → one card with chips; tr.20 stays separate.
+   * One UI card per book: all cited pages become chips on that card
+   * (tr.4 · tr.5 · tr.7 · …), not separate rows per adjacent cluster.
    */
   private mergeCitationsBySource(
     citations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
@@ -704,97 +704,61 @@ export class ChatService {
 
     type Slim = Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>;
     const groups = new Map<string, Slim[]>();
+    const sourceOrder: string[] = [];
     for (const c of citations) {
       const key = (c.sourceFile || c.title || 'unknown').toLowerCase();
-      const list = groups.get(key) ?? [];
-      list.push(c);
-      groups.set(key, list);
+      if (!groups.has(key)) {
+        groups.set(key, []);
+        sourceOrder.push(key);
+      }
+      groups.get(key)!.push(c);
     }
 
     const out: Slim[] = [];
-    for (const group of groups.values()) {
+    for (const key of sourceOrder) {
+      const group = groups.get(key)!;
       const pageSet = new Set<number>();
       for (const c of group) {
-        // Prefer explicit hit/answer pages — do not expand wide neighbor spans.
+        // Cited hit pages only — avoid expanding large neighbor windows into dozens of chips.
         if (c.pageNum != null) pageSet.add(c.pageNum);
-        if (c.pages?.length) {
-          // Small neighbor windows (±1/±2) stay; huge lists get collapsed to pageNum.
-          if (c.pages.length <= 5) {
-            for (const p of c.pages) pageSet.add(p);
-          }
+        if (c.pages?.length && c.pages.length <= 3) {
+          for (const p of c.pages) pageSet.add(p);
         }
       }
-      if (!pageSet.size) {
-        out.push(group[0]);
-        continue;
-      }
 
-      const sorted = [...pageSet].sort((a, b) => a - b);
-      const clusters: number[][] = [];
-      for (const p of sorted) {
-        const last = clusters[clusters.length - 1];
-        if (last && p - last[last.length - 1] <= 1) last.push(p);
-        else clusters.push([p]);
-      }
+      const pages = [...pageSet].sort((a, b) => a - b);
+      const primary = [...group].sort(
+        (a, b) => Number(b.score) - Number(a.score),
+      )[0];
+      const pageStart = pages[0] ?? primary.pageStart ?? primary.pageNum ?? null;
+      const pageEnd =
+        pages[pages.length - 1] ?? primary.pageEnd ?? primary.pageNum ?? null;
+      const quote =
+        group.map((c) => c.quote?.trim()).find((q) => q && q.length > 0) ||
+        primary.quote;
+      const excerpt =
+        group
+          .map((c) => c.excerpt?.trim())
+          .filter((e): e is string => !!e && e.length > 0)
+          .sort((a, b) => b.length - a.length)[0] || primary.excerpt;
 
-      for (const pages of clusters) {
-        const pageStart = pages[0];
-        const pageEnd = pages[pages.length - 1];
-        const members = group.filter((c) => {
-          const p = c.pageNum;
-          if (p != null && p >= pageStart && p <= pageEnd) return true;
-          return (c.pages ?? []).some((x) => x >= pageStart && x <= pageEnd);
-        });
-        const primary = (members.length ? members : group).sort(
-          (a, b) => Number(b.score) - Number(a.score),
-        )[0];
-        const quote =
-          members.map((c) => c.quote?.trim()).find((q) => q && q.length > 0) ||
-          primary.quote;
-        const excerpt =
-          members
-            .map((c) => c.excerpt?.trim())
-            .filter((e): e is string => !!e && e.length > 0)
-            .sort((a, b) => b.length - a.length)[0] || primary.excerpt;
-
-        out.push({
-          ...primary,
-          pages,
-          pageNum: primary.pageNum ?? pageStart,
+      out.push({
+        ...primary,
+        pages,
+        pageNum: primary.pageNum ?? pageStart,
+        pageStart,
+        pageEnd,
+        label: this.formatLabel(
+          primary.title,
+          primary.volume,
           pageStart,
           pageEnd,
-          label: this.formatLabel(
-            primary.title,
-            primary.volume,
-            pageStart,
-            pageEnd,
-          ),
-          quote: quote ?? primary.quote,
-          excerpt: excerpt ?? primary.excerpt,
-        });
-      }
+        ),
+        quote: quote ?? primary.quote,
+        excerpt: excerpt ?? primary.excerpt,
+      });
     }
 
-    const order = new Map<string, number>();
-    citations.forEach((c, i) => {
-      const key = `${(c.sourceFile || c.title || 'unknown').toLowerCase()}::${c.pageNum ?? c.pageStart ?? i}`;
-      if (!order.has(key)) order.set(key, i);
-    });
-    // Stable-ish: by first page then source appearance
-    out.sort((a, b) => {
-      const sa = (a.sourceFile || a.title || '').toLowerCase();
-      const sb = (b.sourceFile || b.title || '').toLowerCase();
-      if (sa !== sb) {
-        const ia = citations.findIndex(
-          (c) => (c.sourceFile || c.title || '').toLowerCase() === sa,
-        );
-        const ib = citations.findIndex(
-          (c) => (c.sourceFile || c.title || '').toLowerCase() === sb,
-        );
-        return ia - ib;
-      }
-      return (a.pageStart ?? 0) - (b.pageStart ?? 0);
-    });
     return out;
   }
 
