@@ -139,106 +139,105 @@ function courseChipClass(type?: string | null): string {
     <p v-else-if="error" class="text-red-800">{{ error }}</p>
 
     <ul v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-      <li v-for="c in centers" :key="c.id">
+      <li v-for="c in centers" :key="c.id" class="min-h-[28rem]">
         <RouterLink
-          class="block h-full rounded-2xl border border-black/10 bg-surface p-4 transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md"
+          class="flex h-full flex-col overflow-hidden rounded-2xl border border-black/10 bg-surface transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md"
           :to="`/thien-duong/${c.id}`"
         >
-          <div class="flex items-start gap-3">
-            <div
-              class="flex h-36 w-36 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-brand/10 text-brand sm:h-40 sm:w-40"
-            >
-              <img
-                v-if="resolveMediaUrl(c.mainImageUrl)"
-                class="h-full w-full object-cover"
-                :src="resolveMediaUrl(c.mainImageUrl)"
-                :alt="c.templeName"
-              />
-              <span v-else class="text-2xl" aria-hidden="true">禅</span>
-            </div>
-            <div class="min-w-0 flex-1">
-              <strong class="font-serif text-lg leading-snug font-semibold">{{ c.templeName }}</strong>
-              <div class="mt-2 flex flex-wrap gap-1.5">
-                <span
-                  v-if="seasonBadge(c)"
-                  class="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-800"
-                >
-                  {{ seasonBadge(c) }}
-                </span>
-                <span
-                  v-else-if="(c.courses?.length ?? 0) > 0"
-                  class="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand"
-                >
-                  Có khóa tu
-                </span>
-                <span
-                  v-if="c.province"
-                  class="rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-muted"
-                >
-                  {{ c.province }}
-                </span>
-              </div>
-            </div>
+          <div
+            class="flex min-h-0 w-full shrink-0 grow-0 basis-1/2 items-center justify-center overflow-hidden bg-brand/10 text-brand"
+          >
+            <img
+              v-if="resolveMediaUrl(c.mainImageUrl)"
+              class="h-full w-full object-cover"
+              :src="resolveMediaUrl(c.mainImageUrl)"
+              :alt="c.templeName"
+            />
+            <span v-else class="text-4xl" aria-hidden="true">禅</span>
           </div>
 
-          <dl class="mt-3 space-y-1.5 text-sm">
-            <div v-if="abbotLine(c)" class="flex gap-2">
-              <dt class="w-14 shrink-0 font-semibold text-muted">Trụ trì</dt>
-              <dd class="min-w-0 font-medium text-ink">{{ abbotLine(c) }}</dd>
+          <div class="flex min-h-0 flex-1 flex-col p-4">
+            <strong class="font-serif text-lg leading-snug font-semibold">{{ c.templeName }}</strong>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <span
+                v-if="seasonBadge(c)"
+                class="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-800"
+              >
+                {{ seasonBadge(c) }}
+              </span>
+              <span
+                v-else-if="(c.courses?.length ?? 0) > 0"
+                class="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand"
+              >
+                Có khóa tu
+              </span>
+              <span
+                v-if="c.province"
+                class="rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-muted"
+              >
+                {{ c.province }}
+              </span>
             </div>
-            <div v-if="c.phone" class="flex gap-2">
-              <dt class="w-14 shrink-0 font-semibold text-muted">SĐT</dt>
-              <dd class="min-w-0">
-                <a
-                  class="font-medium text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand"
-                  :href="`tel:${c.phone}`"
-                  @click.stop
-                >
-                  {{ c.phone }}
-                </a>
-              </dd>
-            </div>
-            <div v-if="addressLine(c)" class="flex gap-2">
-              <dt class="w-14 shrink-0 font-semibold text-muted">Địa chỉ</dt>
-              <dd class="min-w-0">
-                <a
-                  v-if="c.googleMapsUrl"
-                  class="line-clamp-2 font-medium text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand"
-                  :href="c.googleMapsUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  @click.stop
-                >
-                  {{ addressLine(c) }}
-                </a>
-                <span v-else class="line-clamp-2 font-medium text-ink">{{ addressLine(c) }}</span>
-              </dd>
-            </div>
-            <div v-if="c.activityHours" class="flex gap-2">
-              <dt class="w-14 shrink-0 font-semibold text-muted">Giờ tu</dt>
-              <dd class="line-clamp-3 min-w-0 whitespace-pre-wrap font-medium text-ink">
-                {{ c.activityHours }}
-              </dd>
-            </div>
-          </dl>
 
-          <div v-if="sortedCourses(c).length" class="mt-3">
-            <p class="mb-1.5 text-xs font-bold tracking-wide text-muted uppercase">Khóa tu</p>
-            <ul class="space-y-1.5">
-              <li v-for="course in sortedCourses(c).slice(0, 4)" :key="course.id">
-                <span
-                  class="inline-flex max-w-full rounded-full border px-2.5 py-1 text-xs font-semibold"
-                  :class="courseChipClass(course.type)"
-                >
-                  <span class="truncate">
-                    {{ courseTypeLabel(course) }}: {{ courseScheduleLabel(course) }}
+            <dl class="mt-3 space-y-1.5 text-sm">
+              <div v-if="abbotLine(c)" class="flex gap-2">
+                <dt class="w-14 shrink-0 font-semibold text-muted">Trụ trì</dt>
+                <dd class="min-w-0 font-medium text-ink">{{ abbotLine(c) }}</dd>
+              </div>
+              <div v-if="c.phone" class="flex gap-2">
+                <dt class="w-14 shrink-0 font-semibold text-muted">SĐT</dt>
+                <dd class="min-w-0">
+                  <a
+                    class="font-medium text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand"
+                    :href="`tel:${c.phone}`"
+                    @click.stop
+                  >
+                    {{ c.phone }}
+                  </a>
+                </dd>
+              </div>
+              <div v-if="addressLine(c)" class="flex gap-2">
+                <dt class="w-14 shrink-0 font-semibold text-muted">Địa chỉ</dt>
+                <dd class="min-w-0">
+                  <a
+                    v-if="c.googleMapsUrl"
+                    class="line-clamp-2 font-medium text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand"
+                    :href="c.googleMapsUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    @click.stop
+                  >
+                    {{ addressLine(c) }}
+                  </a>
+                  <span v-else class="line-clamp-2 font-medium text-ink">{{ addressLine(c) }}</span>
+                </dd>
+              </div>
+              <div v-if="c.activityHours" class="flex gap-2">
+                <dt class="w-14 shrink-0 font-semibold text-muted">Giờ tu</dt>
+                <dd class="line-clamp-3 min-w-0 whitespace-pre-wrap font-medium text-ink">
+                  {{ c.activityHours }}
+                </dd>
+              </div>
+            </dl>
+
+            <div v-if="sortedCourses(c).length" class="mt-3">
+              <p class="mb-1.5 text-xs font-bold tracking-wide text-muted uppercase">Khóa tu</p>
+              <ul class="space-y-1.5">
+                <li v-for="course in sortedCourses(c).slice(0, 4)" :key="course.id">
+                  <span
+                    class="inline-flex max-w-full rounded-full border px-2.5 py-1 text-xs font-semibold"
+                    :class="courseChipClass(course.type)"
+                  >
+                    <span class="truncate">
+                      {{ courseTypeLabel(course) }}: {{ courseScheduleLabel(course) }}
+                    </span>
                   </span>
-                </span>
-              </li>
-            </ul>
-            <p v-if="sortedCourses(c).length > 4" class="mt-1 text-xs text-muted">
-              +{{ sortedCourses(c).length - 4 }} khóa khác
-            </p>
+                </li>
+              </ul>
+              <p v-if="sortedCourses(c).length > 4" class="mt-1 text-xs text-muted">
+                +{{ sortedCourses(c).length - 4 }} khóa khác
+              </p>
+            </div>
           </div>
         </RouterLink>
       </li>
