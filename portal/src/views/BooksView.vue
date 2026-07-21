@@ -64,24 +64,6 @@ watch(
       <button
         type="button"
         role="tab"
-        :aria-selected="mode === 'pdf'"
-        class="seg-btn"
-        :class="{ on: mode === 'pdf' }"
-        @click="setMode('pdf')"
-      >
-        <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
-            stroke="currentColor"
-            stroke-width="1.75"
-          />
-          <path d="M14 3v5h5" stroke="currentColor" stroke-width="1.75" />
-        </svg>
-        Bản gốc
-      </button>
-      <button
-        type="button"
-        role="tab"
         :aria-selected="mode === 'text'"
         class="seg-btn"
         :class="{ on: mode === 'text' }"
@@ -100,6 +82,24 @@ watch(
           />
         </svg>
         Đọc chữ
+      </button>
+      <button
+        type="button"
+        role="tab"
+        :aria-selected="mode === 'pdf'"
+        class="seg-btn"
+        :class="{ on: mode === 'pdf' }"
+        @click="setMode('pdf')"
+      >
+        <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
+            stroke="currentColor"
+            stroke-width="1.75"
+          />
+          <path d="M14 3v5h5" stroke="currentColor" stroke-width="1.75" />
+        </svg>
+        Bản gốc
       </button>
     </div>
 
