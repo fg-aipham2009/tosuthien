@@ -14,10 +14,12 @@ const PRINTED_PAGE_OFFSET_BY_STEM: Record<string, number> = {};
 
 /**
  * Printed page → PDF viewer page index.
- * Derived from text pageCount − PDF pageCount per book (scanned PDFs omit/extra
- * front-matter vs printed headers). filePage = max(1, printed − offset).
+ * Text markers (`--- N ---` in text/*.txt) are the printed book pages.
+ * Scanned PDFs omit/extra front-matter, so: filePage = max(1, printed − offset).
  *
- * Positive: PDF is shorter than printed max (open earlier file page).
+ * Verified against OCR images (e.g. book 10 printed 16 ≡ PDF file page 14).
+ *
+ * Positive: PDF shorter than printed max (open earlier file page).
  * Negative: PDF has extra front pages (open later file page).
  */
 const PDF_FILE_PAGE_OFFSET_BY_STEM: Record<string, number> = {

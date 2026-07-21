@@ -1,3 +1,5 @@
+import 'pdf_page_offsets.dart';
+
 enum ChatMessageRole { user, assistant }
 
 class ChatMessage {
@@ -200,15 +202,26 @@ class ChatCitation {
   /// Printed page for labels (may differ from PDF file index).
   int? get displayPage => pageNum ?? pageStart ?? pageEnd ?? pdf?.pageNum;
 
-  /// PDF file page to open — prefer server `pdf.pageNum` (already file-index).
-  int? get openPage => pdf?.pageNum ?? pageStart ?? pageNum;
+  /// PDF file page to open — prefer server `pageLinks` / `pdf.pageNum` (file index).
+  int? get openPage {
+    if (pdf?.pageNum != null) return pdf!.pageNum;
+    final fromLinks = tappablePages.firstOrNull?.filePage;
+    if (fromLinks != null) return fromLinks;
+    final printed = pageNum ?? pageStart;
+    if (printed == null) return null;
+    return toPdfFilePage(sourceFile, printed);
+  }
 
   List<ChatCitationPageLink> get tappablePages {
     if (pageLinks.isNotEmpty) return pageLinks;
     if (pages.isNotEmpty) {
       return [
         for (final p in pages)
-          ChatCitationPageLink(printed: p, filePage: p, openLabel: 'tr.$p'),
+          ChatCitationPageLink(
+            printed: p,
+            filePage: toPdfFilePage(sourceFile, p),
+            openLabel: 'tr.$p',
+          ),
       ];
     }
     final start = pageStart;
@@ -216,7 +229,11 @@ class ChatCitation {
     if (start != null && end != null && end >= start) {
       return [
         for (var p = start; p <= end; p++)
-          ChatCitationPageLink(printed: p, filePage: p, openLabel: 'tr.$p'),
+          ChatCitationPageLink(
+            printed: p,
+            filePage: toPdfFilePage(sourceFile, p),
+            openLabel: 'tr.$p',
+          ),
       ];
     }
     final single = pageNum;
@@ -224,7 +241,7 @@ class ChatCitation {
       return [
         ChatCitationPageLink(
           printed: single,
-          filePage: single,
+          filePage: toPdfFilePage(sourceFile, single),
           openLabel: 'tr.$single',
         ),
       ];
@@ -405,7 +422,7 @@ List<ChatCitation> mergeCitationsByBook(List<ChatCitation> citations) {
             linkByPrinted[p] ??
                 ChatCitationPageLink(
                   printed: p,
-                  filePage: p,
+                  filePage: toPdfFilePage(primary.sourceFile, p),
                   openLabel: 'tr.$p',
                 ),
         ];
