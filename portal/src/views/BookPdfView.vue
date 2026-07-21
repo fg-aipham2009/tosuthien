@@ -52,7 +52,7 @@ watch(page, (p) => {
 <template>
   <div class="reader">
     <div class="top">
-      <RouterLink class="back" to="/kinh-sach">← Bản gốc</RouterLink>
+      <RouterLink class="back" to="/kinh-sach?mode=pdf">← Bản gốc</RouterLink>
       <span class="badge">PDF</span>
     </div>
 

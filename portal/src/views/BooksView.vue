@@ -9,7 +9,7 @@ type Mode = 'pdf' | 'text'
 const route = useRoute()
 const router = useRouter()
 
-const mode = ref<Mode>(route.query.mode === 'text' ? 'text' : 'pdf')
+const mode = ref<Mode>(route.query.mode === 'pdf' ? 'pdf' : 'text')
 const pdfs = ref<BookPdf[]>([])
 const texts = ref<TextBook[]>([])
 const loading = ref(true)
@@ -27,7 +27,7 @@ const listCount = computed(() =>
 
 function setMode(next: Mode) {
   mode.value = next
-  void router.replace({ query: next === 'pdf' ? {} : { mode: 'text' } })
+  void router.replace({ query: next === 'text' ? {} : { mode: 'pdf' } })
 }
 
 async function reload() {
@@ -47,7 +47,7 @@ onMounted(reload)
 watch(
   () => route.query.mode,
   (m) => {
-    mode.value = m === 'text' ? 'text' : 'pdf'
+    mode.value = m === 'pdf' ? 'pdf' : 'text'
   },
 )
 </script>

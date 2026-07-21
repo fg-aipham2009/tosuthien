@@ -71,7 +71,7 @@ watch(page, async (p) => {
 <template>
   <div class="reader">
     <div class="top">
-      <RouterLink class="back" to="/kinh-sach?mode=text">← Đọc chữ</RouterLink>
+      <RouterLink class="back" to="/kinh-sach">← Đọc chữ</RouterLink>
       <span class="badge">Chữ</span>
     </div>
 
