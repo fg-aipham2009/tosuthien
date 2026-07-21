@@ -1,4 +1,5 @@
 import { listPdfs } from '../api/books'
+import { API_ORIGIN } from '../config'
 import type { ChatCitation, ChatCitationPageLink } from '../types'
 
 /** Keep in sync with nestjs/src/rag/rag-source.util.ts PDF_FILE_PAGE_OFFSET_BY_STEM */
@@ -64,15 +65,35 @@ export function defaultFilePage(c: ChatCitation): number {
   )
 }
 
-/** Resolve PDF id for in-app reader (Flutter parity). */
-export async function resolveCitationPdfId(c: ChatCitation): Promise<string | null> {
-  if (c.pdf?.pdfFileId) return c.pdf.pdfFileId
+function stripHash(url: string): string {
+  const i = url.indexOf('#')
+  return i >= 0 ? url.slice(0, i) : url
+}
+
+/** Direct API file URL, e.g. https://api.tosuthien.net/files/pdf/21.pdf#page=4 */
+export async function resolveCitationPdfFileUrl(
+  c: ChatCitation,
+  filePage?: number,
+): Promise<string | null> {
+  const page = filePage ?? defaultFilePage(c)
+  const fromApi = c.pdf?.pdfUrl?.trim()
+  if (fromApi) {
+    return `${stripHash(fromApi)}#page=${page}`
+  }
+
   const stem = sourceStem(c.sourceFile)
-  if (!stem) return null
-  const pdfs = await listPdfs()
-  const hit = pdfs.find((b) => {
-    const fileStem = b.filename?.replace(/\.pdf$/i, '')?.toLowerCase()
-    return fileStem === stem || b.slug === stem || b.id === stem
-  })
-  return hit?.id ?? null
+  if (stem) {
+    return `${API_ORIGIN}/files/pdf/${stem}.pdf#page=${page}`
+  }
+
+  const id = c.pdf?.pdfFileId
+  if (id) {
+    const pdfs = await listPdfs()
+    const hit = pdfs.find((b) => b.id === id)
+    if (hit?.publicUrl) return `${stripHash(hit.publicUrl)}#page=${page}`
+    if (hit?.filename) {
+      return `${API_ORIGIN}/files/pdf/${hit.filename.replace(/^pdf\//, '')}#page=${page}`
+    }
+  }
+  return null
 }
