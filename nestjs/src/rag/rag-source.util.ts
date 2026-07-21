@@ -7,11 +7,33 @@ export type SourceTier = 'kinh' | 'ngu_luc';
 const NGU_LUC_FILES = new Set(['13.txt', '14.txt']);
 
 /**
- * OCR/PDF file page → printed page number on the scan.
- * After aligning text/*.txt markers to printed headers, offset is 0 for all books.
- * Keep this map only if a future source still mismatches.
+ * OCR/RAG markers are already printed page numbers (after text alignment).
+ * Keep this at 0 unless a corpus again stores raw OCR indices.
  */
 const PRINTED_PAGE_OFFSET_BY_STEM: Record<string, number> = {};
+
+/**
+ * Printed page → PDF viewer page index.
+ * Derived from text pageCount − PDF pageCount per book (scanned PDFs omit/extra
+ * front-matter vs printed headers). filePage = max(1, printed − offset).
+ *
+ * Positive: PDF is shorter than printed max (open earlier file page).
+ * Negative: PDF has extra front pages (open later file page).
+ */
+const PDF_FILE_PAGE_OFFSET_BY_STEM: Record<string, number> = {
+  '1': 2,
+  '2': 2,
+  '5': 2,
+  '9': 2,
+  '10': 2,
+  '11': 2,
+  '13': -2,
+  '14': -2,
+  '15': 2,
+  '17': 3,
+  '18': 3,
+  '22': 2,
+};
 
 function sourceStem(sourceFile: string | null | undefined): string {
   if (!sourceFile) return '';
@@ -22,6 +44,11 @@ function sourceStem(sourceFile: string | null | undefined): string {
 /** Add to OCR/file page to get the printed page shown in the book. */
 export function printedPageOffset(sourceFile: string | null | undefined): number {
   return PRINTED_PAGE_OFFSET_BY_STEM[sourceStem(sourceFile)] ?? 0;
+}
+
+/** Subtract from printed page to get the PDF `#page=` index. */
+export function pdfFilePageOffset(sourceFile: string | null | undefined): number {
+  return PDF_FILE_PAGE_OFFSET_BY_STEM[sourceStem(sourceFile)] ?? 0;
 }
 
 export function toPrintedPage(
@@ -38,7 +65,7 @@ export function toPdfFilePage(
   printedPage: number | null | undefined,
 ): number | null {
   if (printedPage == null) return null;
-  return Math.max(1, printedPage - printedPageOffset(sourceFile));
+  return Math.max(1, printedPage - pdfFilePageOffset(sourceFile));
 }
 
 export function sourceTier(title: string, sourceFile: string): SourceTier {

@@ -1,6 +1,22 @@
 import { listPdfs } from '../api/books'
 import type { ChatCitation, ChatCitationPageLink } from '../types'
 
+/** Keep in sync with nestjs/src/rag/rag-source.util.ts PDF_FILE_PAGE_OFFSET_BY_STEM */
+const PDF_FILE_PAGE_OFFSET_BY_STEM: Record<string, number> = {
+  '1': 2,
+  '2': 2,
+  '5': 2,
+  '9': 2,
+  '10': 2,
+  '11': 2,
+  '13': -2,
+  '14': -2,
+  '15': 2,
+  '17': 3,
+  '18': 3,
+  '22': 2,
+}
+
 export function scriptureOnly(content: string): string {
   const marker = '【AI diễn giải】'
   const idx = content.indexOf(marker)
@@ -10,6 +26,17 @@ export function scriptureOnly(content: string): string {
 
 export function citationBody(c: ChatCitation): string {
   return (c.excerpt || c.quote || '').trim()
+}
+
+export function sourceStem(sourceFile?: string | null): string | null {
+  if (!sourceFile?.trim()) return null
+  return sourceFile.trim().replace(/\.(txt|pdf)$/i, '').toLowerCase()
+}
+
+export function toPdfFilePage(sourceFile: string | null | undefined, printed: number): number {
+  const stem = sourceStem(sourceFile) ?? ''
+  const offset = PDF_FILE_PAGE_OFFSET_BY_STEM[stem] ?? 0
+  return Math.max(1, printed - offset)
 }
 
 export function tappablePages(c: ChatCitation): ChatCitationPageLink[] {
@@ -24,7 +51,7 @@ export function tappablePages(c: ChatCitation): ChatCitationPageLink[] {
           : []
   return pages.map((printed) => ({
     printed,
-    filePage: printed,
+    filePage: toPdfFilePage(c.sourceFile, printed),
     openLabel: `tr.${printed}`,
   }))
 }
@@ -33,15 +60,8 @@ export function defaultFilePage(c: ChatCitation): number {
   return (
     c.pdf?.pageNum ??
     tappablePages(c)[0]?.filePage ??
-    c.pageNum ??
-    c.pageStart ??
-    1
+    (c.pageNum != null ? toPdfFilePage(c.sourceFile, c.pageNum) : 1)
   )
-}
-
-export function sourceStem(sourceFile?: string | null): string | null {
-  if (!sourceFile?.trim()) return null
-  return sourceFile.trim().replace(/\.(txt|pdf)$/i, '')
 }
 
 /** Resolve PDF id for in-app reader (Flutter parity). */
@@ -51,7 +71,7 @@ export async function resolveCitationPdfId(c: ChatCitation): Promise<string | nu
   if (!stem) return null
   const pdfs = await listPdfs()
   const hit = pdfs.find((b) => {
-    const fileStem = b.filename?.replace(/\.pdf$/i, '')
+    const fileStem = b.filename?.replace(/\.pdf$/i, '')?.toLowerCase()
     return fileStem === stem || b.slug === stem || b.id === stem
   })
   return hit?.id ?? null
