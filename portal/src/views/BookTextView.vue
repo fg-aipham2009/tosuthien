@@ -15,6 +15,9 @@ const loading = ref(true)
 const error = ref('')
 const pdfId = ref<string | null>(null)
 const fontScale = ref(1.52)
+const fontScaleMin = 0.95
+const fontScaleMax = 2.8
+const fontScaleStep = 0.1
 
 const current = computed(() => pages.value.find((p) => p.page === page.value))
 
@@ -209,7 +212,7 @@ watch(page, async (p) => {
           type="button"
           class="size-8 rounded-lg border border-black/10 bg-white font-bold text-brand"
           title="Thu nhỏ"
-          @click="fontScale = Math.max(0.95, fontScale - 0.08)"
+          @click="fontScale = Math.max(fontScaleMin, +(fontScale - fontScaleStep).toFixed(2))"
         >
           A−
         </button>
@@ -217,7 +220,7 @@ watch(page, async (p) => {
           type="button"
           class="size-8 rounded-lg border border-black/10 bg-white font-bold text-brand"
           title="Phóng to"
-          @click="fontScale = Math.min(1.55, fontScale + 0.08)"
+          @click="fontScale = Math.min(fontScaleMax, +(fontScale + fontScaleStep).toFixed(2))"
         >
           A+
         </button>

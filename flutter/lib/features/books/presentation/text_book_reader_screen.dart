@@ -77,7 +77,7 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
     final prefs = await SharedPreferences.getInstance();
     final savedFont = prefs.getDouble('$_prefsFontPrefix${widget.book.id}');
     final savedTheme = prefs.getInt('$_prefsThemePrefix${widget.book.id}');
-    if (savedFont != null) _fontSize = savedFont.clamp(14, 36);
+    if (savedFont != null) _fontSize = savedFont.clamp(14, 48);
     if (savedTheme != null && savedTheme < _ReadingTheme.values.length) {
       _theme = _ReadingTheme.values[savedTheme];
     }
@@ -149,7 +149,7 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
 
   void _setFontSize(double size) {
     setState(() {
-      _fontSize = size.clamp(14, 36);
+      _fontSize = size.clamp(14, 48);
       _pinchBaseFont = _fontSize;
     });
     unawaited(_persistPrefs());
@@ -523,8 +523,8 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
                                         child: Slider(
                                           value: _fontSize,
                                           min: 14,
-                                          max: 36,
-                                          divisions: 22,
+                                          max: 48,
+                                          divisions: 34,
                                           label: '${_fontSize.round()}',
                                           activeColor: AppTheme.playerAccent,
                                           onChanged: _setFontSize,
