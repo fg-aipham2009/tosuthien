@@ -104,7 +104,17 @@ export interface Center {
 export interface CenterCourse {
   id: string
   title?: string | null
-  type?: string
+  type?: string | null
+  recurrence?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  dayStart?: number | null
+  dayEnd?: number | null
+  weekday?: number | null
+  scheduleText?: string | null
   description?: string | null
+  contact?: string | null
+  sortOrder?: number
+  /** Legacy admin field; prefer scheduleText / day range. */
   scheduleNote?: string | null
 }
