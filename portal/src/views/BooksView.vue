@@ -25,6 +25,14 @@ const listCount = computed(() =>
   mode.value === 'pdf' ? pdfs.value.length : texts.value.length,
 )
 
+/** Soft cover hues so the grid feels alive without looking random. */
+function coverStyle(index: number) {
+  const hue = [18, 28, 8, 35, 14, 22, 12, 30][index % 8]
+  return {
+    background: `linear-gradient(155deg, hsl(${hue} 32% 42%) 0%, hsl(${hue} 38% 22%) 100%)`,
+  }
+}
+
 function setMode(next: Mode) {
   mode.value = next
   void router.replace({ query: next === 'text' ? {} : { mode: 'pdf' } })
@@ -55,56 +63,37 @@ watch(
 <template>
   <div class="books">
     <header class="hero">
-      <p class="eyebrow">Thư viện</p>
-      <h1>Kinh sách</h1>
-      <p class="sub">{{ subtitle }}</p>
+      <div class="hero-copy">
+        <p class="eyebrow">Thư viện</p>
+        <h1>Kinh sách</h1>
+        <p class="sub">{{ subtitle }}</p>
+      </div>
+      <div class="seg" role="tablist" aria-label="Chế độ đọc">
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="mode === 'text'"
+          class="seg-btn"
+          :class="{ on: mode === 'text' }"
+          @click="setMode('text')"
+        >
+          Đọc chữ
+        </button>
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="mode === 'pdf'"
+          class="seg-btn"
+          :class="{ on: mode === 'pdf' }"
+          @click="setMode('pdf')"
+        >
+          Bản gốc
+        </button>
+      </div>
     </header>
 
-    <div class="seg" role="tablist" aria-label="Chế độ đọc">
-      <button
-        type="button"
-        role="tab"
-        :aria-selected="mode === 'text'"
-        class="seg-btn"
-        :class="{ on: mode === 'text' }"
-        @click="setMode('text')"
-      >
-        <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M4 5h7a3 3 0 0 1 3 3v12H7a3 3 0 0 0-3 3V5Z"
-            stroke="currentColor"
-            stroke-width="1.75"
-          />
-          <path
-            d="M20 5h-7a3 3 0 0 0-3 3v12h7a3 3 0 0 1 3 3V5Z"
-            stroke="currentColor"
-            stroke-width="1.75"
-          />
-        </svg>
-        Đọc chữ
-      </button>
-      <button
-        type="button"
-        role="tab"
-        :aria-selected="mode === 'pdf'"
-        class="seg-btn"
-        :class="{ on: mode === 'pdf' }"
-        @click="setMode('pdf')"
-      >
-        <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
-            stroke="currentColor"
-            stroke-width="1.75"
-          />
-          <path d="M14 3v5h5" stroke="currentColor" stroke-width="1.75" />
-        </svg>
-        Bản gốc
-      </button>
-    </div>
-
     <div class="meta-row" v-if="!loading && !error">
-      <span>{{ listCount }} sách</span>
+      <span>{{ listCount }} sách · {{ mode === 'text' ? 'Đọc chữ' : 'Bản gốc PDF' }}</span>
       <button type="button" class="refresh" @click="reload">Làm mới</button>
     </div>
 
@@ -113,36 +102,34 @@ watch(
 
     <ul v-else-if="mode === 'pdf'" class="grid">
       <li v-if="!pdfs.length" class="empty">Chưa có PDF bản gốc.</li>
-      <li v-for="b in pdfs" :key="b.id">
+      <li v-for="(b, i) in pdfs" :key="b.id">
         <RouterLink class="card" :to="`/kinh-sach/pdf/${b.id}`">
-          <div class="cover pdf" aria-hidden="true">
-            <span>PDF</span>
+          <div class="cover" :style="coverStyle(i)" aria-hidden="true">
+            <span class="cover-mark">PDF</span>
+            <span class="cover-title">{{ b.title }}</span>
           </div>
-          <div class="body">
+          <div class="meta">
             <strong>{{ b.title }}</strong>
-            <span class="author">{{ b.author || 'Hòa thượng Thích Duy Lực' }}</span>
             <span v-if="b.lastPage" class="progress">Đọc dở · tr.{{ b.lastPage }}</span>
-            <span v-else-if="b.pageCount" class="pages">{{ b.pageCount }} trang</span>
+            <span v-else class="pages">{{ b.pageCount ? `${b.pageCount} trang` : 'PDF gốc' }}</span>
           </div>
-          <span class="chev" aria-hidden="true">›</span>
         </RouterLink>
       </li>
     </ul>
 
     <ul v-else class="grid">
       <li v-if="!texts.length" class="empty">Chưa có sách đọc chữ.</li>
-      <li v-for="b in texts" :key="b.id">
+      <li v-for="(b, i) in texts" :key="b.id">
         <RouterLink class="card" :to="`/kinh-sach/chu/${b.id}`">
-          <div class="cover text" aria-hidden="true">
-            <span>Aa</span>
+          <div class="cover text" :style="coverStyle(i)" aria-hidden="true">
+            <span class="cover-mark">Aa</span>
+            <span class="cover-title">{{ b.title }}</span>
           </div>
-          <div class="body">
+          <div class="meta">
             <strong>{{ b.title }}</strong>
-            <span class="author">{{ b.author || 'Hòa thượng Thích Duy Lực' }}</span>
             <span v-if="b.lastPage" class="progress">Đọc dở · tr.{{ b.lastPage }}</span>
-            <span v-else-if="b.pageCount" class="pages">{{ b.pageCount }} trang</span>
+            <span v-else class="pages">{{ b.pageCount ? `${b.pageCount} trang` : 'Đọc chữ' }}</span>
           </div>
-          <span class="chev" aria-hidden="true">›</span>
         </RouterLink>
       </li>
     </ul>
@@ -151,91 +138,88 @@ watch(
 
 <style scoped>
 .books {
-  --ink: #1d1b1a;
   --muted: #605d5c;
   --line: rgba(154, 142, 138, 0.35);
   --surface: #fffbff;
   --primary: #5d4037;
-  max-width: 720px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .hero {
-  margin: 0 0 1rem;
-  padding: 1.25rem 1.35rem;
-  border-radius: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  margin: 0 0 1.15rem;
+  padding: 1.35rem clamp(1.1rem, 2.5vw, 1.75rem);
+  border-radius: 18px;
   color: #fff;
-  background: linear-gradient(135deg, #3e2723 0%, #6d4c41 100%);
-  box-shadow: 0 10px 28px rgba(62, 39, 35, 0.22);
+  background:
+    radial-gradient(1200px 280px at 90% -20%, rgba(255, 255, 255, 0.16), transparent 55%),
+    linear-gradient(125deg, #2a1810 0%, #5d4037 48%, #8d6e63 100%);
+  box-shadow: 0 14px 36px rgba(42, 24, 16, 0.22);
 }
 
 .eyebrow {
-  margin: 0 0 0.35rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  margin: 0 0 0.3rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  opacity: 0.75;
-  font-weight: 600;
+  opacity: 0.72;
+  font-weight: 650;
 }
 
 h1 {
   margin: 0;
   font-family: 'Source Serif 4', Georgia, serif;
-  font-size: clamp(1.55rem, 4vw, 1.9rem);
+  font-size: clamp(1.7rem, 4vw, 2.15rem);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .sub {
-  margin: 0.45rem 0 0;
-  font-size: 0.92rem;
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
   line-height: 1.45;
-  opacity: 0.92;
+  opacity: 0.9;
+  max-width: 34rem;
 }
 
 .seg {
-  display: grid;
+  display: inline-grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.35rem;
-  padding: 0.3rem;
-  margin-bottom: 0.85rem;
-  background: #ebe4e1;
-  border-radius: 14px;
+  gap: 0.3rem;
+  padding: 0.28rem;
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 999px;
+  min-width: min(100%, 280px);
 }
 
 .seg-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
   border: 0;
-  border-radius: 11px;
-  padding: 0.7rem 0.75rem;
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
   background: transparent;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.78);
   font: inherit;
-  font-size: 0.92rem;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 650;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .seg-btn.on {
-  background: var(--surface);
+  background: #fffbff;
   color: var(--primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.ico {
-  flex-shrink: 0;
 }
 
 .meta-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.65rem;
-  font-size: 0.82rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.85rem;
   color: var(--muted);
 }
 
@@ -244,15 +228,15 @@ h1 {
   background: transparent;
   color: var(--primary);
   font: inherit;
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 650;
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .state {
-  margin: 1.5rem 0;
+  margin: 2rem 0;
   text-align: center;
   color: var(--muted);
 }
@@ -264,71 +248,120 @@ h1 {
 .grid {
   list-style: none;
   margin: 0;
-  padding: 0 0 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
+  padding: 0 0 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 1rem 0.85rem;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 1.2rem 1rem;
+  }
+}
+
+@media (min-width: 1100px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
 }
 
 .empty {
+  grid-column: 1 / -1;
   text-align: center;
-  padding: 2rem 1rem;
+  padding: 2.5rem 1rem;
   color: var(--muted);
   border: 1px dashed var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
 }
 
 .card {
   display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  padding: 0.85rem 0.95rem;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  flex-direction: column;
+  gap: 0.65rem;
+  height: 100%;
+  transition: transform 0.18s ease;
 }
 
 .card:hover {
-  border-color: rgba(93, 64, 55, 0.35);
-  box-shadow: 0 6px 18px rgba(62, 39, 35, 0.08);
-  transform: translateY(-1px);
+  transform: translateY(-4px);
 }
 
 .cover {
-  width: 52px;
-  height: 68px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
-}
-
-.cover.pdf {
-  background: linear-gradient(160deg, #d7ccc8, #5d4037);
-}
-
-.cover.text {
-  background: linear-gradient(160deg, #8d6e63, #5d4037);
-  font-family: 'Source Serif 4', Georgia, serif;
-  font-size: 1.05rem;
-}
-
-.body {
-  flex: 1;
-  min-width: 0;
+  position: relative;
+  aspect-ratio: 3 / 4.2;
+  border-radius: 14px;
+  overflow: hidden;
+  padding: 0.85rem 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.22rem;
+  justify-content: space-between;
+  color: #fff;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.12) inset,
+    0 12px 28px rgba(42, 24, 16, 0.18);
+  transition: box-shadow 0.18s ease;
 }
 
-.body strong {
-  font-size: 0.98rem;
+.card:hover .cover {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.16) inset,
+    0 18px 34px rgba(42, 24, 16, 0.26);
+}
+
+.cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 45%, rgba(0, 0, 0, 0.45) 100%),
+    radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.18), transparent 42%);
+  pointer-events: none;
+}
+
+.cover-mark {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  padding: 0.22rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(4px);
+}
+
+.cover.text .cover-mark {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 0.85rem;
+  letter-spacing: 0;
+}
+
+.cover-title {
+  position: relative;
+  z-index: 1;
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 0.92rem;
+  font-weight: 650;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0 0.1rem;
+}
+
+.meta strong {
+  font-size: 0.9rem;
   font-weight: 700;
   line-height: 1.35;
   display: -webkit-box;
@@ -337,24 +370,14 @@ h1 {
   overflow: hidden;
 }
 
-.author,
 .pages {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .progress {
   font-size: 0.78rem;
   color: var(--primary);
   font-weight: 650;
-}
-
-.chev {
-  color: var(--muted);
-  font-size: 1.35rem;
-  flex-shrink: 0;
 }
 </style>

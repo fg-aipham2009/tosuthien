@@ -13,6 +13,7 @@ const tabs = [
 
 const activePath = computed(() => route.path)
 const isChat = computed(() => route.path === '/')
+const isBooks = computed(() => route.path.startsWith('/kinh-sach'))
 </script>
 
 <template>
@@ -35,7 +36,7 @@ const isChat = computed(() => route.path === '/')
       </nav>
     </header>
 
-    <main class="main" :class="{ flush: isChat }">
+    <main class="main" :class="{ flush: isChat, wide: isBooks && !isChat }">
       <RouterView />
     </main>
 
@@ -129,6 +130,13 @@ const isChat = computed(() => route.path === '/')
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.main.wide {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 1rem clamp(1rem, 3vw, 2rem) 1.5rem;
 }
 
 .bottom {
