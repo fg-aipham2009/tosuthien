@@ -12,7 +12,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import archiver = require('archiver');
+import { ZipArchive } from 'archiver';
 import { MediaService } from './media.service';
 import {
   CreateMediaCategoryDto,
@@ -103,7 +103,7 @@ export class Mp3FoldersController {
     );
     res.setHeader('Cache-Control', 'no-store');
 
-    const archive = archiver('zip', { store: true });
+    const archive = new ZipArchive({ store: true });
     archive.on('error', (err: Error) => {
       if (!res.headersSent) {
         res.status(500).json({ message: err.message });

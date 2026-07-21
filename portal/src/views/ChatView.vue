@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useChat, useMediaWide } from '../composables/useChat'
 import ChatHistorySidebar from '../components/chat/ChatHistorySidebar.vue'
 import ChatTopBar from '../components/chat/ChatTopBar.vue'
@@ -12,8 +12,27 @@ import ChatBookPicker from '../components/chat/ChatBookPicker.vue'
 import ChatErrorBanner from '../components/chat/ChatErrorBanner.vue'
 import '../components/chat/chat-theme.css'
 
+const SIDEBAR_KEY = 'tosuthien.chat.sidebarCollapsed'
+
 const listEl = ref<HTMLElement | null>(null)
 const wide = useMediaWide(860)
+const sidebarCollapsed = ref(false)
+
+onMounted(() => {
+  try {
+    sidebarCollapsed.value = localStorage.getItem(SIDEBAR_KEY) === '1'
+  } catch {
+    /* ignore */
+  }
+})
+
+watch(sidebarCollapsed, (v) => {
+  try {
+    localStorage.setItem(SIDEBAR_KEY, v ? '1' : '0')
+  } catch {
+    /* ignore */
+  }
+})
 
 const {
   conversations,
@@ -56,17 +75,28 @@ function onNew() {
   newChat()
   drawerOpen.value = false
 }
+
+function collapseSidebar() {
+  if (wide.value) sidebarCollapsed.value = true
+  else drawerOpen.value = false
+}
+
+function openSidebar() {
+  if (wide.value) sidebarCollapsed.value = false
+  else drawerOpen.value = true
+}
 </script>
 
 <template>
   <div class="chat-root chat-theme">
     <ChatHistorySidebar
-      v-if="wide"
+      v-if="wide && !sidebarCollapsed"
       :conversations="conversations"
       :active-id="activeId"
       @new="onNew"
       @select="onSelect"
       @delete="deleteConversation"
+      @collapse="collapseSidebar"
     />
 
     <div v-if="!wide && drawerOpen" class="drawer-backdrop" @click="drawerOpen = false" />
@@ -77,14 +107,15 @@ function onNew() {
         @new="onNew"
         @select="onSelect"
         @delete="deleteConversation"
+        @collapse="collapseSidebar"
       />
     </aside>
 
     <section class="pane">
       <ChatTopBar
         :title="title"
-        :show-menu="!wide"
-        @menu="drawerOpen = true"
+        :show-menu="!wide || sidebarCollapsed"
+        @menu="openSidebar"
         @new="onNew"
       />
 

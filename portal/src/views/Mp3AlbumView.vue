@@ -19,7 +19,6 @@ const error = ref('')
 const q = ref('')
 const downloadingId = ref<string | null>(null)
 const zipBusy = ref<string | null>(null)
-const toast = ref('')
 
 const filtered = computed(() => {
   const s = q.value.trim().toLowerCase()
@@ -67,22 +66,14 @@ function isActive(t: Mp3Track) {
   return current.value?.id === t.id
 }
 
-function showToast(msg: string) {
-  toast.value = msg
-  window.setTimeout(() => {
-    if (toast.value === msg) toast.value = ''
-  }, 3200)
-}
-
 async function onDownloadTrack(t: Mp3Track, e: Event) {
   e.stopPropagation()
   if (downloadingId.value) return
   downloadingId.value = t.id
   try {
     await downloadTrackMp3(t)
-    showToast(`Đã tải: ${t.filename || t.title}`)
-  } catch (err) {
-    showToast(err instanceof Error ? err.message : 'Tải thất bại')
+  } catch {
+    // Keep silent UI — icon is enough; browser may still show errors.
   } finally {
     downloadingId.value = null
   }
@@ -92,7 +83,6 @@ function onDownloadFolder(folderPath: string, e: Event) {
   e.stopPropagation()
   zipBusy.value = folderPath
   downloadFolderZip(folderPath)
-  showToast('Đang tải ZIP thư mục… (có thể vài trăm MB–GB)')
   window.setTimeout(() => {
     if (zipBusy.value === folderPath) zipBusy.value = null
   }, 1500)
@@ -122,26 +112,36 @@ function onDownloadFolder(folderPath: string, e: Event) {
         class="overflow-hidden rounded-2xl border border-black/10 bg-surface"
       >
         <header
-          class="flex flex-wrap items-center justify-between gap-2 border-b border-black/10 bg-paper/80 px-3.5 py-3"
+          class="flex items-center justify-between gap-2 border-b border-black/10 bg-paper/80 px-3.5 py-3"
         >
           <div class="min-w-0">
             <h2 class="truncate font-serif text-lg font-semibold text-ink">{{ folder.name }}</h2>
-            <p class="text-xs text-muted">{{ folder.items.length }} bài · tải từng file .mp3 hoặc cả thư mục .zip</p>
+            <p class="text-xs text-muted">{{ folder.items.length }} bài</p>
           </div>
           <button
             type="button"
-            class="shrink-0 rounded-xl border border-brand/30 bg-brand/10 px-3 py-2 text-sm font-semibold text-brand hover:bg-brand/15 disabled:opacity-50"
+            class="grid size-9 shrink-0 place-items-center rounded-full text-brand transition hover:bg-brand/10 disabled:opacity-40"
             :disabled="zipBusy === folder.path"
+            title="Tải về cả thư mục (ZIP)"
+            aria-label="Tải về cả thư mục"
             @click="onDownloadFolder(folder.path, $event)"
           >
-            {{ zipBusy === folder.path ? 'Đang mở…' : 'Tải ZIP thư mục' }}
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M12 3v10m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
           </button>
         </header>
 
         <ol class="divide-y divide-black/10">
           <li v-for="(t, i) in folder.items" :key="t.id">
             <div
-              class="grid grid-cols-[2.5rem_1fr_auto] items-center gap-2 px-3 py-2.5 transition hover:bg-paper"
+              class="grid grid-cols-[2.5rem_1fr_auto] items-center gap-1 px-3 py-2.5 transition hover:bg-paper"
               :class="isActive(t) ? 'bg-[#efe6df]/70' : ''"
             >
               <button
@@ -168,24 +168,50 @@ function onDownloadFolder(folderPath: string, e: Event) {
 
               <button
                 type="button"
-                class="rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-xs font-semibold text-ink hover:border-brand/40 hover:text-brand disabled:opacity-50"
+                class="grid size-9 place-items-center rounded-full text-muted transition hover:bg-brand/10 hover:text-brand disabled:opacity-40"
                 :disabled="downloadingId === t.id"
-                :title="`Tải ${t.filename || t.title}`"
+                title="Tải về"
+                aria-label="Tải về"
                 @click="onDownloadTrack(t, $event)"
               >
-                {{ downloadingId === t.id ? '…' : 'Tải MP3' }}
+                <svg
+                  v-if="downloadingId === t.id"
+                  class="animate-spin"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="9"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    opacity="0.25"
+                  />
+                  <path
+                    d="M21 12a9 9 0 0 0-9-9"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M12 3v10m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
               </button>
             </div>
           </li>
         </ol>
       </section>
-    </div>
-
-    <div
-      v-if="toast"
-      class="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-40 max-w-[90vw] -translate-x-1/2 rounded-full bg-[#2a1810] px-4 py-2 text-sm text-white shadow-lg lg:bottom-24"
-    >
-      {{ toast }}
     </div>
   </div>
 </template>

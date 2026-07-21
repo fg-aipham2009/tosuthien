@@ -17,7 +17,8 @@ const emit = defineEmits<{
         v-if="showMenu"
         type="button"
         class="icon-btn"
-        title="Lịch sử hội thoại"
+        title="Mở lịch sử hội thoại"
+        aria-label="Mở lịch sử hội thoại"
         @click="emit('menu')"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">

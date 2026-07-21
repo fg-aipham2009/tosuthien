@@ -10,12 +10,36 @@ const emit = defineEmits<{
   new: []
   select: [id: string]
   delete: [id: string]
+  collapse: []
 }>()
 </script>
 
 <template>
   <div class="sidebar">
     <div class="side-top">
+      <button
+        type="button"
+        class="icon-btn"
+        title="Thu gọn thanh bên"
+        aria-label="Thu gọn thanh bên"
+        @click="emit('collapse')"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M4 6h16M4 12h10M4 18h16"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+          />
+          <path
+            d="M19 9l-3 3 3 3"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
       <button type="button" class="new-btn" @click="emit('new')">
         <span class="plus" aria-hidden="true">＋</span>
         Hội thoại mới
@@ -61,11 +85,32 @@ const emit = defineEmits<{
 }
 
 .side-top {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.75rem 0.65rem 0.35rem;
 }
 
+.icon-btn {
+  width: 2.35rem;
+  height: 2.35rem;
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--c-sidebar-on);
+  display: grid;
+  place-items: center;
+}
+
+.icon-btn:hover {
+  background: var(--c-sidebar-hover);
+}
+
 .new-btn {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 0.55rem;
