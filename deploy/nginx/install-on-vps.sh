@@ -42,8 +42,8 @@ fi
 sudo chown -R www-data:www-data "$WWW_ROOT"
 sudo chmod -R 755 "$WWW_ROOT"
 
-echo "==> Portal root (tosuthien.net)"
-PORTAL_ROOT="/opt/tosu-thien/portal"
+echo "==> Portal web root (tosuthien.net) — separate from git portal/ source"
+PORTAL_ROOT="/opt/tosu-thien/portal-dist"
 sudo mkdir -p "$PORTAL_ROOT"
 if [[ -d "$REPO_ROOT/portal/dist" ]] && [[ -f "$REPO_ROOT/portal/dist/index.html" ]]; then
   sudo rsync -a --delete "$REPO_ROOT/portal/dist/" "$PORTAL_ROOT/"
@@ -51,12 +51,15 @@ fi
 sudo chown -R www-data:www-data "$PORTAL_ROOT"
 sudo chmod -R 755 "$PORTAL_ROOT"
 
-# Point apex at portal if still on Flutter www
-if grep -q 'root /opt/tosu-thien/www;' /etc/nginx/sites-enabled/tosuthien.net.conf 2>/dev/null; then
-  echo "==> Switch tosuthien.net root → /opt/tosu-thien/portal"
-  sudo sed -i 's|root /opt/tosu-thien/www;|root /opt/tosu-thien/portal;|' \
-    /etc/nginx/sites-enabled/tosuthien.net.conf
-fi
+# Point apex at portal-dist if still on Flutter www or old portal/ path
+for conf in /etc/nginx/sites-enabled/tosuthien.net.conf /etc/nginx/sites-available/tosuthien.net.conf; do
+  [[ -f "$conf" ]] || continue
+  if grep -qE 'root /opt/tosu-thien/(www|portal);' "$conf" 2>/dev/null; then
+    echo "==> Switch tosuthien.net root → /opt/tosu-thien/portal-dist ($conf)"
+    sudo sed -i 's|root /opt/tosu-thien/www;|root /opt/tosu-thien/portal-dist;|g' "$conf"
+    sudo sed -i 's|root /opt/tosu-thien/portal;|root /opt/tosu-thien/portal-dist;|g' "$conf"
+  fi
+done
 
 echo "==> Test and reload nginx"
 sudo nginx -t

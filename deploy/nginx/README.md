@@ -5,7 +5,7 @@
 | `api.tosuthien.net.conf` | `api.tosuthien.net` | `127.0.0.1:8000` (Docker `api`) |
 | `admin.tosuthien.net.conf` | `admin.tosuthien.net` | `127.0.0.1:5173` (Docker `admin`) |
 | `app.tosuthien.net.conf` | `app.tosuthien.net` | `/opt/tosu-thien/www` (Flutter `build/web`) |
-| `tosuthien.net.conf` | `tosuthien.net`, `www` | `/opt/tosu-thien/portal` (Vue 3 landing) |
+| `tosuthien.net.conf` | `tosuthien.net`, `www` | `/opt/tosu-thien/portal-dist` (built Vue portal) |
 
 DNS (A → VPS IP `168.144.120.72`): `@`, `www`, `app`, `api`, `admin`.
 
@@ -96,9 +96,11 @@ curl -I https://app.tosuthien.net   # Flutter web
 curl -I https://tosuthien.net       # Vue 3 portal
 ```
 
-## Portal (Vue 3) → /opt/tosu-thien/portal
+## Portal (Vue 3) → /opt/tosu-thien/portal-dist
 
-**Only deploy `portal/dist/`.** Never rsync the Vite source tree into the web root.
+**Only deploy `portal/dist/` into `portal-dist/`.**  
+Do **not** use git-tracked `portal/` as the nginx root — `git pull` on the VPS restores Vite source (`/src/main.ts`) and the site breaks with 404 / `video/mp2t`.
+
 If `/src/main.ts` is served, nginx’s default MIME is `video/mp2t` and the browser shows:
 
 > Failed to load module script … MIME type of "video/mp2t"
@@ -108,7 +110,7 @@ If `/src/main.ts` is served, nginx’s default MIME is `video/mp2t` and the brow
 # or manually:
 cd portal && npm ci && npm run build
 rsync -avz --delete dist/ tosuthien-vps:/tmp/portal-dist/
-ssh tosuthien-vps 'sudo rsync -a --delete /tmp/portal-dist/ /opt/tosu-thien/portal/'
+ssh tosuthien-vps 'sudo rsync -a --delete /tmp/portal-dist/ /opt/tosu-thien/portal-dist/'
 ```
 
 After nginx config changes, reload on VPS (`nginx -t && systemctl reload nginx`).
