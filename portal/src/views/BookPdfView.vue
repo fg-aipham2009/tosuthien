@@ -50,164 +50,71 @@ watch(page, (p) => {
 </script>
 
 <template>
-  <div class="reader">
-    <div class="top">
-      <RouterLink class="back" to="/kinh-sach?mode=pdf">← Bản gốc</RouterLink>
-      <span class="badge">PDF</span>
+  <div class="flex min-h-[70vh] w-full flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <RouterLink class="text-sm font-semibold text-brand" to="/kinh-sach?mode=pdf">
+        ← Bản gốc
+      </RouterLink>
+      <span class="rounded-full bg-[#efe6df] px-2.5 py-1 text-[0.72rem] font-bold tracking-wider text-brand">
+        PDF
+      </span>
     </div>
 
-    <h1>{{ book?.title || 'Đọc PDF' }}</h1>
-    <p v-if="book?.author" class="author">{{ book.author }}</p>
+    <h1 class="font-serif text-2xl leading-snug font-bold lg:text-3xl">
+      {{ book?.title || 'Đọc PDF' }}
+    </h1>
+    <p v-if="book?.author" class="text-sm text-muted">{{ book.author }}</p>
 
-    <p v-if="loading" class="state">Đang tải…</p>
-    <p v-else-if="error" class="state err">{{ error }}</p>
+    <p v-if="loading" class="text-muted">Đang tải…</p>
+    <p v-else-if="error" class="text-red-800">{{ error }}</p>
 
     <template v-else-if="book">
-      <div class="toolbar">
-        <button type="button" :disabled="page <= 1" @click="prev">Trước</button>
-        <label class="page-field">
+      <div
+        class="flex flex-wrap items-center gap-2 rounded-2xl border border-black/10 bg-surface px-3 py-2.5"
+      >
+        <button
+          type="button"
+          class="rounded-full border border-black/10 bg-white px-3.5 py-2 text-sm font-semibold text-brand disabled:opacity-40"
+          :disabled="page <= 1"
+          @click="prev"
+        >
+          Trước
+        </button>
+        <label class="inline-flex items-center gap-2 text-sm text-muted">
           Trang
           <input
+            class="w-16 rounded-lg border border-black/10 bg-white px-2 py-1.5 text-ink"
             :value="page"
             type="number"
             min="1"
             :max="maxPage || undefined"
             @change="page = clampPage(Number(($event.target as HTMLInputElement).value) || 1)"
           />
-          <span v-if="maxPage" class="of">/ {{ maxPage }}</span>
+          <span v-if="maxPage">/ {{ maxPage }}</span>
         </label>
-        <button type="button" :disabled="!!maxPage && page >= maxPage" @click="next">Sau</button>
-        <a class="open" :href="book.publicUrl" target="_blank" rel="noopener">Mở tab mới</a>
+        <button
+          type="button"
+          class="rounded-full border border-black/10 bg-white px-3.5 py-2 text-sm font-semibold text-brand disabled:opacity-40"
+          :disabled="!!maxPage && page >= maxPage"
+          @click="next"
+        >
+          Sau
+        </button>
+        <a
+          class="rounded-full border border-black/10 bg-white px-3.5 py-2 text-sm font-semibold text-brand"
+          :href="book.publicUrl"
+          target="_blank"
+          rel="noopener"
+        >
+          Mở tab mới
+        </a>
       </div>
 
-      <div class="frame-wrap">
-        <iframe v-if="src" class="frame" :src="src" title="PDF reader" />
+      <div
+        class="min-h-[72vh] flex-1 overflow-hidden rounded-2xl border border-black/10 bg-[#2a1810] shadow-lg shadow-brand-deep/15"
+      >
+        <iframe v-if="src" class="h-full min-h-[72vh] w-full border-0 bg-black" :src="src" title="PDF reader" />
       </div>
     </template>
   </div>
 </template>
-
-<style scoped>
-.reader {
-  --primary: #5d4037;
-  --muted: #605d5c;
-  --line: rgba(154, 142, 138, 0.35);
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  min-height: 70vh;
-}
-
-.top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.back {
-  color: var(--primary);
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.badge {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 0.25rem 0.55rem;
-  border-radius: 999px;
-  background: #efe6df;
-  color: var(--primary);
-}
-
-h1 {
-  margin: 0;
-  font-family: 'Source Serif 4', Georgia, serif;
-  font-size: clamp(1.25rem, 3vw, 1.55rem);
-  line-height: 1.3;
-  color: #1d1b1a;
-}
-
-.author {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.88rem;
-}
-
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.65rem 0.75rem;
-  background: #fffbff;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-}
-
-.toolbar button,
-.open {
-  border: 1px solid var(--line);
-  background: #fff;
-  color: var(--primary);
-  border-radius: 999px;
-  padding: 0.4rem 0.85rem;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.88rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.toolbar button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.page-field {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.88rem;
-  color: var(--muted);
-}
-
-.page-field input {
-  width: 4rem;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: #fff;
-  color: #1d1b1a;
-  padding: 0.3rem 0.4rem;
-}
-
-.of {
-  color: var(--muted);
-}
-
-.frame-wrap {
-  flex: 1;
-  min-height: 68vh;
-  border-radius: 14px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  background: #2a1810;
-  box-shadow: 0 10px 28px rgba(42, 24, 16, 0.12);
-}
-
-.frame {
-  width: 100%;
-  height: 100%;
-  min-height: 68vh;
-  border: 0;
-  background: #111;
-}
-
-.state {
-  color: var(--muted);
-}
-
-.state.err {
-  color: #93000a;
-}
-</style>
