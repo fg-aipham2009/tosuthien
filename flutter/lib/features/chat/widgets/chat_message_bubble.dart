@@ -385,7 +385,9 @@ class _CitationCardState extends State<_CitationCard> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    citation.title.isEmpty ? citation.label : citation.title,
+                    citation.label.isNotEmpty
+                        ? citation.label
+                        : (citation.title.isEmpty ? 'Kinh sách' : citation.title),
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: colors.primary,

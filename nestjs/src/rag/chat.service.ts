@@ -25,7 +25,13 @@ import {
   buildIntentBrief,
   resolvePrimarySourceFiles,
 } from './rag-keywords.util';
-import { isKinhSource, sourceTier, toPrintedPage, printedPageOffset } from './rag-source.util';
+import {
+  isKinhSource,
+  sourceTier,
+  toPrintedPage,
+  printedPageOffset,
+  parsePrintedPagesFromText,
+} from './rag-source.util';
 import { normalizeHistory } from './llm.service';
 import {
   maxPassageCharsForTier,
@@ -35,8 +41,8 @@ import {
   type AnswerStyleContext,
 } from './rag-answer-style';
 
-/** Cap LLM context — neighbor ±1 pages need room for full paragraphs. */
-const MAX_CONTEXT_CHARS = 36_000;
+/** Cap LLM context — room for many long neighbor windows. */
+const MAX_CONTEXT_CHARS = 50_000;
 /** Soft cap for citation quote — prefer whole paragraphs under this size. */
 const QUOTE_MAX_CHARS = 8_000;
 const MAX_DISPLAY_CITATIONS = 24;
@@ -528,7 +534,6 @@ export class ChatService {
         pageNum: page,
         pageStart: page ?? match.pageStart,
         pageEnd: page ?? match.pageEnd,
-        // One cited page per answer ref — do not carry neighbor windows into chips.
         pages: page != null ? [page] : [],
         label: this.formatLabel(match.title, match.volume, page, page),
         quote: ref.quote?.trim() || match.quote,
@@ -566,25 +571,13 @@ export class ChatService {
     );
   }
 
-  /**
-   * Cap excerpt/quote size for API/SSE payloads. Neighbor windows can be 6k+
-   * chars each; dumping them all in one `done` frame blows up chunked encoding
-   * under browser backpressure.
-   */
+  /** Client payload: book + page only — scripture text lives in `answer`. */
   private slimCitationsForClient(citations: ChatCitation[]): ChatCitation[] {
-    const maxExcerpt = 900;
     return citations.map((c) => ({
       ...c,
-      quote: this.clipText(c.quote, maxExcerpt),
-      excerpt: this.clipText(c.excerpt, maxExcerpt),
+      quote: '',
+      excerpt: '',
     }));
-  }
-
-  private clipText(value: string | null | undefined, max: number): string {
-    const text = (value ?? '').trim();
-    if (!text) return '';
-    if (text.length <= max) return text;
-    return `${text.slice(0, max).trimEnd()}…`;
   }
 
   /** Parse `— (Book Title, tr.16)` (and optional preceding "quote") from answer. */
@@ -738,26 +731,9 @@ export class ChatService {
     const out: Slim[] = [];
     for (const key of sourceOrder) {
       const group = groups.get(key)!;
-      const pageSet = new Set<number>();
-      for (const c of group) {
-        // Cited hit pages only — avoid expanding large neighbor windows into dozens of chips.
-        if (c.pageNum != null) pageSet.add(c.pageNum);
-        if (c.pages?.length && c.pages.length <= 8) {
-          const span = Math.max(...c.pages) - Math.min(...c.pages);
-          // Dense consecutive window (neighbors) → keep pageNum only.
-          if (!(c.pages.length >= 4 && span <= c.pages.length)) {
-            for (const p of c.pages) pageSet.add(p);
-          }
-        }
-      }
-
-      const pages = [...pageSet].sort((a, b) => a - b);
       const primary = [...group].sort(
         (a, b) => Number(b.score) - Number(a.score),
       )[0];
-      const pageStart = pages[0] ?? primary.pageStart ?? primary.pageNum ?? null;
-      const pageEnd =
-        pages[pages.length - 1] ?? primary.pageEnd ?? primary.pageNum ?? null;
       const quote =
         group.map((c) => c.quote?.trim()).find((q) => q && q.length > 0) ||
         primary.quote;
@@ -766,6 +742,11 @@ export class ChatService {
           .map((c) => c.excerpt?.trim())
           .filter((e): e is string => !!e && e.length > 0)
           .sort((a, b) => b.length - a.length)[0] || primary.excerpt;
+
+      const pages = parsePrintedPagesFromText(excerpt ?? '');
+      const pageStart = pages[0] ?? primary.pageStart ?? primary.pageNum ?? null;
+      const pageEnd =
+        pages[pages.length - 1] ?? primary.pageEnd ?? primary.pageNum ?? null;
 
       out.push({
         ...primary,
@@ -890,7 +871,7 @@ export class ChatService {
       if (out.length >= limit) break;
       const key = (h.sourceFile || '').toLowerCase();
       if (!primary.has(key)) continue;
-      tryPush(h, 2);
+      tryPush(h, 3);
     }
 
     // 2) Fill with other books (1 each).
@@ -898,13 +879,13 @@ export class ChatService {
       if (out.length >= limit) break;
       const key = (h.sourceFile || '').toLowerCase();
       if (primary.has(key)) continue;
-      tryPush(h, 1);
+      tryPush(h, 2);
     }
 
     // 3) If still short, allow more from primary.
     for (const h of deduped) {
       if (out.length >= limit) break;
-      tryPush(h, primary.has((h.sourceFile || '').toLowerCase()) ? 3 : 1);
+      tryPush(h, primary.has((h.sourceFile || '').toLowerCase()) ? 4 : 2);
     }
 
     return out;
@@ -1458,14 +1439,13 @@ export class ChatService {
     if (style === 'kinh_long') {
       const kinh = hits.filter((h) => isKinhSource(h.title, h.sourceFile));
       const pool = kinh.length ? kinh : hits;
-      return pool.slice(0, Math.min(8, pool.length));
+      return pool.slice(0, Math.min(12, pool.length));
     }
 
     if (style === 'brief') {
-      // Keep enough passages for multi-paragraph verbatim answers.
       const strong = hits.filter((h) => relevanceOf(h) >= MIN_RELEVANCE_SCORE + 1);
       const pool = strong.length ? strong : hits;
-      return pool.slice(0, Math.min(8, pool.length));
+      return pool.slice(0, Math.min(10, pool.length));
     }
 
     // mixed: keep several kinh blocks + a few strong ngu luc blocks
@@ -1473,8 +1453,8 @@ export class ChatService {
     const nguLuc = hits
       .filter((h) => !isKinhSource(h.title, h.sourceFile))
       .filter((h) => relevanceOf(h) >= MIN_RELEVANCE_SCORE + 1)
-      .slice(0, 4);
-    return [...kinh.slice(0, 8), ...nguLuc];
+      .slice(0, 5);
+    return [...kinh.slice(0, 11), ...nguLuc];
   }
 
   /**
@@ -1588,7 +1568,7 @@ export class ChatService {
       // Neighbor windows are larger — allow more chars so 3 pages aren't truncated away.
       const pageMarkers = (h.content.match(/\[Trang\s+\d+\]/g) ?? []).length;
       const windowBonus =
-        pageMarkers > 1 ? Math.min(12_000, (pageMarkers - 1) * 2_800) : 0;
+        pageMarkers > 1 ? Math.min(16_000, (pageMarkers - 1) * 3_200) : 0;
       const body = this.trimPassageAtSentence(h.content, maxChars + windowBonus);
       const block = `${header}\n${body}`;
       if (used + block.length > MAX_CONTEXT_CHARS) break;
@@ -1597,17 +1577,10 @@ export class ChatService {
       used += block.length;
 
       const quote = this.extractQuote(body, keywords);
-      const pageSections = this.splitContentByPrintedPage(body);
-      const pages =
-        pageSections.length > 0
-          ? pageSections.map((s) => s.page)
-          : printedPage != null
-            ? [printedPage]
-            : [];
-      const windowStart = pages.length ? pages[0] : printedPage;
-      const windowEnd = pages.length ? pages[pages.length - 1] : printedPage;
+      const pages = parsePrintedPagesFromText(body);
+      const windowStart = pages[0] ?? printedPage;
+      const windowEnd = pages[pages.length - 1] ?? printedPage;
 
-      // One citation card per source hit; page chips open each page in the window.
       citations.push({
         passageId: h.passageId,
         label: this.formatLabel(h.title, h.volume, windowStart, windowEnd),

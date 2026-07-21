@@ -84,3 +84,17 @@ export function sourceTier(title: string, sourceFile: string): SourceTier {
 export function isKinhSource(title: string, sourceFile: string): boolean {
   return sourceTier(title, sourceFile) === 'kinh';
 }
+
+/** Original book pages from `[Trang N]` markers in the displayed excerpt. */
+export function parsePrintedPagesFromText(
+  text: string | null | undefined,
+): number[] {
+  if (!text) return [];
+  const pages = new Set<number>();
+  const re = /\[Trang\s+(\d+)\]/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    pages.add(Number(m[1]));
+  }
+  return [...pages].sort((a, b) => a - b);
+}

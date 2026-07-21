@@ -1,10 +1,10 @@
-export const DEFAULT_TOP_K = 10;
-export const LOOKUP_TOP_K = 8;
-export const DEFINITION_TOP_K = 12;
-export const COMPARISON_TOP_K = 12;
-export const MAX_TOP_K = 16;
+export const DEFAULT_TOP_K = 14;
+export const LOOKUP_TOP_K = 10;
+export const DEFINITION_TOP_K = 16;
+export const COMPARISON_TOP_K = 16;
+export const MAX_TOP_K = 22;
 /** Candidate pool before filtering/ranking (recall > precision here). */
-export const CANDIDATE_POOL = 48;
+export const CANDIDATE_POOL = 72;
 
 export const RAG_DISCLAIMER =
   'Nguyên văn = lời kinh sách (không chỉnh sửa). 「AI diễn giải」 lấy nền từ câu hỏi + nguyên văn; có thể bổ sung kiến thức nền — không phải kinh văn. Hãy đối chiếu thẻ nguồn và PDF.';

@@ -47,8 +47,8 @@ PHẦN 1 — NGUYÊN VĂN (answer chính) — RẤT DÀI, ĐỦ ĐẦU–ĐUÔI,
 - Lấy CÀNG DÀI CÀNG TỐT khi đoạn vẫn cùng trả lời câu hỏi: cả đoạn, cả chuỗi HỎI–ĐÁP, cả cụm liên tục qua nhiều [Trang N] nếu cùng một phân đoạn. Ưu tiên copy gần hết nội dung liên quan trong block hơn là chọn vài câu đẹp.
 - Mỗi khối trích kèm ngay dưới: — (Tên kinh, tr.X) — trang chính = [Trang N] chứa câu then chốt của đoạn. Nếu copy liền nhiều trang, tách thành nhiều khối "…" + — (…, tr.X) theo từng trang, vẫn giữ thứ tự đầu→đuôi.
 - Nhãn — (Tên kinh, tr.X) phải khớp dòng "Trích dẫn: …" trong block ngữ cảnh (cùng tên sách + trang có trong block).
-- Khi câu hỏi chỉ một kinh: ưu tiên 2–4 khối RẤT DÀI từ đúng kinh đó trước (nối trang nếu cần); có thể thêm 1–2 nguồn phụ dài nếu làm rõ thêm.
-- Khi ngữ cảnh đủ nhiều sách và câu hỏi không khóa một kinh: trích 3–5 nguồn khác nhau, mỗi nguồn một đoạn DÀI đủ ý (không chỉ vài câu).
+- Khi câu hỏi chỉ một kinh: ưu tiên 4–6 khối RẤT DÀI từ đúng kinh đó trước (nối trang nếu cần); có thể thêm 2–3 nguồn phụ dài nếu làm rõ thêm.
+- Khi ngữ cảnh đủ nhiều sách và câu hỏi không khóa một kinh: trích 5–8 nguồn khác nhau, mỗi nguồn một đoạn DÀI đủ ý (không chỉ vài câu).
 - CẤM "Nguồn 1/2", CẤM bullet / lời AI trong phần này.
 - Không khớp: chỉ một câu — "Trong tư liệu hiện có chưa thấy nội dung này." rồi DỪNG.
 
@@ -83,21 +83,21 @@ Ví dụ SAI:
 function buildKinhLongRules(): string {
   return `
 Chế độ KINH (PHẦN 1 ưu tiên dài tối đa):
-- Phần 1: nguyên văn RẤT DÀI, đủ đầu–đuôi; mỗi khối ideally cả đoạn/cảnh (8–25 câu hoặc HỎI–ĐÁP đầy đủ). Nếu hỏi đúng một kinh → 2–4 khối dài từ kinh đó trước (nối nhiều [Trang] nếu cùng phân đoạn), rồi mới thêm nguồn phụ dài nếu cần. Không cắt, không chế, không tóm. Mỗi khối một trang tr.X.
+- Phần 1: nguyên văn RẤT DÀI, đủ đầu–đuôi; mỗi khối ideally cả đoạn/cảnh (8–25 câu hoặc HỎI–ĐÁP đầy đủ). Nếu hỏi đúng một kinh → 4–6 khối dài từ kinh đó trước (nối nhiều [Trang] nếu cùng phân đoạn), rồi mới thêm nguồn phụ dài nếu cần. Không cắt, không chế, không tóm. Mỗi khối một trang tr.X.
 - Phần 2: ${AI_INTERPRETATION_MARKER} + 6–10 câu; nền = câu hỏi + phần 1; phụ = kiến thức nền nếu giúp phong phú.`;
 }
 
 function buildMixedRules(): string {
   return `
 Chế độ HỖN HỢP (PHẦN 1 vẫn dài):
-- Phần 1: đoạn RẤT DÀI đủ đầu–đuôi từ [KINH] (+ [NGỮ LỤC] nếu hữu ích); ưu tiên kinh được nêu trong câu hỏi; mỗi khối dài (không chỉ 2–3 câu) + — (Tên kinh, tr.X); không cắt / không chế.
+- Phần 1: đoạn RẤT DÀI đủ đầu–đuôi từ [KINH] (+ [NGỮ LỤC] nếu hữu ích); ưu tiên kinh được nêu trong câu hỏi; trích 4–6 nguồn khi ngữ cảnh đủ; mỗi khối dài (không chỉ 2–3 câu) + — (Tên kinh, tr.X); không cắt / không chế.
 - Phần 2: ${AI_INTERPRETATION_MARKER} + 5–9 câu (nền phần 1 + câu hỏi; phụ kiến thức nền nếu hữu ích).`;
 }
 
 function buildBriefRules(): string {
   return `
 Chế độ VẪN ĐỦ MẠCH (không được cụt phần 1):
-- Phần 1: 2–4 đoạn nguyên văn DÀI, ĐỦ ĐẦU–ĐUÔI (mỗi đoạn nhiều câu / cả HỎI–ĐÁP nếu có); ưu tiên kinh được nêu tên; mỗi đoạn một trang; tuyệt đối không cắt / không chế / không rút còn vài dòng khi block còn dài.
+- Phần 1: 3–6 đoạn nguyên văn DÀI, ĐỦ ĐẦU–ĐUÔI (mỗi đoạn nhiều câu / cả HỎI–ĐÁP nếu có); ưu tiên kinh được nêu tên; mỗi đoạn một trang; tuyệt đối không cắt / không chế / không rút còn vài dòng khi block còn dài.
 - Phần 2: ${AI_INTERPRETATION_MARKER} + 5–8 câu tự nhiên (nền phần 1; phụ kiến thức nền nếu cần).
 - Không khớp: chỉ "Trong tư liệu hiện có chưa thấy nội dung này."`;
 }
@@ -115,14 +115,13 @@ ${modeRules}`;
 }
 
 function maxTokensForStyle(style: AnswerStyle): number {
-  // Long multi-source scripture quotes + AI interpretation.
   switch (style) {
     case 'kinh_long':
-      return 16_384;
+      return 24_576;
     case 'mixed':
-      return 14_336;
+      return 20_480;
     case 'brief':
-      return 10_240;
+      return 16_384;
   }
 }
 

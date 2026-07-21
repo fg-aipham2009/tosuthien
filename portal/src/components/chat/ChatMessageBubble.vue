@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import type { ChatCitation, ChatMessage } from '../../types'
 import {
-  citationBody,
   defaultFilePage,
   mergeCitationsByBook,
   resolveCitationPdfFileUrl,
@@ -90,8 +89,8 @@ function canOpen(c: ChatCitation): boolean {
             <ul class="cite-cards">
               <li v-for="(c, j) in citations" :key="c.passageId || j" class="cite-card">
                 <div class="cite-head">
-                  <strong class="cite-title">{{ c.title || c.label || 'Kinh sách' }}</strong>
-                  <div v-if="tappablePages(c).length" class="page-chips">
+                  <strong class="cite-title">{{ c.label || c.title || 'Kinh sách' }}</strong>
+                  <div v-if="tappablePages(c).length > 1" class="page-chips">
                     <button
                       v-for="link in tappablePages(c)"
                       :key="`${link.printed}-${link.filePage}`"
@@ -105,16 +104,15 @@ function canOpen(c: ChatCitation): boolean {
                     </button>
                   </div>
                   <button
-                    v-else-if="canOpen(c)"
+                    v-else-if="canOpen(c) && tappablePages(c).length === 1"
                     type="button"
                     class="page-chip"
                     :disabled="openingKey !== null"
-                    @click="openCitation(c)"
+                    @click="openCitation(c, tappablePages(c)[0]!.filePage)"
                   >
-                    {{ c.openLabel || c.pdf?.openLabel || 'Mở PDF' }}
+                    Mở PDF
                   </button>
                 </div>
-                <p v-if="citationBody(c)" class="cite-body">{{ citationBody(c) }}</p>
               </li>
             </ul>
           </section>
