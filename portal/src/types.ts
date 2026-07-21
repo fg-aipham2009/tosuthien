@@ -46,6 +46,8 @@ export interface TextBook {
   title: string
   author?: string | null
   pageCount?: number
+  /** Leading blank/front-matter pages to skip when opening. */
+  blankPages?: number
   lastPage?: number | null
   sortOrder?: number
 }

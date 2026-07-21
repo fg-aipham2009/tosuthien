@@ -21,148 +21,74 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
-    <RouterLink class="back" to="/thien-duong">← Thiền đường</RouterLink>
-    <p v-if="loading" class="muted">Đang tải…</p>
-    <p v-else-if="error" class="err">{{ error }}</p>
+  <div class="mx-auto w-full max-w-4xl">
+    <RouterLink class="text-sm font-semibold text-brand" to="/thien-duong">← Thiền đường</RouterLink>
+
+    <p v-if="loading" class="mt-4 text-muted">Đang tải…</p>
+    <p v-else-if="error" class="mt-4 text-red-800">{{ error }}</p>
+
     <template v-else-if="center">
       <img
         v-if="resolveMediaUrl(center.mainImageUrl)"
-        class="hero"
+        class="mt-3 mb-4 h-56 w-full rounded-2xl border border-black/10 object-cover lg:h-72"
         :src="resolveMediaUrl(center.mainImageUrl)"
         :alt="center.templeName"
       />
-      <h1>{{ center.templeName }}</h1>
-      <p class="meta">
+      <h1 class="font-serif text-3xl font-bold tracking-tight">{{ center.templeName }}</h1>
+      <p class="mt-2 mb-5 text-brand-soft">
         {{ [center.abbotRank, center.abbotName, center.abbotTitle].filter(Boolean).join(' · ') }}
       </p>
-      <dl class="facts">
-        <div v-if="center.address">
-          <dt>Địa chỉ</dt>
+
+      <dl class="divide-y divide-black/10 border-y border-black/10">
+        <div v-if="center.address" class="py-3">
+          <dt class="mb-1 text-xs font-semibold tracking-wider text-brand uppercase">Địa chỉ</dt>
           <dd>{{ center.address }}</dd>
         </div>
-        <div v-if="center.phone">
-          <dt>Điện thoại</dt>
+        <div v-if="center.phone" class="py-3">
+          <dt class="mb-1 text-xs font-semibold tracking-wider text-brand uppercase">Điện thoại</dt>
           <dd>
-            <a :href="`tel:${center.phone}`">{{ center.phone }}</a>
+            <a class="text-brand underline" :href="`tel:${center.phone}`">{{ center.phone }}</a>
           </dd>
         </div>
-        <div v-if="center.activityHours">
-          <dt>Giờ công phu</dt>
-          <dd class="pre">{{ center.activityHours }}</dd>
+        <div v-if="center.activityHours" class="py-3">
+          <dt class="mb-1 text-xs font-semibold tracking-wider text-brand uppercase">Giờ công phu</dt>
+          <dd class="whitespace-pre-wrap leading-relaxed">{{ center.activityHours }}</dd>
         </div>
       </dl>
-      <p v-if="center.googleMapsUrl">
-        <a class="maps" :href="center.googleMapsUrl" target="_blank" rel="noopener">Mở Google Maps</a>
+
+      <p v-if="center.googleMapsUrl" class="mt-4">
+        <a
+          class="inline-block rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white"
+          :href="center.googleMapsUrl"
+          target="_blank"
+          rel="noopener"
+        >
+          Mở Google Maps
+        </a>
       </p>
-      <section v-if="center.rules" class="block">
-        <h2>Quy củ</h2>
-        <p class="pre">{{ center.rules }}</p>
+
+      <section v-if="center.rules" class="mt-8">
+        <h2 class="mb-2 font-serif text-xl font-bold">Quy củ</h2>
+        <p class="whitespace-pre-wrap leading-relaxed">{{ center.rules }}</p>
       </section>
-      <section v-if="center.customs" class="block">
-        <h2>Phong tục</h2>
-        <p class="pre">{{ center.customs }}</p>
+      <section v-if="center.customs" class="mt-8">
+        <h2 class="mb-2 font-serif text-xl font-bold">Phong tục</h2>
+        <p class="whitespace-pre-wrap leading-relaxed">{{ center.customs }}</p>
       </section>
-      <section v-if="center.detailContent" class="block">
-        <h2>Giới thiệu</h2>
-        <p class="pre">{{ center.detailContent }}</p>
+      <section v-if="center.detailContent" class="mt-8">
+        <h2 class="mb-2 font-serif text-xl font-bold">Giới thiệu</h2>
+        <p class="whitespace-pre-wrap leading-relaxed">{{ center.detailContent }}</p>
       </section>
-      <section v-if="center.courses?.length" class="block">
-        <h2>Khóa tu</h2>
-        <ul>
-          <li v-for="course in center.courses" :key="course.id">
+      <section v-if="center.courses?.length" class="mt-8">
+        <h2 class="mb-3 font-serif text-xl font-bold">Khóa tu</h2>
+        <ul class="space-y-3">
+          <li v-for="course in center.courses" :key="course.id" class="rounded-xl border border-black/10 bg-surface p-3">
             <strong>{{ course.title || course.type }}</strong>
-            <span v-if="course.scheduleNote"> — {{ course.scheduleNote }}</span>
-            <p v-if="course.description" class="muted">{{ course.description }}</p>
+            <span v-if="course.scheduleNote" class="text-muted"> — {{ course.scheduleNote }}</span>
+            <p v-if="course.description" class="mt-1 text-sm text-muted">{{ course.description }}</p>
           </li>
         </ul>
       </section>
     </template>
   </div>
 </template>
-
-<style scoped>
-.back {
-  color: var(--gold-soft);
-  font-size: 0.9rem;
-}
-
-.hero {
-  width: 100%;
-  max-height: 260px;
-  object-fit: cover;
-  border-radius: 14px;
-  margin: 0.75rem 0;
-  border: 1px solid var(--line);
-}
-
-h1 {
-  margin: 0.35rem 0 0;
-  font-family: var(--font-display);
-  font-size: 1.55rem;
-}
-
-.meta {
-  color: var(--gold-soft);
-  margin: 0.35rem 0 1rem;
-}
-
-.facts {
-  margin: 0;
-}
-
-.facts div {
-  padding: 0.65rem 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.facts dt {
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--gold);
-  margin-bottom: 0.25rem;
-}
-
-.facts dd {
-  margin: 0;
-}
-
-.maps {
-  display: inline-block;
-  margin: 0.85rem 0;
-  color: var(--ink);
-  background: var(--gold);
-  padding: 0.45rem 0.95rem;
-  border-radius: 999px;
-  font-weight: 500;
-}
-
-.block {
-  margin-top: 1.35rem;
-}
-
-.block h2 {
-  margin: 0 0 0.45rem;
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-}
-
-.pre {
-  white-space: pre-wrap;
-  line-height: 1.55;
-  margin: 0;
-}
-
-.muted {
-  color: var(--muted);
-}
-
-.err {
-  color: #e8a090;
-}
-
-ul {
-  padding-left: 1.1rem;
-}
-</style>

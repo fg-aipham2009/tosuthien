@@ -64,10 +64,14 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
     _ownsRepository = widget.repository == null;
     _repository = widget.repository ?? BooksRepository();
     _pageCount = widget.book.pageCount.clamp(1, 100000);
-    _currentPage = widget.initialPage.clamp(1, _pageCount);
+    final firstContent = (widget.book.blankPages + 1).clamp(1, _pageCount);
+    _currentPage = widget.initialPage.clamp(firstContent, _pageCount);
     _pageController = PageController(initialPage: _currentPage - 1);
     _boot();
   }
+
+  int get _firstContentPage =>
+      (widget.book.blankPages + 1).clamp(1, _pageCount);
 
   Future<void> _boot() async {
     final prefs = await SharedPreferences.getInstance();
@@ -86,7 +90,9 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
     } else if (localPage != null && localPage >= 1) {
       start = localPage;
     }
-    start = start.clamp(1, _pageCount);
+    // Skip leading blank front-matter pages (e.g. blankPages=2 → open at page 3).
+    if (start < _firstContentPage) start = _firstContentPage;
+    start = start.clamp(_firstContentPage, _pageCount);
 
     try {
       await _ensurePagesAround(start);
@@ -191,7 +197,7 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
   }
 
   Future<void> _goToPage(int target) async {
-    final page = target.clamp(1, _pageCount);
+    final page = target.clamp(_firstContentPage, _pageCount);
     if (page == _currentPage && _pageController.hasClients) return;
     await _ensurePagesAround(page);
     if (!mounted || !_pageController.hasClients) return;
@@ -203,7 +209,14 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
   }
 
   void _onPageChanged(int index) {
-    final page = index + 1;
+    var page = index + 1;
+    if (page < _firstContentPage) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_pageController.hasClients) return;
+        _pageController.jumpToPage(_firstContentPage - 1);
+      });
+      page = _firstContentPage;
+    }
     setState(() => _currentPage = page);
     _scheduleSave(page);
 
@@ -685,7 +698,7 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
                             palette: palette,
                             current: _currentPage,
                             total: _pageCount,
-                            onPrev: _currentPage > 1
+                            onPrev: _currentPage > _firstContentPage
                                 ? () => _goToPage(_currentPage - 1)
                                 : null,
                             onNext: _currentPage < _pageCount

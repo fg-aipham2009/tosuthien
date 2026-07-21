@@ -38,90 +38,32 @@ function playAt(i: number) {
 </script>
 
 <template>
-  <div>
-    <RouterLink class="back" to="/mp3">← Album</RouterLink>
-    <h1>{{ cat?.name || 'Album' }}</h1>
-    <input v-model="q" class="search" type="search" placeholder="Tìm trong album…" />
-    <p v-if="loading" class="muted">Đang tải…</p>
-    <p v-else-if="error" class="err">{{ error }}</p>
-    <p v-else-if="!filtered.length" class="muted">Không có bài nào.</p>
-    <ol v-else class="tracks">
+  <div class="mx-auto w-full max-w-4xl">
+    <RouterLink class="text-sm font-semibold text-brand" to="/mp3">← Album</RouterLink>
+    <h1 class="mt-2 mb-4 font-serif text-2xl font-bold lg:text-3xl">{{ cat?.name || 'Album' }}</h1>
+
+    <input
+      v-model="q"
+      class="mb-4 w-full rounded-xl border border-black/10 bg-surface px-3.5 py-2.5 text-ink outline-none focus:border-brand/40"
+      type="search"
+      placeholder="Tìm trong album…"
+    />
+
+    <p v-if="loading" class="text-muted">Đang tải…</p>
+    <p v-else-if="error" class="text-red-800">{{ error }}</p>
+    <p v-else-if="!filtered.length" class="text-muted">Không có bài nào.</p>
+
+    <ol v-else class="divide-y divide-black/10 overflow-hidden rounded-2xl border border-black/10 bg-surface">
       <li v-for="(t, i) in filtered" :key="t.id">
-        <button type="button" @click="playAt(i)">
-          <span class="n">{{ i + 1 }}</span>
-          <span class="t">{{ t.title }}</span>
+        <button
+          type="button"
+          class="grid w-full grid-cols-[2.5rem_1fr] gap-2 px-3 py-3 text-left hover:bg-paper"
+          @click="playAt(i)"
+        >
+          <span class="font-serif text-brand">{{ i + 1 }}</span>
+          <span class="leading-snug">{{ t.title }}</span>
         </button>
       </li>
     </ol>
   </div>
 </template>
-
-<style scoped>
-.back {
-  color: var(--gold-soft);
-  font-size: 0.9rem;
-}
-
-h1 {
-  margin: 0.4rem 0 0.85rem;
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-}
-
-.search {
-  width: 100%;
-  margin-bottom: 0.85rem;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--paper);
-  padding: 0.6rem 0.8rem;
-  font: inherit;
-}
-
-.tracks {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--line);
-}
-
-.tracks li {
-  border-bottom: 1px solid var(--line);
-}
-
-.tracks button {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 2.2rem 1fr;
-  gap: 0.5rem;
-  text-align: left;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  padding: 0.8rem 0.1rem;
-  cursor: pointer;
-  font: inherit;
-}
-
-.tracks button:hover .t {
-  color: var(--gold-soft);
-}
-
-.n {
-  color: var(--gold);
-  font-family: var(--font-display);
-}
-
-.t {
-  line-height: 1.35;
-}
-
-.muted {
-  color: var(--muted);
-}
-
-.err {
-  color: #e8a090;
-}
-</style>

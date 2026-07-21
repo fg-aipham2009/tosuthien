@@ -34,29 +34,34 @@ watch(region, load)
 </script>
 
 <template>
-  <div>
-    <header class="head">
-      <h1>Thiền đường</h1>
-      <div class="chips">
+  <div class="w-full">
+    <header class="mb-5">
+      <h1 class="font-serif text-3xl font-bold tracking-tight text-ink">Thiền đường</h1>
+      <div class="mt-3 flex flex-wrap gap-2">
         <button
           v-for="r in regions"
           :key="r.label"
           type="button"
-          class="chip"
-          :class="{ on: region === r.id }"
+          class="rounded-full border border-black/10 px-3.5 py-1.5 text-sm text-muted transition"
+          :class="region === r.id ? 'border-transparent bg-brand font-semibold text-white' : 'bg-surface hover:border-brand/30'"
           @click="region = r.id"
         >
           {{ r.label }}
         </button>
       </div>
     </header>
-    <p v-if="loading" class="muted">Đang tải…</p>
-    <p v-else-if="error" class="err">{{ error }}</p>
-    <ul v-else class="list">
+
+    <p v-if="loading" class="text-muted">Đang tải…</p>
+    <p v-else-if="error" class="text-red-800">{{ error }}</p>
+
+    <ul v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       <li v-for="c in centers" :key="c.id">
-        <RouterLink :to="`/thien-duong/${c.id}`">
-          <strong>{{ c.templeName }}</strong>
-          <span>
+        <RouterLink
+          class="block h-full rounded-2xl border border-black/10 bg-surface p-4 transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md"
+          :to="`/thien-duong/${c.id}`"
+        >
+          <strong class="font-serif text-lg leading-snug font-semibold">{{ c.templeName }}</strong>
+          <span class="mt-1.5 block text-sm text-muted">
             {{ [c.abbotRank, c.abbotName].filter(Boolean).join(' ') }}
             <template v-if="c.province"> · {{ c.province }}</template>
           </span>
@@ -65,73 +70,3 @@ watch(region, load)
     </ul>
   </div>
 </template>
-
-<style scoped>
-.head {
-  margin-bottom: 1rem;
-}
-
-h1 {
-  margin: 0 0 0.75rem;
-  font-family: var(--font-display);
-  font-size: 1.65rem;
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.chip {
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--muted);
-  border-radius: 999px;
-  padding: 0.35rem 0.75rem;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.85rem;
-}
-
-.chip.on {
-  background: var(--gold);
-  color: var(--ink);
-  border-color: transparent;
-}
-
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--line);
-}
-
-.list li {
-  border-bottom: 1px solid var(--line);
-}
-
-.list a {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.95rem 0.1rem;
-}
-
-.list strong {
-  font-family: var(--font-display);
-}
-
-.list span {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.muted {
-  color: var(--muted);
-}
-
-.err {
-  color: #e8a090;
-}
-</style>

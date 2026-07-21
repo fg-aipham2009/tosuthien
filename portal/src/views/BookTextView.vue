@@ -14,25 +14,37 @@ const error = ref('')
 const pdfId = ref<string | null>(null)
 const fontScale = ref(1.05)
 
+/** First page with real text (skip leading blankPages, e.g. 2 → start at 3). */
+const firstContentPage = computed(() => Math.max(1, (book.value?.blankPages ?? 0) + 1))
+
 const current = computed(() => pages.value.find((p) => p.page === page.value))
+
+function clampToContent(n: number) {
+  const max = pageCount.value || Number.POSITIVE_INFINITY
+  return Math.min(max, Math.max(firstContentPage.value, n))
+}
 
 async function loadWindow(center: number) {
   const from = Math.max(1, center - 5)
   const to = center + 14
   const data = await fetchTextPages(String(route.params.id), from, to)
   pageCount.value = data.pageCount
-  book.value = { ...(book.value as TextBook), title: data.title, pageCount: data.pageCount }
+  book.value = {
+    ...(book.value as TextBook),
+    title: data.title,
+    pageCount: data.pageCount,
+  }
   const map = new Map(pages.value.map((p) => [p.page, p]))
   for (const p of data.pages) map.set(p.page, p)
   pages.value = [...map.values()].sort((a, b) => a.page - b.page)
 }
 
 function prev() {
-  if (page.value > 1) page.value -= 1
+  page.value = clampToContent(page.value - 1)
 }
 
 function next() {
-  if (!pageCount.value || page.value < pageCount.value) page.value += 1
+  page.value = clampToContent(page.value + 1)
 }
 
 onMounted(async () => {
@@ -43,7 +55,10 @@ onMounted(async () => {
       error.value = 'Không tìm thấy sách chữ'
       return
     }
-    page.value = book.value.lastPage || 1
+    const saved = book.value.lastPage || 0
+    // Resume only if saved page is past leading blanks; otherwise open first content page.
+    page.value =
+      saved >= firstContentPage.value ? saved : firstContentPage.value
     const stem = String(route.params.id)
     pdfId.value =
       pdfs.find((p) => p.slug === stem || p.filename?.replace(/\.pdf$/i, '') === stem)?.id ?? null
@@ -56,6 +71,11 @@ onMounted(async () => {
 })
 
 watch(page, async (p) => {
+  const nextPage = clampToContent(p)
+  if (nextPage !== p) {
+    page.value = nextPage
+    return
+  }
   if (!pages.value.some((x) => x.page === p)) {
     loading.value = true
     try {
@@ -89,7 +109,7 @@ watch(page, async (p) => {
       <button
         type="button"
         class="rounded-full border border-black/10 bg-white px-3.5 py-2 text-sm font-semibold text-brand disabled:opacity-40"
-        :disabled="page <= 1"
+        :disabled="page <= firstContentPage"
         @click="prev"
       >
         Trước

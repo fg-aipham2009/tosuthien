@@ -20,73 +20,25 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
-    <header class="head">
-      <h1>MP3 khai thị</h1>
-      <p class="sub">Chọn album để nghe trên trình duyệt.</p>
+  <div class="w-full">
+    <header class="mb-5">
+      <h1 class="font-serif text-3xl font-bold tracking-tight">MP3 khai thị</h1>
+      <p class="mt-1.5 text-muted">Chọn album để nghe trên trình duyệt.</p>
     </header>
-    <p v-if="loading" class="muted">Đang tải…</p>
-    <p v-else-if="error" class="err">{{ error }}</p>
-    <ul v-else class="list">
+
+    <p v-if="loading" class="text-muted">Đang tải…</p>
+    <p v-else-if="error" class="text-red-800">{{ error }}</p>
+
+    <ul v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       <li v-for="c in cats" :key="c.id">
-        <RouterLink :to="`/mp3/${c.slug}`">
-          <strong>{{ c.name }}</strong>
-          <span v-if="c.description">{{ c.description }}</span>
+        <RouterLink
+          class="block h-full rounded-2xl border border-black/10 bg-surface p-4 transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md"
+          :to="`/mp3/${c.slug}`"
+        >
+          <strong class="font-serif text-lg font-semibold">{{ c.name }}</strong>
+          <span v-if="c.description" class="mt-1.5 block text-sm text-muted">{{ c.description }}</span>
         </RouterLink>
       </li>
     </ul>
   </div>
 </template>
-
-<style scoped>
-.head {
-  margin-bottom: 1rem;
-}
-
-h1 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.65rem;
-}
-
-.sub {
-  margin: 0.35rem 0 0;
-  color: var(--muted);
-}
-
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--line);
-}
-
-.list li {
-  border-bottom: 1px solid var(--line);
-}
-
-.list a {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 1rem 0.1rem;
-}
-
-.list strong {
-  font-family: var(--font-display);
-  font-size: 1.08rem;
-}
-
-.list span {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.muted {
-  color: var(--muted);
-}
-
-.err {
-  color: #e8a090;
-}
-</style>

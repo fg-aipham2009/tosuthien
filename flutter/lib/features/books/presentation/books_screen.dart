@@ -64,7 +64,10 @@ class _BooksScreenState extends State<BooksScreen> {
   }
 
   void _openText(TextBook book) {
-    final startPage = book.lastPage ?? 1;
+    final firstContent = (book.blankPages + 1).clamp(1, book.pageCount.clamp(1, 100000));
+    final saved = book.lastPage;
+    final startPage =
+        (saved != null && saved >= firstContent) ? saved : firstContent;
     Navigator.of(context)
         .push(
           MaterialPageRoute<void>(
