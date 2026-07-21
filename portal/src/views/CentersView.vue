@@ -145,7 +145,7 @@ function courseChipClass(type?: string | null): string {
           :to="`/thien-duong/${c.id}`"
         >
           <div
-            class="aspect-square w-1/2 shrink-0 self-start overflow-hidden bg-brand/10 text-brand"
+            class="flex aspect-square w-1/2 shrink-0 items-center justify-center self-start overflow-hidden bg-brand/10 text-brand"
           >
             <img
               v-if="resolveMediaUrl(c.mainImageUrl)"
