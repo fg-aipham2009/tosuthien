@@ -1,0 +1,46 @@
+/* ChatGPT / Claude inspired layout tokens (brand seed #5D4037) */
+.chat-theme {
+  --c-surface: #ffffff;
+  --c-surface-low: #f7f7f8;
+  --c-surface-mid: #f4f4f5;
+  --c-surface-high: #ececf1;
+  --c-on: #0d0d0d;
+  --c-muted: #6b6b76;
+  --c-primary: #5d4037;
+  --c-on-primary: #ffffff;
+  --c-outline: rgba(0, 0, 0, 0.08);
+  --c-sidebar: #171717;
+  --c-sidebar-hover: #212121;
+  --c-sidebar-on: #ececec;
+  --c-sidebar-muted: #a0a0a0;
+  --c-secondary-container: #efe6df;
+  --c-on-secondary-container: #3e2723;
+  --c-error-bg: #ffdad6;
+  --c-error: #93000a;
+  --c-col: min(48rem, 100%);
+  color: var(--c-on);
+  background: var(--c-surface);
+  font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+}
+
+@keyframes chat-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.chat-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(93, 64, 55, 0.22);
+  border-top-color: var(--c-primary);
+  border-radius: 50%;
+  animation: chat-spin 0.7s linear infinite;
+}
+
+.chat-spinner.light {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  width: 15px;
+  height: 15px;
+}

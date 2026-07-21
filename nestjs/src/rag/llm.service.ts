@@ -25,9 +25,10 @@ const INTENT_RULES = `HIỂU Ý HỎI (bắt buộc trước khi trích):
   · kiến tánh / minh tâm ≈ thấy tự tánh; tự tánh ≈ Phật tánh / bản lai diện mục.
   · công án / câu thoại ≈ phương tiện kích nghi, không phải giải thích lý thuyết suông.
 - Nếu user nói kiểu đời thường ("làm sao ngồi thiền", "nghĩa là gì", "chặt mèo") → tra đúng thuật ngữ trong ngữ cảnh (tham thiền / công án Nam Tuyền chém mèo…).
-- Nếu câu hỏi NÊU TÊN một kinh/sách (vd. "trong Kinh Pháp Bảo Đàn…"): PHẦN 1 phải ƯU TIÊN mở đầu bằng đoạn NGUYÊN VĂN DÀI đủ đầu–đuôi từ đúng kinh đó; các sách khác chỉ bổ sung sau nếu cần.
+- Nếu câu hỏi NÊU TÊN một kinh/sách (vd. "trong Kinh Pháp Bảo Đàn…"): PHẦN 1 phải ƯU TIÊN mở đầu bằng đoạn NGUYÊN VĂN DÀI đủ đầu–đuôi từ đúng kinh đó; các sách khác chỉ bổ sung sau nếu cần — TRỪ KHI khối "Ý hỏi đã chuẩn hóa" có dòng KHÓA SÁCH: khi đó CHỈ được trích đúng sách đã khóa, dù câu hỏi nêu tên sách khác.
 - Ưu tiên đoạn khớp đúng chủ đề đã chuẩn hóa; không lấy đoạn chỉ trùng từ chung ("thiền", "phật") nếu lệch ý hỏi.
-- Vẫn CHỈ được copy nguyên văn có trong ngữ cảnh — không bịa thuật ngữ mới vào phần 1.`;
+- Vẫn CHỈ được copy nguyên văn có trong ngữ cảnh — không bịa thuật ngữ mới vào phần 1.
+- Nếu có KHÓA SÁCH: nhãn — (Tên kinh, tr.X) phải đúng tên sách trong ngữ cảnh đã khóa; CẤM đổi sang tên sách khác; CẤM lấy nội dung từ hội thoại trước nếu sách đó không còn trong ngữ cảnh hiện tại.`;
 
 const BASE_RULES = `Bạn là trợ lý TRA CỨU kinh sách Tổ Sư Thiền (lời dạy HT. Thích Duy Lực).
 
@@ -236,8 +237,8 @@ export class LlmService {
     const userContent = `Câu hỏi: ${question.trim()}
 ${intentBlock}
 Ngữ cảnh: mỗi block có [KINH]/[NGỮ LỤC] và dòng "Trích dẫn: …".
-1) Đọc "Ý hỏi đã chuẩn hóa" (nếu có). Nếu câu hỏi nêu tên một kinh → mở đầu PHẦN 1 bằng đoạn RẤT DÀI đủ đầu–đuôi từ đúng kinh đó.
-2) PHẦN NGUYÊN VĂN (ưu tiên dài): COPY càng nhiều chữ liên quan càng tốt — cả đoạn/cảnh/HỎI–ĐÁP, nối nhiều [Trang] nếu cùng phân đoạn. CẤM mở giữa câu đang nối trang. CẤM trả lời ngắn khi block còn dài. Mỗi khối — (Tên kinh, tr.X) đúng [Trang N]. TUYỆT ĐỐI không chế / không cắt / không paraphrase / không tóm tắt.
+1) Đọc "Ý hỏi đã chuẩn hóa" (nếu có). Nếu có KHÓA SÁCH → chỉ trích / ghi nhãn đúng sách đó. Nếu không khóa mà câu hỏi nêu tên một kinh → mở đầu PHẦN 1 bằng đoạn RẤT DÀI đủ đầu–đuôi từ đúng kinh đó.
+2) PHẦN NGUYÊN VĂN (ưu tiên dài): COPY càng nhiều chữ liên quan càng tốt — cả đoạn/cảnh/HỎI–ĐÁP, nối nhiều [Trang] nếu cùng phân đoạn. CẤM mở giữa câu đang nối trang. CẤM trả lời ngắn khi block còn dài. Mỗi khối — (Tên kinh, tr.X) đúng [Trang N] và đúng sách trong block. TUYỆT ĐỐI không chế / không cắt / không paraphrase / không tóm tắt / không đổi tên sách.
 3) Nếu đã có nguyên văn: dòng ${AI_INTERPRETATION_MARKER} rồi diễn giải đủ ý — NỀN = câu hỏi + phần 1; PHỤ = kiến thức nền nếu giúp phong phú. Giọng tự nhiên; CẤM "dựa vào đoạn trích…".
 ${context}`;
 

@@ -12,17 +12,28 @@ if [[ ! -d "$NGINX_SRC" ]]; then
 fi
 
 echo "==> Copy nginx configs to $NGINX_DST"
-sudo cp "$NGINX_SRC/api.tosuthien.net.conf" "$NGINX_DST/"
-sudo cp "$NGINX_SRC/admin.tosuthien.net.conf" "$NGINX_DST/"
-sudo cp "$NGINX_SRC/tosuthien.net.conf" "$NGINX_DST/"
+# Preserve Certbot SSL blocks already on the live apex config if present.
+if [[ -f /etc/nginx/sites-enabled/tosuthien.net.conf ]] \
+  && grep -q "managed by Certbot" /etc/nginx/sites-enabled/tosuthien.net.conf; then
+  echo "  Keeping live tosuthien.net.conf (Certbot SSL) — only sync other sites"
+  sudo cp "$NGINX_SRC/api.tosuthien.net.conf" "$NGINX_DST/"
+  sudo cp "$NGINX_SRC/admin.tosuthien.net.conf" "$NGINX_DST/"
+  sudo cp "$NGINX_SRC/app.tosuthien.net.conf" "$NGINX_DST/"
+else
+  sudo cp "$NGINX_SRC/api.tosuthien.net.conf" "$NGINX_DST/"
+  sudo cp "$NGINX_SRC/admin.tosuthien.net.conf" "$NGINX_DST/"
+  sudo cp "$NGINX_SRC/app.tosuthien.net.conf" "$NGINX_DST/"
+  sudo cp "$NGINX_SRC/tosuthien.net.conf" "$NGINX_DST/"
+fi
 
 echo "==> Enable sites"
 sudo ln -sf "$NGINX_DST/api.tosuthien.net.conf" /etc/nginx/sites-enabled/
 sudo ln -sf "$NGINX_DST/admin.tosuthien.net.conf" /etc/nginx/sites-enabled/
+sudo ln -sf "$NGINX_DST/app.tosuthien.net.conf" /etc/nginx/sites-enabled/
 sudo ln -sf "$NGINX_DST/tosuthien.net.conf" /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
-echo "==> Flutter web root"
+echo "==> Flutter web root (app.tosuthien.net)"
 WWW_ROOT="/opt/tosu-thien/www"
 sudo mkdir -p "$WWW_ROOT"
 if [[ -f "$REPO_ROOT/www/index.html" ]] && [[ ! -f "$WWW_ROOT/index.html" ]]; then
@@ -31,20 +42,26 @@ fi
 sudo chown -R www-data:www-data "$WWW_ROOT"
 sudo chmod -R 755 "$WWW_ROOT"
 
+echo "==> Portal root (tosuthien.net)"
+PORTAL_ROOT="/opt/tosu-thien/portal"
+sudo mkdir -p "$PORTAL_ROOT"
+if [[ -d "$REPO_ROOT/portal/dist" ]] && [[ -f "$REPO_ROOT/portal/dist/index.html" ]]; then
+  sudo rsync -a --delete "$REPO_ROOT/portal/dist/" "$PORTAL_ROOT/"
+fi
+sudo chown -R www-data:www-data "$PORTAL_ROOT"
+sudo chmod -R 755 "$PORTAL_ROOT"
+
+# Point apex at portal if still on Flutter www
+if grep -q 'root /opt/tosu-thien/www;' /etc/nginx/sites-enabled/tosuthien.net.conf 2>/dev/null; then
+  echo "==> Switch tosuthien.net root → /opt/tosu-thien/portal"
+  sudo sed -i 's|root /opt/tosu-thien/www;|root /opt/tosu-thien/portal;|' \
+    /etc/nginx/sites-enabled/tosuthien.net.conf
+fi
+
 echo "==> Test and reload nginx"
 sudo nginx -t
 sudo systemctl reload nginx
 
 echo ""
-echo "Upload limit: 1 GiB per file (nginx + NestJS). Rebuild Docker after pull:"
-echo "  docker compose up -d --build admin api"
-
-echo ""
-echo "Done. Next steps:"
-echo "  1. docker compose up -d          # api :8000, admin :5173"
-echo "  2. Copy Flutter build to www:"
-echo "       rsync -av flutter/build/web/ /opt/tosu-thien/www/"
-echo "  3. SSL:"
-echo "       sudo certbot --nginx -d tosuthien.net -d www.tosuthien.net -d api.tosuthien.net -d admin.tosuthien.net"
-echo "  4. .env: PUBLIC_BASE_URL=https://api.tosuthien.net"
-echo "       docker compose up -d --force-recreate api"
+echo "Done. Portal: https://tosuthien.net  ·  App: https://app.tosuthien.net"
+echo "  SSL: sudo certbot --nginx --expand -d tosuthien.net -d www.tosuthien.net -d app.tosuthien.net -d api.tosuthien.net -d admin.tosuthien.net"

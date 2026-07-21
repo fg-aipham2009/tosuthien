@@ -126,7 +126,8 @@ export class ChatService {
       answer,
       citations.length ? citations : prepared.slimCitations,
       prepared.keywords,
-      prepared.sourceHints,
+      prepared.lockedSourceFiles.length ? [] : prepared.sourceHints,
+      prepared.lockedSourceFiles,
     );
 
     return {
@@ -216,7 +217,8 @@ export class ChatService {
       finalAnswer,
       citations.length ? citations : prepared.slimCitations,
       prepared.keywords,
-      prepared.sourceHints,
+      prepared.lockedSourceFiles.length ? [] : prepared.sourceHints,
+      prepared.lockedSourceFiles,
     );
     yield {
       type: 'done',
@@ -249,6 +251,7 @@ export class ChatService {
         slimCitations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[];
         styleContext: AnswerStyleContext;
         meta: ChatResult['meta'];
+        lockedSourceFiles: string[];
       }
   > {
     const q = question.trim();
@@ -271,10 +274,14 @@ export class ChatService {
     if (sourceFiles.length) {
       intentBrief = [
         intentBrief,
-        `Chỉ tra cứu trong sách: ${sourceFiles.join(', ')}`,
+        `KHÓA SÁCH (bắt buộc): chỉ tra cứu / trích / ghi nhãn — (Tên kinh, tr.X) từ đúng các file: ${sourceFiles.join(', ')}. CẤM nêu tên hoặc trích sách ngoài danh sách này (kể cả hội thoại trước).`,
       ]
         .filter(Boolean)
         .join('\n');
+    } else if (options.sourceFiles?.length) {
+      this.logger.warn(
+        `sourceFiles ignored after normalize (client sent ${JSON.stringify(options.sourceFiles)})`,
+      );
     }
     const searchKeywords = expandKeywords(keywords);
     const stem = questionStem(q);
@@ -374,11 +381,17 @@ export class ChatService {
       sourceHints.length && styleContextRaw.style === 'brief'
         ? { ...styleContextRaw, style: 'kinh_long' as const }
         : styleContextRaw;
-    const primaryFiles = resolvePrimarySourceFiles(sourceHints);
-    const hits = this.diversifyBySource(
-      this.trimHitsForStyle(rankedHits, styleContext.style, relevanceOf),
-      Math.max(k, 8),
-      primaryFiles,
+    // When user locked books, do not pin unrelated "named book" hints from the question.
+    const primaryFiles = sourceFiles.length
+      ? sourceFiles
+      : resolvePrimarySourceFiles(sourceHints);
+    const hits = this.restrictHitsToSources(
+      this.diversifyBySource(
+        this.trimHitsForStyle(rankedHits, styleContext.style, relevanceOf),
+        Math.max(k, 8),
+        primaryFiles,
+      ),
+      sourceFiles,
     );
 
     const meta: ChatResult['meta'] = {
@@ -419,6 +432,7 @@ export class ChatService {
       slimCitations,
       styleContext,
       meta,
+      lockedSourceFiles: sourceFiles,
     };
   }
 
@@ -436,6 +450,24 @@ export class ChatService {
       if (/^\d{1,2}\.txt$/.test(file)) out.add(file);
     }
     return [...out].sort((a, b) => Number(a.replace('.txt', '')) - Number(b.replace('.txt', '')));
+  }
+
+  /** Safety net: drop any hit outside the hard book filter. */
+  private restrictHitsToSources(
+    hits: PassageHit[],
+    sourceFiles: string[],
+  ): PassageHit[] {
+    if (!sourceFiles.length) return hits;
+    const allow = new Set(sourceFiles.map((f) => f.toLowerCase()));
+    return hits.filter((h) => allow.has((h.sourceFile || '').toLowerCase()));
+  }
+
+  private restrictCitationsToSources<
+    T extends { sourceFile?: string | null },
+  >(citations: T[], sourceFiles: string[]): T[] {
+    if (!sourceFiles.length) return citations;
+    const allow = new Set(sourceFiles.map((f) => f.toLowerCase()));
+    return citations.filter((c) => allow.has((c.sourceFile || '').toLowerCase()));
   }
 
   private sourceFilterSql(sourceFiles: string[]): Prisma.Sql {
@@ -465,10 +497,12 @@ export class ChatService {
     pool: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
     keywords: string[],
     sourceHints: string[],
+    lockedSourceFiles: string[] = [],
   ): Promise<ChatCitation[]> {
+    const scopedPool = this.restrictCitationsToSources(pool, lockedSourceFiles);
     const refs = this.parseAnswerCitationRefs(answer);
-    if (!refs.length || !pool.length) {
-      return this.prepareDisplayCitations(pool, keywords, sourceHints);
+    if (!refs.length || !scopedPool.length) {
+      return this.prepareDisplayCitations(scopedPool, keywords, sourceHints);
     }
 
     const selected: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] = [];
@@ -476,7 +510,7 @@ export class ChatService {
 
     for (const ref of refs) {
       if (selected.length >= MAX_DISPLAY_CITATIONS) break;
-      const match = this.matchCitationRef(ref, pool);
+      const match = this.matchCitationRef(ref, scopedPool);
       if (!match) continue;
       const page = ref.page ?? match.pageNum ?? match.pageStart ?? null;
       const key = `${(match.sourceFile || match.title).toLowerCase()}::${page ?? 'x'}`;
@@ -501,14 +535,14 @@ export class ChatService {
     }
 
     if (!selected.length) {
-      return this.prepareDisplayCitations(pool, keywords, sourceHints);
+      return this.prepareDisplayCitations(scopedPool, keywords, sourceHints);
     }
 
     // Fill remaining slots from ranked pool (other books), without dropping
     // answer-aligned ones when sourceHints would have filtered them.
     if (selected.length < MAX_DISPLAY_CITATIONS) {
       const fallback = await this.prepareDisplayCitations(
-        pool,
+        scopedPool,
         keywords,
         sourceHints,
       );
@@ -525,7 +559,9 @@ export class ChatService {
       }
     }
 
-    return this.citationLinks.enrichCitations(selected);
+    return this.citationLinks.enrichCitations(
+      this.restrictCitationsToSources(selected, lockedSourceFiles),
+    );
   }
 
   /** Parse `— (Book Title, tr.16)` (and optional preceding "quote") from answer. */
