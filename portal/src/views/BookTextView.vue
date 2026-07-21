@@ -18,17 +18,66 @@ const fontScale = ref(1.12)
 
 const current = computed(() => pages.value.find((p) => p.page === page.value))
 
-/** Reflow OCR soft line-breaks so text fills the reading width. */
-const displayText = computed(() => {
-  const raw =
-    current.value?.text ||
-    (current.value?.isBlank ? '(Trang trống)' : 'Không có nội dung')
+/**
+ * OCR running headers look like:
+ *   "Hòa Thượng THÍCH DUY LỰC 29"
+ *   "Biên soạn : THÍCH DUY LỰC 29"
+ *   "Dịch giả: THÍCH DUY LỰC 195"
+ *   "29 Dịch giả: THÍCH DUY LỰC"
+ * Show label left + page number right, like the printed book.
+ */
+function parseRunningHeader(raw: string): { label: string; pageLabel: string; body: string } | null {
+  const text = raw.replace(/\r\n/g, '\n').trimStart()
+  if (!text) return null
+  const nl = text.indexOf('\n')
+  const first = (nl >= 0 ? text.slice(0, nl) : text).trim()
+  const rest = nl >= 0 ? text.slice(nl + 1) : ''
+
+  // "... THÍCH DUY LỰC 29" or "Hòa Thượng THÍCH DUY LỰC 29"
+  let m = first.match(
+    /^((?:Hòa\s+Thượng\s+)?(?:Biên\s+soạn\s*:?\s*)?(?:Dịch\s+giả\s*:?\s*)?(?:HT\.?\s*)?THÍCH\s+DUY\s+LỰC)\s+(\d{1,4})\s*$/i,
+  )
+  if (m) {
+    return { label: m[1].replace(/\s+/g, ' ').trim(), pageLabel: m[2], body: rest }
+  }
+
+  // "29 Dịch giả: THÍCH DUY LỰC"
+  m = first.match(
+    /^(\d{1,4})\s+((?:Dịch\s+giả\s*:?\s*)?(?:HT\.?\s*)?THÍCH\s+DUY\s+LỰC)\s*$/i,
+  )
+  if (m) {
+    return { label: m[2].replace(/\s+/g, ' ').trim(), pageLabel: m[1], body: rest }
+  }
+
+  return null
+}
+
+function reflowBody(raw: string) {
   return raw
     .replace(/\r\n/g, '\n')
     .split(/\n{2,}/)
     .map((para) => para.replace(/\n+/g, ' ').replace(/[ \t]+/g, ' ').trim())
     .filter(Boolean)
     .join('\n\n')
+}
+
+const pageLayout = computed(() => {
+  const raw =
+    current.value?.text ||
+    (current.value?.isBlank ? '(Trang trống)' : 'Không có nội dung')
+  const header = parseRunningHeader(raw)
+  if (header) {
+    return {
+      label: header.label,
+      pageLabel: header.pageLabel,
+      body: reflowBody(header.body),
+    }
+  }
+  return {
+    label: '',
+    pageLabel: '',
+    body: reflowBody(raw),
+  }
 })
 
 function isContentPage(p?: TextBookPage | null) {
@@ -183,10 +232,17 @@ watch(page, async (p) => {
       class="min-h-[70vh] flex-1 bg-gradient-to-b from-[#fffdf9] to-[#f3ebe3] px-5 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10 xl:px-16"
       :style="{ fontSize: `${fontScale}rem` }"
     >
-      <div
-        class="mx-auto w-full max-w-none font-serif leading-[1.85] break-words whitespace-pre-wrap text-[#2a211c]"
+      <header
+        v-if="pageLayout.label"
+        class="mb-5 flex items-baseline justify-between gap-4 border-b border-brand/15 pb-2.5 font-serif text-[0.92em] tracking-wide text-brand"
       >
-        {{ displayText }}
+        <span class="min-w-0 flex-1">{{ pageLayout.label }}</span>
+        <span class="shrink-0 tabular-nums font-semibold">{{ pageLayout.pageLabel }}</span>
+      </header>
+      <div
+        class="w-full max-w-none font-serif leading-[1.85] break-words whitespace-pre-wrap text-[#2a211c]"
+      >
+        {{ pageLayout.body }}
       </div>
     </article>
   </div>
