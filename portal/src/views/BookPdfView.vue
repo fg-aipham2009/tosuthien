@@ -35,14 +35,32 @@ onMounted(async () => {
   try {
     const all = await listPdfs()
     book.value = all.find((b) => b.id === route.params.id) ?? null
-    if (!book.value) error.value = 'Không tìm thấy sách'
-    else page.value = book.value.lastPage || 1
+    if (!book.value) {
+      error.value = 'Không tìm thấy sách'
+      return
+    }
+    const fromQuery = Number(route.query.page)
+    if (Number.isFinite(fromQuery) && fromQuery >= 1) {
+      page.value = clampPage(fromQuery)
+    } else {
+      page.value = book.value.lastPage || 1
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Lỗi tải PDF'
   } finally {
     loading.value = false
   }
 })
+
+watch(
+  () => route.query.page,
+  (raw) => {
+    const fromQuery = Number(raw)
+    if (Number.isFinite(fromQuery) && fromQuery >= 1) {
+      page.value = clampPage(fromQuery)
+    }
+  },
+)
 
 watch(page, (p) => {
   if (book.value) void saveReadingProgress(book.value.id, p).catch(() => {})

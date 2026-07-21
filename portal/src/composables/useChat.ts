@@ -66,6 +66,8 @@ export function useChat(listEl: Ref<HTMLElement | null>) {
         role: m.role,
         content: m.content,
         citations: m.citations,
+        aiInterpretation: m.aiInterpretation,
+        disclaimer: m.disclaimer,
       })),
       sourceFiles: [...selected.value],
     }
@@ -191,6 +193,8 @@ export function useChat(listEl: Ref<HTMLElement | null>) {
           onDone: (payload) => {
             assistant.content = payload.answer || assistant.content
             assistant.citations = payload.citations
+            assistant.aiInterpretation = payload.aiInterpretation ?? null
+            assistant.disclaimer = payload.disclaimer ?? null
             assistant.streaming = false
             phase.value = ''
           },

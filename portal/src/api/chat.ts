@@ -12,6 +12,7 @@ export type StreamHandlers = {
   onDelta?: (text: string) => void
   onDone?: (payload: {
     answer: string
+    aiInterpretation?: string | null
     citations: ChatCitation[]
     disclaimer?: string
   }) => void
@@ -83,6 +84,7 @@ function parseSseBlock(block: string, handlers: StreamHandlers) {
   else if (type === 'done') {
     handlers.onDone?.({
       answer: String(payload.answer ?? ''),
+      aiInterpretation: (payload.aiInterpretation as string | null | undefined) ?? null,
       citations: (payload.citations as ChatCitation[]) ?? [],
       disclaimer: payload.disclaimer as string | undefined,
     })

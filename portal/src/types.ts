@@ -4,21 +4,42 @@ export interface ChatMessage {
   role: ChatRole
   content: string
   citations?: ChatCitation[]
+  /** Separate AI commentary — show below citations. */
+  aiInterpretation?: string | null
+  disclaimer?: string | null
   streaming?: boolean
 }
 
+export interface ChatCitationPageLink {
+  printed: number
+  filePage: number
+  openLabel: string
+}
+
 export interface ChatCitation {
+  passageId?: string
+  label?: string
   title?: string
-  pageNum?: number
+  volume?: string | null
+  pageNum?: number | null
+  pageStart?: number | null
+  pageEnd?: number | null
+  pages?: number[]
   sourceFile?: string
+  score?: number
   quote?: string
   excerpt?: string
-  openLabel?: string
+  openLabel?: string | null
   pdf?: {
+    pdfFileId?: string
+    pdfTitle?: string
+    pdfSlug?: string
     pdfUrl?: string
-    pageNum?: number
+    pageNum?: number | null
     openLabel?: string
-  }
+    apiPath?: string
+  } | null
+  pageLinks?: ChatCitationPageLink[]
 }
 
 export interface RagSource {
