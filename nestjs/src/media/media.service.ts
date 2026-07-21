@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as fs from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateMediaCategoryDto,
@@ -10,14 +17,22 @@ import {
   ToggleMp3FavoriteDto,
 } from '../dto';
 import { PublicUrlService } from '../common/public-url.service';
-import { mp3PublicPath } from '../common/media-paths';
+import { MEDIA_DIRS, mp3PublicPath } from '../common/media-paths';
 
 @Injectable()
 export class MediaService {
+  private readonly dataRoot: string;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly urls: PublicUrlService,
-  ) {}
+    private readonly config: ConfigService,
+  ) {
+    this.dataRoot = path.resolve(
+      this.config.get<string>('DATA_ROOT') ||
+        path.join(process.cwd(), '..', 'data'),
+    );
+  }
 
   findCategories() {
     return this.prisma.mediaCategory.findMany({
@@ -214,5 +229,51 @@ export class MediaService {
     const row = await this.prisma.mediaCategory.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Category not found');
     return row;
+  }
+
+  /**
+   * Resolve absolute directory for an MP3 folderPath (DB value, trailing slash OK).
+   * Returns list of existing .mp3 files to include in a zip.
+   */
+  resolveMp3FolderFiles(folderPath: string): {
+    absDir: string;
+    zipName: string;
+    files: { abs: string; name: string }[];
+  } {
+    const clean = folderPath
+      .replace(/^\/+/, '')
+      .replace(/\\/g, '/')
+      .replace(/\/+$/, '');
+    if (!clean || clean.includes('..')) {
+      throw new BadRequestException('folder path không hợp lệ');
+    }
+
+    const base = path.join(this.dataRoot, MEDIA_DIRS.mp3);
+    const absDir = path.join(base, clean);
+    const rel = path.relative(base, absDir);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+      throw new BadRequestException('folder path nằm ngoài data/mp3');
+    }
+    if (!fs.existsSync(absDir) || !fs.statSync(absDir).isDirectory()) {
+      throw new NotFoundException('Thư mục MP3 không tồn tại');
+    }
+
+    const entries = fs.readdirSync(absDir, { withFileTypes: true });
+    const files = entries
+      .filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.mp3'))
+      .map((e) => ({
+        abs: path.join(absDir, e.name),
+        name: e.name,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+
+    if (!files.length) {
+      throw new NotFoundException('Thư mục không có file MP3');
+    }
+
+    const leaf = clean.split('/').filter(Boolean).pop() || 'mp3-folder'
+    const zipName = `${leaf.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'mp3-folder'}.zip`
+
+    return { absDir, zipName, files };
   }
 }

@@ -7,9 +7,12 @@ import {
   Body,
   Param,
   Query,
+  Res,
   ParseUUIDPipe,
   BadRequestException,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import archiver = require('archiver');
 import { MediaService } from './media.service';
 import {
   CreateMediaCategoryDto,
@@ -78,6 +81,42 @@ export class Mp3Controller {
   @Delete(':id')
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.removeMp3(id);
+  }
+}
+
+@Controller('mp3/folders')
+export class Mp3FoldersController {
+  constructor(private readonly service: MediaService) {}
+
+  /** Stream a zip of all .mp3 files in one folder (store — no recompress). */
+  @Get('zip')
+  zipFolder(@Query('folder') folder: string | undefined, @Res() res: Response) {
+    if (!folder?.trim()) {
+      throw new BadRequestException('folder is required');
+    }
+    const { zipName, files } = this.service.resolveMp3FolderFiles(folder.trim());
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(zipName)}`,
+    );
+    res.setHeader('Cache-Control', 'no-store');
+
+    const archive = archiver('zip', { store: true });
+    archive.on('error', (err: Error) => {
+      if (!res.headersSent) {
+        res.status(500).json({ message: err.message });
+      } else {
+        res.destroy(err);
+      }
+    });
+    archive.pipe(res);
+
+    for (const f of files) {
+      archive.file(f.abs, { name: f.name });
+    }
+    void archive.finalize();
   }
 }
 

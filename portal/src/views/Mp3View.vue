@@ -20,7 +20,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="w-full">
+  <div class="w-full pb-28">
     <header class="mb-5">
       <h1 class="font-serif text-3xl font-bold tracking-tight">MP3 khai thị</h1>
       <p class="mt-1.5 text-muted">Chọn album để nghe trên trình duyệt.</p>
