@@ -560,7 +560,9 @@ export class ChatService {
     }
 
     return this.citationLinks.enrichCitations(
-      this.restrictCitationsToSources(selected, lockedSourceFiles),
+      this.mergeCitationsBySource(
+        this.restrictCitationsToSources(selected, lockedSourceFiles),
+      ).slice(0, MAX_DISPLAY_CITATIONS),
     );
   }
 
@@ -680,13 +682,90 @@ export class ChatService {
         (a, b) => this.citationRank(b, keywords) - this.citationRank(a, keywords),
       );
 
-    const diversified = this.diversifyCitationsBySource(
-      ranked,
-      MAX_DISPLAY_CITATIONS,
-      resolvePrimarySourceFiles(sourceHints),
-    );
+    const diversified = this.mergeCitationsBySource(
+      this.diversifyCitationsBySource(
+        ranked,
+        MAX_DISPLAY_CITATIONS,
+        resolvePrimarySourceFiles(sourceHints),
+      ),
+    ).slice(0, MAX_DISPLAY_CITATIONS);
 
     return this.citationLinks.enrichCitations(diversified);
+  }
+
+  /**
+   * One UI card per book: collapse tr.3 / tr.4 / tr.5 into pages [3,4,5]
+   * with tappable chips (Flutter parity).
+   */
+  private mergeCitationsBySource(
+    citations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
+  ): Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] {
+    if (citations.length <= 1) return citations;
+
+    const groups = new Map<
+      string,
+      Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[]
+    >();
+    for (const c of citations) {
+      const key = (c.sourceFile || c.title || 'unknown').toLowerCase();
+      const list = groups.get(key) ?? [];
+      list.push(c);
+      groups.set(key, list);
+    }
+
+    const out: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] = [];
+    for (const group of groups.values()) {
+      const pageSet = new Set<number>();
+      for (const c of group) {
+        if (c.pages?.length) {
+          for (const p of c.pages) pageSet.add(p);
+        } else if (c.pageNum != null) {
+          pageSet.add(c.pageNum);
+        }
+        if (c.pageStart != null && c.pageEnd != null && c.pageEnd >= c.pageStart) {
+          for (let p = c.pageStart; p <= c.pageEnd; p++) pageSet.add(p);
+        }
+      }
+      const pages = [...pageSet].sort((a, b) => a - b);
+      const primary = [...group].sort(
+        (a, b) => Number(b.score) - Number(a.score),
+      )[0];
+      const pageStart = pages[0] ?? primary.pageStart ?? primary.pageNum ?? null;
+      const pageEnd =
+        pages[pages.length - 1] ?? primary.pageEnd ?? primary.pageNum ?? null;
+      const quote =
+        group.map((c) => c.quote?.trim()).find((q) => q && q.length > 0) ||
+        primary.quote;
+      const excerpt =
+        group
+          .map((c) => c.excerpt?.trim())
+          .filter((e): e is string => !!e && e.length > 0)
+          .sort((a, b) => b.length - a.length)[0] || primary.excerpt;
+
+      out.push({
+        ...primary,
+        pages,
+        pageNum: primary.pageNum ?? pageStart,
+        pageStart,
+        pageEnd,
+        label: this.formatLabel(primary.title, primary.volume, pageStart, pageEnd),
+        quote: quote ?? primary.quote,
+        excerpt: excerpt ?? primary.excerpt,
+      });
+    }
+
+    // Preserve original relative order by first appearance of each source.
+    const order = new Map<string, number>();
+    citations.forEach((c, i) => {
+      const key = (c.sourceFile || c.title || 'unknown').toLowerCase();
+      if (!order.has(key)) order.set(key, i);
+    });
+    out.sort(
+      (a, b) =>
+        (order.get((a.sourceFile || a.title || '').toLowerCase()) ?? 0) -
+        (order.get((b.sourceFile || b.title || '').toLowerCase()) ?? 0),
+    );
+    return out;
   }
 
   /**
@@ -697,24 +776,27 @@ export class ChatService {
     limit: number,
     primaryFiles: string[] = [],
   ): Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] {
+    // Keep all pages per source; mergeCitationsBySource collapses them to one card.
     const ranked = this.dedupeCitationsBySourcePage(citations);
     const primary = new Set(primaryFiles.map((f) => f.toLowerCase()));
     const out: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] = [];
-    const seen = new Set<string>();
+    const sourceCount = new Map<string, number>();
 
     const push = (c: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>) => {
       const key = (c.sourceFile || c.title || 'unknown').toLowerCase();
-      if (seen.has(key)) return;
-      seen.add(key);
+      // Cap raw rows per book before merge (neighbor pages / answer refs).
+      const n = sourceCount.get(key) ?? 0;
+      if (n >= 8) return;
+      sourceCount.set(key, n + 1);
       out.push(c);
     };
 
     for (const c of ranked) {
-      if (out.length >= limit) break;
+      if (out.length >= limit * 4) break;
       if (primary.has((c.sourceFile || '').toLowerCase())) push(c);
     }
     for (const c of ranked) {
-      if (out.length >= limit) break;
+      if (out.length >= limit * 4) break;
       push(c);
     }
     return out;
