@@ -98,8 +98,17 @@ curl -I https://tosuthien.net       # Vue 3 portal
 
 ## Portal (Vue 3) → /opt/tosu-thien/portal
 
+**Only deploy `portal/dist/`.** Never rsync the Vite source tree into the web root.
+If `/src/main.ts` is served, nginx’s default MIME is `video/mp2t` and the browser shows:
+
+> Failed to load module script … MIME type of "video/mp2t"
+
 ```bash
+./deploy/scripts/deploy-portal.sh
+# or manually:
 cd portal && npm ci && npm run build
 rsync -avz --delete dist/ tosuthien-vps:/tmp/portal-dist/
 ssh tosuthien-vps 'sudo rsync -a --delete /tmp/portal-dist/ /opt/tosu-thien/portal/'
 ```
+
+After nginx config changes, reload on VPS (`nginx -t && systemctl reload nginx`).
