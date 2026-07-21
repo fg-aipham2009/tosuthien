@@ -8,16 +8,19 @@ const route = useRoute()
 const book = ref<TextBook | null>(null)
 const pages = ref<TextBookPage[]>([])
 const pageCount = ref(0)
+/** Lowest page the reader may show (after skipping leading blank front-matter). */
+const firstContentPage = ref(1)
 const page = ref(1)
 const loading = ref(true)
 const error = ref('')
 const pdfId = ref<string | null>(null)
 const fontScale = ref(1.05)
 
-/** First page with real text (skip leading blankPages, e.g. 2 → start at 3). */
-const firstContentPage = computed(() => Math.max(1, (book.value?.blankPages ?? 0) + 1))
-
 const current = computed(() => pages.value.find((p) => p.page === page.value))
+
+function isContentPage(p?: TextBookPage | null) {
+  return !!p && !p.isBlank && p.text.trim().length > 0
+}
 
 function clampToContent(n: number) {
   const max = pageCount.value || Number.POSITIVE_INFINITY
@@ -39,6 +42,30 @@ async function loadWindow(center: number) {
   pages.value = [...map.values()].sort((a, b) => a.page - b.page)
 }
 
+/**
+ * Leading pages were padded to match printed book numbers (blankPages).
+ * Find the first page that actually has text — never open on those blanks.
+ */
+async function resolveFirstContentPage(hintBlank: number): Promise<number> {
+  const hint = Math.max(1, hintBlank + 1)
+  const probeTo = Math.min(pageCount.value || hint + 20, hint + 24)
+  await loadWindow(hint)
+  const hit = pages.value.find((p) => p.page >= hint && isContentPage(p))
+  if (hit) return hit.page
+
+  // Wider probe from page 1 if metadata hint missed.
+  const data = await fetchTextPages(String(route.params.id), 1, probeTo)
+  pageCount.value = data.pageCount
+  for (const p of data.pages) {
+    const i = pages.value.findIndex((x) => x.page === p.page)
+    if (i >= 0) pages.value[i] = p
+    else pages.value.push(p)
+  }
+  pages.value.sort((a, b) => a.page - b.page)
+  const first = data.pages.find((p) => isContentPage(p))
+  return first?.page ?? hint
+}
+
 function prev() {
   page.value = clampToContent(page.value - 1)
 }
@@ -55,14 +82,21 @@ onMounted(async () => {
       error.value = 'Không tìm thấy sách chữ'
       return
     }
+
+    pageCount.value = book.value.pageCount || 0
+    firstContentPage.value = await resolveFirstContentPage(book.value.blankPages ?? 0)
+
     const saved = book.value.lastPage || 0
-    // Resume only if saved page is past leading blanks; otherwise open first content page.
-    page.value =
-      saved >= firstContentPage.value ? saved : firstContentPage.value
+    // Resume only inside content range; otherwise open first page with text.
+    page.value = saved >= firstContentPage.value ? saved : firstContentPage.value
+
     const stem = String(route.params.id)
     pdfId.value =
       pdfs.find((p) => p.slug === stem || p.filename?.replace(/\.pdf$/i, '') === stem)?.id ?? null
-    await loadWindow(page.value)
+
+    if (!pages.value.some((p) => p.page === page.value)) {
+      await loadWindow(page.value)
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Lỗi tải trang'
   } finally {

@@ -90,12 +90,22 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
     } else if (localPage != null && localPage >= 1) {
       start = localPage;
     }
-    // Skip leading blank front-matter pages (e.g. blankPages=2 → open at page 3).
+    // Skip leading blank front-matter pages (padded to match printed book).
     if (start < _firstContentPage) start = _firstContentPage;
     start = start.clamp(_firstContentPage, _pageCount);
 
     try {
       await _ensurePagesAround(start);
+      // If still blank (metadata off), walk forward to first page with text.
+      while (start < _pageCount) {
+        final cached = _cache[start];
+        final hasText = cached != null &&
+            !cached.isBlank &&
+            cached.text.trim().isNotEmpty;
+        if (hasText) break;
+        start += 1;
+        await _ensurePagesAround(start);
+      }
       if (!mounted) return;
       setState(() {
         _currentPage = start;
@@ -103,6 +113,13 @@ class _TextBookReaderScreenState extends State<TextBookReaderScreen> {
       });
       if (_pageController.hasClients) {
         _pageController.jumpToPage(start - 1);
+      } else {
+        // Recreate controller if initialPage was wrong before first content resolved.
+        // PageController already created in initState — jump after first frame.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_pageController.hasClients) return;
+          _pageController.jumpToPage(start - 1);
+        });
       }
     } catch (e) {
       if (!mounted) return;
