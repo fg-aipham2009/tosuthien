@@ -134,7 +134,7 @@ export class ChatService {
       answer,
       aiInterpretation,
       disclaimer: RAG_DISCLAIMER,
-      citations: displayCitations,
+      citations: this.slimCitationsForClient(displayCitations),
       meta: {
         ...prepared.meta,
         llmMs,
@@ -213,6 +213,10 @@ export class ChatService {
     const finalAnswer =
       answer ||
       'Trong tư liệu hiện có chưa tìm thấy đoạn liên quan. Hãy thử hỏi theo từ khóa khác.';
+
+    // Signal progress so the SSE socket stays active while citations assemble.
+    yield { type: 'status', phase: 'finalizing' };
+
     const displayCitations = await this.citationsForAnswer(
       finalAnswer,
       citations.length ? citations : prepared.slimCitations,
@@ -225,7 +229,7 @@ export class ChatService {
       answer: finalAnswer,
       aiInterpretation,
       disclaimer: RAG_DISCLAIMER,
-      citations: displayCitations,
+      citations: this.slimCitationsForClient(displayCitations),
       meta: {
         ...prepared.meta,
         llmMs,
@@ -560,6 +564,27 @@ export class ChatService {
     return this.citationLinks.enrichCitations(
       merged.slice(0, MAX_DISPLAY_CITATIONS),
     );
+  }
+
+  /**
+   * Cap excerpt/quote size for API/SSE payloads. Neighbor windows can be 6k+
+   * chars each; dumping them all in one `done` frame blows up chunked encoding
+   * under browser backpressure.
+   */
+  private slimCitationsForClient(citations: ChatCitation[]): ChatCitation[] {
+    const maxExcerpt = 900;
+    return citations.map((c) => ({
+      ...c,
+      quote: this.clipText(c.quote, maxExcerpt),
+      excerpt: this.clipText(c.excerpt, maxExcerpt),
+    }));
+  }
+
+  private clipText(value: string | null | undefined, max: number): string {
+    const text = (value ?? '').trim();
+    if (!text) return '';
+    if (text.length <= max) return text;
+    return `${text.slice(0, max).trimEnd()}…`;
   }
 
   /** Parse `— (Book Title, tr.16)` (and optional preceding "quote") from answer. */

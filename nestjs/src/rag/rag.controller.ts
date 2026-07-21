@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Res, HttpCode, HttpStatus } from '@nestjs/common';
 import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatService } from './chat.service';
@@ -23,7 +23,13 @@ export class RagController {
   }
 
   @Post('chat/stream')
-  async chatStream(@Body() dto: ChatDto, @Res() res: Response) {
+  @HttpCode(HttpStatus.OK)
+  async chatStream(
+    @Body() dto: ChatDto,
+    @Res({ passthrough: false }) res: Response,
+  ) {
+    // POST defaults to 201 — force 200 before headers flush for reliable SSE.
+    res.status(HttpStatus.OK);
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
@@ -37,27 +43,56 @@ export class RagController {
       if (typeof r.flush === 'function') r.flush();
     };
 
-    const write = (payload: object) => {
+    const waitDrain = () =>
+      new Promise<void>((resolve) => {
+        if (res.writableEnded || res.destroyed) {
+          resolve();
+          return;
+        }
+        res.once('drain', () => resolve());
+        // Safety: never hang forever if drain never fires.
+        setTimeout(resolve, 15_000);
+      });
+
+    const write = async (payload: object) => {
+      if (res.writableEnded || res.destroyed) return;
       const type =
-        'type' in payload && typeof (payload as { type?: unknown }).type === 'string'
+        'type' in payload &&
+        typeof (payload as { type?: unknown }).type === 'string'
           ? (payload as { type: string }).type
           : 'message';
-      res.write(`event: ${type}\ndata: ${JSON.stringify(payload)}\n\n`);
+      const frame = `event: ${type}\ndata: ${JSON.stringify(payload)}\n\n`;
+      const ok = res.write(frame);
       flush();
+      // Large `done` frames can fill the socket buffer; ending before drain
+      // truncates Transfer-Encoding: chunked → ERR_INCOMPLETE_CHUNKED_ENCODING.
+      if (!ok) await waitDrain();
     };
+
+    // Keep proxies/browsers from closing idle sockets while we build citations.
+    const heartbeat = setInterval(() => {
+      if (res.writableEnded || res.destroyed) return;
+      res.write(`: keepalive ${Date.now()}\n\n`);
+      flush();
+    }, 15_000);
 
     try {
       for await (const event of this.chatService.chatStream(
         dto.question,
         this.toOptions(dto),
       )) {
-        write(event);
+        await write(event);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      write({ type: 'error', message });
+      try {
+        await write({ type: 'error', message });
+      } catch {
+        // Client already gone.
+      }
     } finally {
-      res.end();
+      clearInterval(heartbeat);
+      if (!res.writableEnded) res.end();
     }
   }
 

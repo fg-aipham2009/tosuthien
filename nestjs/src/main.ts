@@ -39,8 +39,10 @@ async function bootstrap() {
   await app.listen(port);
   // Long-lived SSE chat streams — avoid premature socket kills under load.
   const server = app.getHttpServer();
-  server.keepAliveTimeout = 65_000;
-  server.headersTimeout = 70_000;
+  server.keepAliveTimeout = 125_000;
+  server.headersTimeout = 130_000;
+  server.requestTimeout = 0;
+  server.timeout = 0;
   console.log(
     `API http://localhost:${port}/api/health (pid=${process.pid} worker=${!cluster.isPrimary})`,
   );

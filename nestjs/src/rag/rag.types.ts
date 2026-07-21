@@ -99,7 +99,7 @@ export interface ChatResult {
 
 /** SSE payload shapes for POST /rag/chat/stream */
 export type ChatStreamEvent =
-  | { type: 'status'; phase: 'retrieving' | 'generating' }
+  | { type: 'status'; phase: 'retrieving' | 'generating' | 'finalizing' }
   | { type: 'delta'; text: string }
   | {
       type: 'done';
