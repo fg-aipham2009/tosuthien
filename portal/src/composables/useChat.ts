@@ -8,6 +8,7 @@ import {
   type Conversation,
 } from '../lib/chatHistory'
 import type { ChatMessage, RagSource } from '../types'
+import { mergeCitationsByBook } from '../lib/openCitation'
 
 const SIDEBAR_BP = 720
 
@@ -192,7 +193,7 @@ export function useChat(listEl: Ref<HTMLElement | null>) {
           },
           onDone: (payload) => {
             assistant.content = payload.answer || assistant.content
-            assistant.citations = payload.citations
+            assistant.citations = mergeCitationsByBook(payload.citations ?? [])
             assistant.aiInterpretation = payload.aiInterpretation ?? null
             assistant.disclaimer = payload.disclaimer ?? null
             assistant.streaming = false

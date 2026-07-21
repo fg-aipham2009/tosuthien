@@ -61,6 +61,7 @@ class ChatMessageBubble extends StatelessWidget {
     // Main bubble must stay scripture-only (strip any leaked AI marker while streaming).
     final content = _scriptureOnly(rawContent);
     final aiText = message.aiInterpretation?.trim();
+    final citations = mergeCitationsByBook(message.citations);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,10 +140,10 @@ class ChatMessageBubble extends StatelessWidget {
                           ),
                         ),
                       ),
-                    if (message.citations.isNotEmpty) ...[
+                    if (citations.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       Text(
-                        'Kinh sách trích dẫn (${message.citations.length})',
+                        'Kinh sách trích dẫn (${citations.length})',
                         style:
                             Theme.of(context).textTheme.labelMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
@@ -150,7 +151,7 @@ class ChatMessageBubble extends StatelessWidget {
                                 ),
                       ),
                       const SizedBox(height: 8),
-                      ...message.citations.map(
+                      ...citations.map(
                         (c) => _CitationCard(citation: c),
                       ),
                     ],

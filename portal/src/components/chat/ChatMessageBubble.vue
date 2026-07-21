@@ -4,6 +4,7 @@ import type { ChatCitation, ChatMessage } from '../../types'
 import {
   citationBody,
   defaultFilePage,
+  mergeCitationsByBook,
   resolveCitationPdfFileUrl,
   scriptureOnly,
   tappablePages,
@@ -18,7 +19,9 @@ const openError = ref('')
 
 const scripture = computed(() => scriptureOnly(props.message.content || ''))
 const aiText = computed(() => props.message.aiInterpretation?.trim() || '')
-const citations = computed(() => props.message.citations ?? [])
+const citations = computed(() =>
+  mergeCitationsByBook(props.message.citations ?? []),
+)
 
 function copyText(text: string) {
   void navigator.clipboard.writeText(text)

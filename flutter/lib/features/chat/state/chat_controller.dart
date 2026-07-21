@@ -367,7 +367,7 @@ class ChatController extends ChangeNotifier {
           clearAiInterpretation:
               aiInterpretation == null || aiInterpretation.isEmpty,
           disclaimer: disclaimer.isEmpty ? null : disclaimer,
-          citations: citations,
+          citations: mergeCitationsByBook(citations),
           isStreaming: false,
         );
       }).toList();

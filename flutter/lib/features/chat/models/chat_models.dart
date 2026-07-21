@@ -253,6 +253,36 @@ class ChatCitation {
       pdf?.openLabel ??
       (pageLabel.isNotEmpty ? 'Mở $pageLabel' : 'Mở kinh sách');
 
+  ChatCitation copyWith({
+    String? label,
+    String? title,
+    String? body,
+    int? pageNum,
+    int? pageStart,
+    int? pageEnd,
+    List<int>? pages,
+    List<ChatCitationPageLink>? pageLinks,
+    String? volume,
+    String? sourceFile,
+    ChatCitationPdf? pdf,
+    String? openLabel,
+  }) {
+    return ChatCitation(
+      label: label ?? this.label,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      pageNum: pageNum ?? this.pageNum,
+      pageStart: pageStart ?? this.pageStart,
+      pageEnd: pageEnd ?? this.pageEnd,
+      pages: pages ?? this.pages,
+      pageLinks: pageLinks ?? this.pageLinks,
+      volume: volume ?? this.volume,
+      sourceFile: sourceFile ?? this.sourceFile,
+      pdf: pdf ?? this.pdf,
+      openLabel: openLabel ?? this.openLabel,
+    );
+  }
+
   factory ChatCitation.fromJson(Map<String, dynamic> json) {
     final excerpt = (json['excerpt'] as String? ?? json['body'] as String? ?? '').trim();
     final quote = (json['quote'] as String? ?? '').trim();
@@ -308,6 +338,87 @@ class ChatCitation {
     if (value is String) return int.tryParse(value);
     return null;
   }
+}
+
+/// One card per book — all cited pages become chips (tr.4 · tr.5 · tr.7).
+List<ChatCitation> mergeCitationsByBook(List<ChatCitation> citations) {
+  if (citations.length <= 1) return citations;
+
+  String groupKey(ChatCitation c) {
+    final file = (c.sourceFile ?? '').trim().toLowerCase();
+    if (file.isNotEmpty) {
+      return 'file:${file.replaceAll(RegExp(r'\.(txt|pdf)$', caseSensitive: false), '')}';
+    }
+    final title = (c.title.isNotEmpty ? c.title : c.label)
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return 'title:${title.isEmpty ? 'unknown' : title}';
+  }
+
+  final groups = <String, List<ChatCitation>>{};
+  final order = <String>[];
+  for (final c in citations) {
+    final key = groupKey(c);
+    if (!groups.containsKey(key)) {
+      groups[key] = [];
+      order.add(key);
+    }
+    groups[key]!.add(c);
+  }
+
+  return [
+    for (final key in order)
+      () {
+        final group = groups[key]!;
+        final pageSet = <int>{};
+        for (final c in group) {
+          if (c.pageNum != null) pageSet.add(c.pageNum!);
+          pageSet.addAll(c.pages);
+          for (final link in c.pageLinks) {
+            pageSet.add(link.printed);
+          }
+          final start = c.pageStart;
+          final end = c.pageEnd;
+          if (start != null && end != null && end >= start && end - start <= 8) {
+            for (var p = start; p <= end; p++) {
+              pageSet.add(p);
+            }
+          }
+        }
+        final pages = pageSet.toList()..sort();
+        final primary = group.first;
+        final pageStart = pages.isNotEmpty ? pages.first : primary.pageStart ?? primary.pageNum;
+        final pageEnd = pages.isNotEmpty ? pages.last : primary.pageEnd ?? primary.pageNum;
+        final longestBody = group
+            .map((c) => c.body.trim())
+            .where((b) => b.isNotEmpty)
+            .fold<String>(primary.body, (a, b) => b.length > a.length ? b : a);
+        final linkByPrinted = <int, ChatCitationPageLink>{};
+        for (final c in group) {
+          for (final link in c.pageLinks) {
+            linkByPrinted[link.printed] = link;
+          }
+        }
+        final pageLinks = [
+          for (final p in pages)
+            linkByPrinted[p] ??
+                ChatCitationPageLink(
+                  printed: p,
+                  filePage: p,
+                  openLabel: 'tr.$p',
+                ),
+        ];
+        return primary.copyWith(
+          body: longestBody,
+          pages: pages,
+          pageNum: primary.pageNum ?? pageStart,
+          pageStart: pageStart,
+          pageEnd: pageEnd,
+          pageLinks: pageLinks.isNotEmpty ? pageLinks : primary.pageLinks,
+        );
+      }(),
+  ];
 }
 
 class ChatConversation {

@@ -505,11 +505,13 @@ export class ChatService {
       return this.prepareDisplayCitations(scopedPool, keywords, sourceHints);
     }
 
+    // Collect every answer-aligned page first; merge collapses to one card per book.
     const selected: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[] = [];
     const usedKeys = new Set<string>();
+    const maxRawRows = MAX_DISPLAY_CITATIONS * 12;
 
     for (const ref of refs) {
-      if (selected.length >= MAX_DISPLAY_CITATIONS) break;
+      if (selected.length >= maxRawRows) break;
       const match = this.matchCitationRef(ref, scopedPool);
       if (!match) continue;
       const page = ref.page ?? match.pageNum ?? match.pageStart ?? null;
@@ -517,18 +519,13 @@ export class ChatService {
       if (usedKeys.has(key)) continue;
       usedKeys.add(key);
 
-      const pages =
-        page != null
-          ? [page]
-          : match.pages?.length
-            ? match.pages
-            : [];
       selected.push({
         ...match,
         pageNum: page,
         pageStart: page ?? match.pageStart,
         pageEnd: page ?? match.pageEnd,
-        pages,
+        // One cited page per answer ref — do not carry neighbor windows into chips.
+        pages: page != null ? [page] : [],
         label: this.formatLabel(match.title, match.volume, page, page),
         quote: ref.quote?.trim() || match.quote,
       });
@@ -538,31 +535,30 @@ export class ChatService {
       return this.prepareDisplayCitations(scopedPool, keywords, sourceHints);
     }
 
-    // Fill remaining slots from ranked pool (other books), without dropping
-    // answer-aligned ones when sourceHints would have filtered them.
-    if (selected.length < MAX_DISPLAY_CITATIONS) {
+    let merged = this.mergeCitationsBySource(
+      this.restrictCitationsToSources(selected, lockedSourceFiles),
+    );
+
+    // Fill with other books from the ranked pool when answer refs cover few sources.
+    if (merged.length < MAX_DISPLAY_CITATIONS) {
       const fallback = await this.prepareDisplayCitations(
         scopedPool,
         keywords,
         sourceHints,
       );
-      const slimFallback = fallback.map(
-        ({ pdf: _p, openLabel: _o, pageLinks: _l, ...rest }) => rest,
-      );
-      for (const c of slimFallback) {
-        if (selected.length >= MAX_DISPLAY_CITATIONS) break;
-        const page = c.pageNum ?? c.pageStart ?? null;
-        const key = `${(c.sourceFile || c.title).toLowerCase()}::${page ?? 'x'}`;
-        if (usedKeys.has(key)) continue;
-        usedKeys.add(key);
-        selected.push(c);
+      const have = new Set(merged.map((c) => this.citationGroupKey(c)));
+      for (const c of fallback) {
+        if (merged.length >= MAX_DISPLAY_CITATIONS) break;
+        const key = this.citationGroupKey(c);
+        if (have.has(key)) continue;
+        have.add(key);
+        const { pdf: _p, openLabel: _o, pageLinks: _l, ...rest } = c;
+        merged.push(rest);
       }
     }
 
     return this.citationLinks.enrichCitations(
-      this.mergeCitationsBySource(
-        this.restrictCitationsToSources(selected, lockedSourceFiles),
-      ).slice(0, MAX_DISPLAY_CITATIONS),
+      merged.slice(0, MAX_DISPLAY_CITATIONS),
     );
   }
 
@@ -695,7 +691,7 @@ export class ChatService {
 
   /**
    * One UI card per book: all cited pages become chips on that card
-   * (tr.4 · tr.5 · tr.7 · …), not separate rows per adjacent cluster.
+   * (tr.4 · tr.5 · tr.7 · …), sorted ascending — never one row per page.
    */
   private mergeCitationsBySource(
     citations: Omit<ChatCitation, 'pdf' | 'openLabel' | 'pageLinks'>[],
@@ -706,7 +702,7 @@ export class ChatService {
     const groups = new Map<string, Slim[]>();
     const sourceOrder: string[] = [];
     for (const c of citations) {
-      const key = (c.sourceFile || c.title || 'unknown').toLowerCase();
+      const key = this.citationGroupKey(c);
       if (!groups.has(key)) {
         groups.set(key, []);
         sourceOrder.push(key);
@@ -721,8 +717,12 @@ export class ChatService {
       for (const c of group) {
         // Cited hit pages only — avoid expanding large neighbor windows into dozens of chips.
         if (c.pageNum != null) pageSet.add(c.pageNum);
-        if (c.pages?.length && c.pages.length <= 3) {
-          for (const p of c.pages) pageSet.add(p);
+        if (c.pages?.length && c.pages.length <= 8) {
+          const span = Math.max(...c.pages) - Math.min(...c.pages);
+          // Dense consecutive window (neighbors) → keep pageNum only.
+          if (!(c.pages.length >= 4 && span <= c.pages.length)) {
+            for (const p of c.pages) pageSet.add(p);
+          }
         }
       }
 
@@ -760,6 +760,18 @@ export class ChatService {
     }
 
     return out;
+  }
+
+  /** Prefer source file stem so the same book never splits into multiple cards. */
+  private citationGroupKey(
+    c: Pick<ChatCitation, 'sourceFile' | 'title' | 'label'>,
+  ): string {
+    const file = (c.sourceFile || '').trim().toLowerCase();
+    if (file) {
+      return `file:${file.replace(/\.(txt|pdf)$/i, '')}`;
+    }
+    const title = this.normalizeTitleKey(c.title || c.label || 'unknown');
+    return `title:${title || 'unknown'}`;
   }
 
   /**
