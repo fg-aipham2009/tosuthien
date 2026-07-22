@@ -102,6 +102,15 @@ export class Mp3FoldersController {
     );
   }
 
+  /** Track counts per folderPath (optional prefix). Admin folder badges. */
+  @Get('counts')
+  folderCounts(
+    @Query('prefix') prefix?: string,
+    @Query('all') all?: string,
+  ) {
+    return this.service.countMp3ByFolder(prefix, all === 'true');
+  }
+
   /** Stream a zip of all .mp3 files in one folder (store — no recompress). */
   @Get('zip')
   zipFolder(@Query('folder') folder: string | undefined, @Res() res: Response) {

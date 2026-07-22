@@ -96,6 +96,36 @@ export class MediaService {
     return rows.map((r) => r.folderPath);
   }
 
+  /**
+   * Track counts per exact folderPath (optional prefix for one album tree).
+   * Admin uses this to show “N bài” on each subfolder without loading tracks.
+   */
+  async countMp3ByFolder(
+    prefix?: string,
+    includeUnpublished = false,
+  ): Promise<Array<{ folderPath: string; count: number }>> {
+    const normalized = prefix?.trim()
+      ? prefix.endsWith('/')
+        ? prefix
+        : `${prefix}/`
+      : undefined;
+
+    const rows = await this.prisma.mp3Track.groupBy({
+      by: ['folderPath'],
+      where: {
+        ...(includeUnpublished ? {} : { isPublished: true }),
+        ...(normalized ? { folderPath: { startsWith: normalized } } : {}),
+      },
+      _count: { _all: true },
+      orderBy: { folderPath: 'asc' },
+    });
+
+    return rows.map((r) => ({
+      folderPath: r.folderPath,
+      count: r._count._all,
+    }));
+  }
+
   /** Distinct years for year chips without loading tracks. */
   async findMp3Years(
     categorySlug?: string,

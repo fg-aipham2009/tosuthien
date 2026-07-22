@@ -11,7 +11,7 @@ import {
   uploadImages,
   uploadMp3Batch,
 } from '@/api/files';
-import { fetchCategories, fetchMp3Tracks, deleteMp3Track, updateMp3Track } from '@/api/media';
+import { fetchCategories, fetchMp3Tracks, fetchMp3FolderCounts, deleteMp3Track, updateMp3Track } from '@/api/media';
 import type {
   FileEntry,
   FolderListing,
@@ -35,6 +35,8 @@ const showNewFolder = ref(false);
 
 const categories = ref<MediaCategory[]>([]);
 const mp3Tracks = ref<Mp3Track[]>([]);
+/** Nested track counts keyed by disk folder path (with trailing /). */
+const mp3FolderCounts = ref<Record<string, number>>({});
 const showMp3Upload = ref(false);
 const mp3Uploading = ref(false);
 const mp3Files = ref<File[]>([]);
@@ -52,6 +54,7 @@ const editForm = ref({
   categoryId: '',
   isPublished: true,
 });
+const savingTitleId = ref<string | null>(null);
 
 const breadcrumbs = computed(() => {
   const path = listing.value?.currentPath ?? '';
@@ -66,10 +69,56 @@ const breadcrumbs = computed(() => {
   return crumbs;
 });
 
+const isMp3Root = computed(
+  () => currentRoot.value === 'mp3' && !(listing.value?.currentPath ?? ''),
+);
+
+const mp3FolderOnly = computed(
+  () =>
+    currentRoot.value === 'mp3' &&
+    (listing.value?.folders.length ?? 0) > 0 &&
+    mp3Tracks.value.length === 0,
+);
+
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function folderLeafName(folder: string): string {
+  return folder.replace(/\/$/, '').split('/').pop() || folder;
+}
+
+function folderTrackCount(folder: string): number {
+  return mp3FolderCounts.value[folder] ?? 0;
+}
+
+async function loadMp3FolderCounts() {
+  if (currentRoot.value !== 'mp3') {
+    mp3FolderCounts.value = {};
+    return;
+  }
+  try {
+    const prefix = listing.value?.currentPath ?? '';
+    const rows = await fetchMp3FolderCounts({ prefix, all: true });
+    const map: Record<string, number> = {};
+    for (const row of rows) {
+      map[row.folderPath] = row.count;
+    }
+    // Roll up nested counts onto each immediate child folder button.
+    const rolled: Record<string, number> = {};
+    for (const folder of listing.value?.folders ?? []) {
+      let sum = 0;
+      for (const [path, count] of Object.entries(map)) {
+        if (path === folder || path.startsWith(folder)) sum += count;
+      }
+      rolled[folder] = sum;
+    }
+    mp3FolderCounts.value = rolled;
+  } catch {
+    mp3FolderCounts.value = {};
+  }
 }
 
 async function loadMp3Tracks() {
@@ -77,11 +126,14 @@ async function loadMp3Tracks() {
     mp3Tracks.value = [];
     return;
   }
+  const folder = listing.value?.currentPath?.trim() ?? '';
+  // Root / parent albums: only browse folders — never load full corpus.
+  if (!folder) {
+    mp3Tracks.value = [];
+    return;
+  }
   try {
-    mp3Tracks.value = await fetchMp3Tracks({
-      folder: listing.value?.currentPath ?? '',
-      all: true,
-    });
+    mp3Tracks.value = await fetchMp3Tracks({ folder, all: true });
   } catch {
     mp3Tracks.value = [];
   }
@@ -91,7 +143,7 @@ async function loadListing(path = listing.value?.currentPath ?? '') {
   loading.value = true;
   try {
     listing.value = await listFolder(currentRoot.value, path);
-    await loadMp3Tracks();
+    await Promise.all([loadMp3Tracks(), loadMp3FolderCounts()]);
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : 'Không tải được thư mục');
   } finally {
@@ -183,7 +235,7 @@ async function submitMp3Edit() {
       categoryId: editForm.value.categoryId,
       isPublished: editForm.value.isPublished,
     });
-    ElMessage.success('Đã cập nhật (chỉ DB — file trên disk giữ nguyên)');
+    ElMessage.success('Đã cập nhật tiêu đề (chỉ DB)');
     showMp3Edit.value = false;
     editingTrack.value = null;
     await loadMp3Tracks();
@@ -191,6 +243,22 @@ async function submitMp3Edit() {
     ElMessage.error(e instanceof Error ? e.message : 'Cập nhật thất bại');
   } finally {
     mp3Saving.value = false;
+  }
+}
+
+async function saveInlineTitle(track: Mp3Track, raw: string) {
+  const title = raw.trim();
+  if (!title || title === track.title) return;
+  savingTitleId.value = track.id;
+  try {
+    const updated = await updateMp3Track(track.id, { title });
+    const idx = mp3Tracks.value.findIndex((t) => t.id === track.id);
+    if (idx >= 0) mp3Tracks.value[idx] = { ...mp3Tracks.value[idx], ...updated };
+    ElMessage.success('Đã đổi tiêu đề');
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Đổi tiêu đề thất bại');
+  } finally {
+    savingTitleId.value = null;
   }
 }
 
@@ -348,21 +416,62 @@ watch(showMp3Upload, (open) => {
       </div>
 
       <div v-loading="loading">
+        <el-alert
+          v-if="currentRoot === 'mp3'"
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 16px"
+          title="Quản lý MP3 theo thư mục"
+          description="Vào từng thư mục (album) để xem và đặt tiêu đề hiển thị trên app. File trên disk không đổi — chỉ sửa tên trong DB."
+        />
+
         <div v-if="listing?.folders.length" style="margin-bottom: 16px">
-          <div style="font-weight: 600; margin-bottom: 8px">Thư mục</div>
+          <div style="font-weight: 600; margin-bottom: 8px">
+            Thư mục
+            <span v-if="currentRoot === 'mp3'" style="font-weight: 400; color: #909399">
+              — bấm vào để lọc bài trong folder đó
+            </span>
+          </div>
           <el-space wrap>
             <el-button
               v-for="folder in listing.folders"
               :key="folder"
+              size="large"
               @click="goToFolder(folder)"
             >
               <el-icon><Folder /></el-icon>
-              {{ folder.replace(/\/$/, '').split('/').pop() }}
+              {{ folderLeafName(folder) }}
+              <el-tag
+                v-if="currentRoot === 'mp3' && folderTrackCount(folder) > 0"
+                size="small"
+                type="success"
+                style="margin-left: 8px"
+              >
+                {{ folderTrackCount(folder) }} bài
+              </el-tag>
             </el-button>
           </el-space>
         </div>
 
-        <el-table :data="listing?.files ?? []" stripe empty-text="Chưa có file trên disk">
+        <el-empty
+          v-if="currentRoot === 'mp3' && isMp3Root && listing?.folders.length"
+          description="Chọn một thư mục phía trên để xem / đặt tên bài MP3"
+          :image-size="72"
+        />
+
+        <el-empty
+          v-else-if="mp3FolderOnly"
+          description="Thư mục này chỉ có thư mục con — vào sâu hơn để đặt tên bài"
+          :image-size="64"
+        />
+
+        <el-table
+          v-if="currentRoot !== 'mp3' || (listing?.files?.length ?? 0) > 0"
+          :data="listing?.files ?? []"
+          stripe
+          empty-text="Chưa có file trên disk"
+        >
           <el-table-column prop="name" label="Tên file" min-width="200" />
           <el-table-column label="Kích thước" width="100">
             <template #default="{ row }">{{ formatSize(row.size) }}</template>
@@ -380,16 +489,30 @@ watch(showMp3Upload, (open) => {
           </el-table-column>
         </el-table>
 
-        <template v-if="currentRoot === 'mp3'">
-          <div style="font-weight: 600; margin: 24px 0 12px">
-            Bản ghi MP3 trong DB (thư mục hiện tại)
-            <span v-if="listing?.currentPath" style="font-weight: 400; color: #909399">
-              — {{ listing.currentPath }}
+        <template v-if="currentRoot === 'mp3' && listing?.currentPath">
+          <div style="font-weight: 600; margin: 24px 0 12px; display: flex; align-items: baseline; gap: 8px">
+            <span>Bài MP3 trong thư mục này</span>
+            <el-tag size="small">{{ mp3Tracks.length }} bài</el-tag>
+            <span style="font-weight: 400; color: #909399; font-size: 13px">
+              {{ listing.currentPath }}
             </span>
           </div>
-          <el-table :data="mp3Tracks" stripe empty-text="Chưa có bản ghi DB trong thư mục này">
-            <el-table-column prop="title" label="Tiêu đề (hiển thị)" min-width="220" />
-            <el-table-column prop="filename" label="File trên disk" min-width="160" />
+          <el-table
+            :data="mp3Tracks"
+            stripe
+            empty-text="Không có bản ghi DB đúng thư mục này — thử thư mục con"
+          >
+            <el-table-column label="Tiêu đề hiển thị (app)" min-width="280">
+              <template #default="{ row }">
+                <el-input
+                  :model-value="row.title"
+                  :disabled="savingTitleId === row.id"
+                  placeholder="Tên hiện trên app"
+                  @change="(v: string) => saveInlineTitle(row, v)"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column prop="filename" label="File disk" min-width="160" show-overflow-tooltip />
             <el-table-column label="Danh mục" width="140">
               <template #default="{ row }">{{ row.category?.name ?? '—' }}</template>
             </el-table-column>
@@ -403,7 +526,7 @@ watch(showMp3Upload, (open) => {
             </el-table-column>
             <el-table-column label="Thao tác" width="200">
               <template #default="{ row }">
-                <el-button link type="primary" @click="openMp3Edit(row)">Sửa</el-button>
+                <el-button link type="primary" @click="openMp3Edit(row)">Chi tiết</el-button>
                 <el-link :href="row.publicUrl" target="_blank" type="primary">Nghe</el-link>
                 <el-button link type="danger" @click="onDeleteMp3Track(row)">Xóa DB</el-button>
               </template>

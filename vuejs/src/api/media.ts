@@ -17,14 +17,32 @@ export async function fetchMp3Tracks(params?: {
   year?: number;
   all?: boolean;
 }): Promise<Mp3Track[]> {
+  const folder = params?.folder?.trim();
   const { data } = await http.get<Mp3Track[]>('/mp3/tracks', {
     params: {
-      folder: params?.folder,
+      // Empty folder = do not send (would otherwise return entire corpus).
+      folder: folder || undefined,
       category: params?.category,
       year: params?.year,
       all: params?.all ? 'true' : undefined,
     },
   });
+  return data;
+}
+
+export async function fetchMp3FolderCounts(params?: {
+  prefix?: string;
+  all?: boolean;
+}): Promise<Array<{ folderPath: string; count: number }>> {
+  const { data } = await http.get<Array<{ folderPath: string; count: number }>>(
+    '/mp3/folders/counts',
+    {
+      params: {
+        prefix: params?.prefix?.trim() || undefined,
+        all: params?.all ? 'true' : undefined,
+      },
+    },
+  );
   return data;
 }
 
