@@ -64,7 +64,6 @@ async function loadFolderList() {
     category: slug.value,
     year: selectedYear.value ?? undefined,
   })
-  tracks.value = []
 }
 
 async function loadFolderTracks() {
@@ -80,6 +79,9 @@ async function loadFolderTracks() {
   })
 }
 
+/** True when this album has only one folder — skip the extra folder click. */
+const isSingleFolderAlbum = computed(() => folderPaths.value.length === 1)
+
 async function load() {
   loading.value = true
   error.value = ''
@@ -87,11 +89,22 @@ async function load() {
     const cats = await listCategories()
     cat.value = cats.find((c) => c.slug === slug.value) ?? null
     await loadYears()
+    await loadFolderList()
+
+    // Khai Thị Tịnh Độ style: category ≡ one folder → open tracks directly.
+    if (!activeFolder.value && folderPaths.value.length === 1) {
+      await router.replace({
+        name: 'mp3-album',
+        params: { slug: slug.value },
+        query: { folder: folderPaths.value[0] },
+      })
+      return
+    }
+
     if (activeFolder.value) {
       await loadFolderTracks()
-      folderPaths.value = []
     } else {
-      await loadFolderList()
+      tracks.value = []
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Không tải được bài'
@@ -107,10 +120,23 @@ watch(selectedYear, async () => {
   loading.value = true
   error.value = ''
   try {
+    await loadYears()
+    await loadFolderList()
+    if (!activeFolder.value && folderPaths.value.length === 1) {
+      await router.replace({
+        name: 'mp3-album',
+        params: { slug: slug.value },
+        query: {
+          folder: folderPaths.value[0],
+          ...(selectedYear.value != null ? { year: String(selectedYear.value) } : {}),
+        },
+      })
+      return
+    }
     if (activeFolder.value) {
       await loadFolderTracks()
     } else {
-      await loadFolderList()
+      tracks.value = []
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Không tải được bài'
@@ -131,6 +157,11 @@ function openFolder(path: string) {
 function backToFolders() {
   q.value = ''
   selectedYear.value = null
+  // Single-folder albums: go back to album list (no useless folder screen).
+  if (isSingleFolderAlbum.value) {
+    router.push({ name: 'mp3' })
+    return
+  }
   router.push({ name: 'mp3-album', params: { slug: slug.value } })
 }
 
@@ -179,14 +210,14 @@ function onDownloadFolder(folderPath: string, e: Event) {
   <div class="mx-auto w-full max-w-4xl pb-28">
     <RouterLink class="text-sm font-semibold text-brand" to="/mp3">← Album</RouterLink>
     <h1 class="mt-2 mb-1 font-serif text-2xl font-bold lg:text-3xl">{{ cat?.name || 'Album' }}</h1>
-    <p v-if="activeFolder" class="mb-4 text-sm text-muted">
+    <p v-if="activeFolder && !isSingleFolderAlbum" class="mb-4 text-sm text-muted">
       <button type="button" class="font-semibold text-brand hover:underline" @click="backToFolders">
         ← Thư mục
       </button>
       <span class="mx-1.5 text-black/20">/</span>
       <span>{{ folderDisplayName(activeFolder) }}</span>
     </p>
-    <p v-else class="mb-4 text-sm text-muted">Chọn thư mục để nghe — tải nhanh hơn từng phần.</p>
+    <p v-else-if="!activeFolder" class="mb-4 text-sm text-muted">Chọn thư mục để nghe — tải nhanh hơn từng phần.</p>
 
     <input
       v-model="q"
