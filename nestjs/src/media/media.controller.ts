@@ -10,6 +10,8 @@ import {
   Res,
   ParseUUIDPipe,
   BadRequestException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ZipArchive } from 'archiver';
@@ -177,7 +179,9 @@ export class Mp3FavoritesController {
     return this.service.listFavoriteIds(deviceId.trim());
   }
 
+  /** Toggle favorite — not a resource create → 200 (not Nest default 201). */
   @Post('toggle')
+  @HttpCode(HttpStatus.OK)
   toggle(@Body() dto: ToggleMp3FavoriteDto) {
     return this.service.toggleFavorite(dto);
   }

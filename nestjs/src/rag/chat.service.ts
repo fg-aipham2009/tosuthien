@@ -244,6 +244,18 @@ export class ChatService {
     };
   }
 
+  /**
+   * Preflight for SSE: throw Nest HttpExceptions before response headers flush
+   * so clients get 400/503 instead of HTTP 200 + SSE error event.
+   */
+  assertCanChat(question: string): void {
+    if (question.trim().length < 2) {
+      throw new BadRequestException('Câu hỏi quá ngắn');
+    }
+    // Resolves chat endpoints; throws ServiceUnavailableException if misconfigured.
+    this.ai.get();
+  }
+
   private async prepareChat(
     question: string,
     options: ChatOptions = {},

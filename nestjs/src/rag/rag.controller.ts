@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Res, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Res,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatService } from './chat.service';
@@ -17,7 +25,9 @@ export class RagController {
     return this.prisma.ragSource.findMany({ orderBy: { sortOrder: 'asc' } });
   }
 
+  /** Chat answer — action POST, not resource create → 200 (not Nest default 201). */
   @Post('chat')
+  @HttpCode(HttpStatus.OK)
   chat(@Body() dto: ChatDto) {
     return this.chatService.chat(dto.question, this.toOptions(dto));
   }
@@ -28,6 +38,9 @@ export class RagController {
     @Body() dto: ChatDto,
     @Res({ passthrough: false }) res: Response,
   ) {
+    // Fail fast with real HTTP status (400/503) before SSE headers commit.
+    this.chatService.assertCanChat(dto.question);
+
     // POST defaults to 201 — force 200 before headers flush for reliable SSE.
     res.status(HttpStatus.OK);
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -84,6 +97,7 @@ export class RagController {
         await write(event);
       }
     } catch (err: unknown) {
+      // Headers already sent — surface as SSE error event (cannot change status).
       const message = err instanceof Error ? err.message : String(err);
       try {
         await write({ type: 'error', message });

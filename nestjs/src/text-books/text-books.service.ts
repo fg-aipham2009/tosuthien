@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
@@ -139,7 +140,8 @@ export class TextBooksService {
   async findOne(id: string, deviceId?: string): Promise<TextBookSummary> {
     const meta = this.readBookMeta(id);
     if (meta.status && meta.status !== 'ready') {
-      throw new NotFoundException(`Text book not ready: ${id}`);
+      // Book exists but is not ready for read — conflict with current state.
+      throw new ConflictException(`Text book not ready: ${id}`);
     }
 
     const pdf = await this.prisma.pdfFile.findFirst({

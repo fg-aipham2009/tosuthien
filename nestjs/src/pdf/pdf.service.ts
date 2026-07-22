@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, PdfFile, ReadingProgress } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePdfDto, UpdatePdfDto, UpsertReadingProgressDto } from '../dto';
@@ -119,7 +115,7 @@ export class PdfService {
     const pdf = await this.prisma.pdfFile.findUnique({
       where: { id: dto.pdfFileId },
     });
-    if (!pdf) throw new BadRequestException('pdf_file_id invalid');
+    if (!pdf) throw new NotFoundException('PDF not found');
 
     return this.prisma.readingProgress.upsert({
       where: {

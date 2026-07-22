@@ -29,7 +29,8 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/tosuthien-api
-  VPS_HOST: 168.144.120.72
+  VPS_HOST: 163.128.43.45
+  VPS_SSH_PORT: "8686"
   VPS_USER: root
   VPS_REPO: /opt/tosu-thien
   API_BASE_URL: https://api.tosuthien.net/
@@ -110,10 +111,11 @@ jobs:
           chmod 700 ~/.ssh
           echo "$KEY_B64" | base64 -d > ~/.ssh/tosuthien_cicd
           chmod 600 ~/.ssh/tosuthien_cicd
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$VPS_SSH_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
           cat >> ~/.ssh/config <<EOF
           Host vps
             HostName ${VPS_HOST}
+            Port ${VPS_SSH_PORT}
             User ${VPS_USER}
             IdentityFile ~/.ssh/tosuthien_cicd
             IdentitiesOnly yes
@@ -181,10 +183,11 @@ jobs:
           chmod 700 ~/.ssh
           echo "$KEY_B64" | base64 -d > ~/.ssh/tosuthien_cicd
           chmod 600 ~/.ssh/tosuthien_cicd
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$VPS_SSH_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
           cat >> ~/.ssh/config <<EOF
           Host vps
             HostName ${VPS_HOST}
+            Port ${VPS_SSH_PORT}
             User ${VPS_USER}
             IdentityFile ~/.ssh/tosuthien_cicd
             IdentitiesOnly yes
@@ -223,10 +226,11 @@ jobs:
           chmod 700 ~/.ssh
           echo "$KEY_B64" | base64 -d > ~/.ssh/tosuthien_cicd
           chmod 600 ~/.ssh/tosuthien_cicd
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$VPS_SSH_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
           cat >> ~/.ssh/config <<EOF
           Host vps
             HostName ${VPS_HOST}
+            Port ${VPS_SSH_PORT}
             User ${VPS_USER}
             IdentityFile ~/.ssh/tosuthien_cicd
             IdentitiesOnly yes
