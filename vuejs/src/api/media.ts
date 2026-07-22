@@ -32,6 +32,21 @@ export async function deleteMp3Track(id: string): Promise<void> {
   await http.delete(`/mp3/tracks/${id}`);
 }
 
+export async function updateMp3Track(
+  id: string,
+  payload: {
+    title?: string;
+    year?: number;
+    categoryId?: string;
+    description?: string | null;
+    isPublished?: boolean;
+    sortOrder?: number;
+  },
+): Promise<Mp3Track> {
+  const { data } = await http.put<Mp3Track>(`/mp3/tracks/${id}`, payload);
+  return data;
+}
+
 export async function fetchYoutubeVideos(params?: {
   category?: string;
   all?: boolean;

@@ -258,6 +258,10 @@ export class CreateMp3Dto {
   @IsOptional()
   @IsInt()
   sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublished?: boolean;
 }
 
 export class UpdateMp3Dto extends PartialType(CreateMp3Dto) {}

@@ -11,7 +11,7 @@ import {
   uploadImages,
   uploadMp3Batch,
 } from '@/api/files';
-import { fetchCategories, fetchMp3Tracks, deleteMp3Track } from '@/api/media';
+import { fetchCategories, fetchMp3Tracks, deleteMp3Track, updateMp3Track } from '@/api/media';
 import type {
   FileEntry,
   FolderListing,
@@ -41,6 +41,16 @@ const mp3Files = ref<File[]>([]);
 const mp3Form = ref({
   categoryId: '',
   year: new Date().getFullYear(),
+});
+
+const showMp3Edit = ref(false);
+const mp3Saving = ref(false);
+const editingTrack = ref<Mp3Track | null>(null);
+const editForm = ref({
+  title: '',
+  year: new Date().getFullYear(),
+  categoryId: '',
+  isPublished: true,
 });
 
 const breadcrumbs = computed(() => {
@@ -139,6 +149,48 @@ async function onDeleteMp3Track(track: Mp3Track) {
     if (e !== 'cancel' && e !== 'close') {
       ElMessage.error(e instanceof Error ? e.message : 'Xóa thất bại');
     }
+  }
+}
+
+function openMp3Edit(track: Mp3Track) {
+  editingTrack.value = track;
+  editForm.value = {
+    title: track.title,
+    year: track.year,
+    categoryId: track.categoryId,
+    isPublished: track.isPublished,
+  };
+  showMp3Edit.value = true;
+}
+
+async function submitMp3Edit() {
+  const track = editingTrack.value;
+  if (!track) return;
+  const title = editForm.value.title.trim();
+  if (!title) {
+    ElMessage.warning('Nhập tiêu đề');
+    return;
+  }
+  if (!editForm.value.categoryId) {
+    ElMessage.warning('Chọn danh mục');
+    return;
+  }
+  mp3Saving.value = true;
+  try {
+    await updateMp3Track(track.id, {
+      title,
+      year: editForm.value.year,
+      categoryId: editForm.value.categoryId,
+      isPublished: editForm.value.isPublished,
+    });
+    ElMessage.success('Đã cập nhật (chỉ DB — file trên disk giữ nguyên)');
+    showMp3Edit.value = false;
+    editingTrack.value = null;
+    await loadMp3Tracks();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Cập nhật thất bại');
+  } finally {
+    mp3Saving.value = false;
   }
 }
 
@@ -331,16 +383,27 @@ watch(showMp3Upload, (open) => {
         <template v-if="currentRoot === 'mp3'">
           <div style="font-weight: 600; margin: 24px 0 12px">
             Bản ghi MP3 trong DB (thư mục hiện tại)
+            <span v-if="listing?.currentPath" style="font-weight: 400; color: #909399">
+              — {{ listing.currentPath }}
+            </span>
           </div>
           <el-table :data="mp3Tracks" stripe empty-text="Chưa có bản ghi DB trong thư mục này">
-            <el-table-column prop="title" label="Tiêu đề (tên file)" min-width="220" />
-            <el-table-column prop="filename" label="File" min-width="160" />
+            <el-table-column prop="title" label="Tiêu đề (hiển thị)" min-width="220" />
+            <el-table-column prop="filename" label="File trên disk" min-width="160" />
             <el-table-column label="Danh mục" width="140">
               <template #default="{ row }">{{ row.category?.name ?? '—' }}</template>
             </el-table-column>
             <el-table-column prop="year" label="Năm" width="80" />
-            <el-table-column label="Thao tác" width="140">
+            <el-table-column label="Công khai" width="90">
               <template #default="{ row }">
+                <el-tag :type="row.isPublished ? 'success' : 'info'" size="small">
+                  {{ row.isPublished ? 'Có' : 'Ẩn' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="Thao tác" width="200">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="openMp3Edit(row)">Sửa</el-button>
                 <el-link :href="row.publicUrl" target="_blank" type="primary">Nghe</el-link>
                 <el-button link type="danger" @click="onDeleteMp3Track(row)">Xóa DB</el-button>
               </template>
@@ -405,6 +468,51 @@ watch(showMp3Upload, (open) => {
         <el-button type="primary" :loading="mp3Uploading" @click="submitMp3Batch">
           Upload &amp; lưu DB
         </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="showMp3Edit"
+      title="Sửa bản ghi MP3 (chỉ DB)"
+      width="480px"
+      :close-on-click-modal="false"
+    >
+      <el-form label-position="top">
+        <el-form-item label="File trên disk (không đổi)">
+          <el-input :model-value="editingTrack?.filename ?? ''" disabled />
+        </el-form-item>
+        <el-form-item label="Thư mục" >
+          <el-input :model-value="editingTrack?.folderPath || '(gốc)'" disabled />
+        </el-form-item>
+        <el-form-item label="Tiêu đề hiển thị" required>
+          <el-input v-model="editForm.title" placeholder="Tên hiện trên app / portal" />
+        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="14">
+            <el-form-item label="Danh mục" required>
+              <el-select v-model="editForm.categoryId" style="width: 100%">
+                <el-option
+                  v-for="c in categories"
+                  :key="c.id"
+                  :label="c.name"
+                  :value="c.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="10">
+            <el-form-item label="Năm" required>
+              <el-input-number v-model="editForm.year" :min="1990" :max="2100" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="Công khai">
+          <el-switch v-model="editForm.isPublished" active-text="Hiện" inactive-text="Ẩn" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showMp3Edit = false">Huỷ</el-button>
+        <el-button type="primary" :loading="mp3Saving" @click="submitMp3Edit">Lưu</el-button>
       </template>
     </el-dialog>
   </div>

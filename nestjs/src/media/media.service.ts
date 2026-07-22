@@ -140,23 +140,31 @@ export class MediaService {
     });
   }
 
+  /** Metadata only — keep folderPath / filename / storagePath (disk) unchanged. */
   async updateMp3(id: string, dto: UpdateMp3Dto) {
     const row = await this.prisma.mp3Track.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('MP3 not found');
 
-    const folderPath = dto.folderPath ?? row.folderPath;
-    const filename = dto.filename ?? row.filename;
-    const storagePath = `${folderPath.replace(/\/$/, '')}/${filename}`;
-
     return this.prisma.mp3Track.update({
       where: { id },
       data: {
-        ...dto,
-        recordedAt: dto.recordedAt ? new Date(dto.recordedAt) : undefined,
-        folderPath,
-        filename,
-        storagePath,
-        publicUrl: this.urls.file(mp3PublicPath(storagePath)),
+        ...(dto.categoryId != null ? { categoryId: dto.categoryId } : {}),
+        ...(dto.title != null ? { title: dto.title } : {}),
+        ...(dto.year != null ? { year: dto.year } : {}),
+        ...(dto.recordedAt !== undefined
+          ? { recordedAt: dto.recordedAt ? new Date(dto.recordedAt) : null }
+          : {}),
+        ...(dto.location !== undefined ? { location: dto.location } : {}),
+        ...(dto.description !== undefined
+          ? { description: dto.description }
+          : {}),
+        ...(dto.durationSec !== undefined
+          ? { durationSec: dto.durationSec }
+          : {}),
+        ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
+        ...(dto.isPublished !== undefined
+          ? { isPublished: dto.isPublished }
+          : {}),
       },
       include: { category: true },
     });
