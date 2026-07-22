@@ -29,15 +29,23 @@ export API_PULL_POLICY=always
 docker compose pull api
 
 echo "==> recreate api"
-docker compose up -d --no-build --force-recreate api
+# Avoid leftover Created/orphan containers from concurrent deploys.
+docker ps -aq --filter name=tosu_api --filter status=created | xargs -r docker rm -f || true
+docker compose up -d --no-build --force-recreate --remove-orphans api
 
 echo "==> health"
-for i in 1 2 3 4 5 6 7 8 9 10; do
-  if curl -sf http://127.0.0.1:8000/api/health >/dev/null; then
+for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  cid="$(docker compose ps -q api || true)"
+  st="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$cid" 2>/dev/null || echo none)"
+  echo "  try $i health=$st"
+  if [[ "$st" == "healthy" ]]; then
     curl -sf http://127.0.0.1:8000/api/health
     echo
     docker compose ps api
     exit 0
+  fi
+  if [[ "$st" == "created" && -n "$cid" ]]; then
+    docker start "$cid" || true
   fi
   sleep 2
 done

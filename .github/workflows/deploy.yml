@@ -243,6 +243,14 @@ jobs:
           cd /opt/tosu-thien
           git fetch origin main
           git reset --hard origin/main
-          docker compose up -d --build --force-recreate admin
-          docker compose ps admin
+          # --no-deps: do not recreate API (avoids Created-but-not-started races → 502)
+          docker compose up -d --build --force-recreate --no-deps admin
+          cid=$(docker compose ps -q api || true)
+          if [[ -n "$cid" ]]; then
+            st=$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null || echo none)
+            if [[ "$st" != "running" ]]; then
+              docker start "$cid" || docker compose up -d api
+            fi
+          fi
+          docker compose ps
           EOF
