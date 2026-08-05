@@ -19,7 +19,6 @@ model PdfFile {
   publicUrl     String   @map("public_url")
   pageCount     Int?     @map("page_count")
   fileSizeBytes BigInt?  @map("file_size_bytes")
-  coverImageUrl String?  @map("cover_image_url")
   sortOrder     Int      @default(0) @map("sort_order")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -92,7 +91,6 @@ model PassageEmbedding {
 
   passage Passage @relation(fields: [passageId], references: [id], onDelete: Cascade)
 
-  @@index([embedding], map: "idx_passage_embeddings_hnsw")
   @@map("passage_embeddings")
 }
 
@@ -241,4 +239,84 @@ model Course {
   @@index([centerId], map: "idx_courses_center")
   @@index([type], map: "idx_courses_type")
   @@map("courses")
+}
+
+/// Danh mục tin tức (admin Vue CRUD). Tách khỏi media_categories (mp3/youtube).
+model PostCategory {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique
+  name        String
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  posts Post[]
+
+  @@index([sortOrder], map: "idx_post_categories_sort")
+  @@map("post_categories")
+}
+
+/// Tin tức / bài viết trang web (clone WP category tin-tuc).
+model Post {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId      String?   @map("category_id") @db.Uuid
+  slug            String    @unique
+  title           String
+  excerpt         String?
+  content         String?
+  coverImageUrl   String?   @map("cover_image_url")
+  seoTitle        String?   @map("seo_title")
+  seoDescription  String?   @map("seo_description")
+  /// Ngày hiển thị công khai (sắp xếp list tin). Null = dùng createdAt.
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz(6)
+  isPinned        Boolean   @default(false) @map("is_pinned")
+  sortOrder       Int       @default(0) @map("sort_order")
+  isPublished     Boolean   @default(true) @map("is_published")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  category PostCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([categoryId], map: "idx_posts_category")
+  @@index([isPublished, publishedAt(sort: Desc)], map: "idx_posts_published_at")
+  @@index([isPinned, sortOrder], map: "idx_posts_pinned_sort")
+  @@map("posts")
+}
+
+/// Album hình ảnh trang /hinh-anh (admin Vue CRUD).
+model GalleryAlbum {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug          String   @unique
+  title         String
+  description   String?
+  coverImageUrl String?  @map("cover_image_url")
+  sortOrder     Int      @default(0) @map("sort_order")
+  isPublished   Boolean  @default(true) @map("is_published")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  images GalleryImage[]
+
+  @@index([sortOrder], map: "idx_gallery_albums_sort")
+  @@index([isPublished], map: "idx_gallery_albums_published")
+  @@map("gallery_albums")
+}
+
+/// Ảnh trong album. File lưu local DATA_ROOT/images/gallery/... ; DB chỉ giữ URL.
+model GalleryImage {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  albumId     String   @map("album_id") @db.Uuid
+  url         String
+  caption     String?
+  altText     String?  @map("alt_text")
+  width       Int?
+  height      Int?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  album GalleryAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+
+  @@index([albumId], map: "idx_gallery_images_album")
+  @@index([albumId, sortOrder], map: "idx_gallery_images_album_sort")
+  @@map("gallery_images")
 }

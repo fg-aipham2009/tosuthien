@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* Brand tokens — dùng text-primary / bg-success / ... trong component */
+@theme inline {
+  --color-primary: #612200;
+  --color-primary-deep: #4a1a00;
+  --color-secondary: #814f3c;
+  --color-success: #ffde59;
+  --color-alert: #b20000;
+  --color-danger: #ff0000;
+  --color-danger-dark: #dd1010;
+  --color-ink: #4a4a4a;
+  --color-muted: #7a6a5f;
+  --color-paper: #fdf8ee;
+  --color-paper-warm: #f1e9df;
+  --color-drawer: #5b5b5b;
+  --color-accent: #9e2e2a;
+  --color-gold: #b08b4f;
+  --color-line: rgb(0 0 0 / 0.1);
+  --font-sans: var(--font-body);
+}
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply min-h-full bg-white text-ink antialiased;
+  }
+
+  a {
+    @apply no-underline;
+  }
+
+  img {
+    @apply h-auto max-w-full rounded-[10px];
+  }
+}

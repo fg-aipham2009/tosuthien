@@ -18,3 +18,13 @@ data/images/*
 !data/images/.gitkeep
 .cicd_vps_ssh_b64.txt
 .cicd_vps_ssh_private
+# Next.js marketing site
+site/node_modules/
+site/.next/
+site/.env.local
+site/.env*.local
+# Portal Next build artifacts
+portal/.next/
+portal/node_modules/
+# Local broken git recovery leftovers
+.git.broken-*/
