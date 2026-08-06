@@ -4,6 +4,7 @@ import { SectionTitle } from "../../components/SectionTitle";
 import {
   fetchPosts,
   formatPostDate,
+  groupPostsByMonth,
   stripHtml,
 } from "../../lib/posts";
 import {
@@ -37,6 +38,7 @@ export default async function TinTucPage({ searchParams }: Props) {
     limit: PAGE_SIZE,
     category: "tin-tuc",
   });
+  const groups = groupPostsByMonth(data.items);
 
   const pageLd = {
     "@context": "https://schema.org",
@@ -73,54 +75,75 @@ export default async function TinTucPage({ searchParams }: Props) {
 
       <div className="mx-auto max-w-[1080px] px-[15px]">
         {data.items.length === 0 ? (
-          <p className="py-16 text-center text-[16px] text-ink">
+          <p className="py-16 text-center text-base text-ink">
             Chưa có tin tức.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-            {data.items.map((post) => {
-              const excerpt = excerptForOg(stripHtml(post.excerpt || post.content), 140);
-              const date = formatPostDate(post.publishedAt);
-              return (
-                <article key={post.id} className="flex flex-col">
-                  <Link
-                    href={`/tin-tuc/${post.slug}`}
-                    className="group block overflow-hidden rounded-[10px] bg-paper-warm"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={post.coverImageUrl || "/wp/header-right.png"}
-                      alt={post.title}
-                      className="aspect-[4/3] w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                    />
-                  </Link>
-                  <div className="mt-4 flex flex-1 flex-col">
-                    {date ? (
-                      <time className="mb-1 text-[13px] text-muted">{date}</time>
-                    ) : null}
-                    <h2 className="text-[18px] leading-snug font-bold text-black">
-                      <Link
-                        href={`/tin-tuc/${post.slug}`}
-                        className="hover:text-primary"
-                      >
-                        {post.title}
-                      </Link>
-                    </h2>
-                    {excerpt ? (
-                      <p className="mt-2 line-clamp-3 text-[15px] leading-6 text-ink">
-                        {excerpt}
-                      </p>
-                    ) : null}
-                    <Link
-                      href={`/tin-tuc/${post.slug}`}
-                      className="mt-3 text-[14px] font-semibold text-primary hover:underline"
-                    >
-                      Xem tiếp →
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
+          <div className="space-y-12">
+            {groups.map((group) => (
+              <section
+                key={group.key}
+                id={group.key !== "unknown" ? `thang-${group.key}` : undefined}
+                aria-labelledby={`heading-${group.key}`}
+              >
+                <h2
+                  id={`heading-${group.key}`}
+                  className="mb-6 border-b border-line pb-2 text-xl font-bold text-black"
+                >
+                  {group.label}
+                </h2>
+                <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+                  {group.items.map((post) => {
+                    const excerpt = excerptForOg(
+                      stripHtml(post.excerpt || post.content),
+                      140,
+                    );
+                    const date = formatPostDate(post.publishedAt);
+                    return (
+                      <article key={post.id} className="flex flex-col">
+                        <Link
+                          href={`/tin-tuc/${post.slug}`}
+                          className="group block overflow-hidden rounded-[10px] bg-paper-warm"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={post.coverImageUrl || "/wp/header-right.png"}
+                            alt={post.title}
+                            className="aspect-[4/3] w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                          />
+                        </Link>
+                        <div className="mt-4 flex flex-1 flex-col">
+                          {date ? (
+                            <time className="mb-1 text-sm text-muted">
+                              {date}
+                            </time>
+                          ) : null}
+                          <h3 className="text-lg leading-snug font-bold text-black">
+                            <Link
+                              href={`/tin-tuc/${post.slug}`}
+                              className="hover:text-primary"
+                            >
+                              {post.title}
+                            </Link>
+                          </h3>
+                          {excerpt ? (
+                            <p className="mt-2 line-clamp-3 text-base leading-6 text-ink">
+                              {excerpt}
+                            </p>
+                          ) : null}
+                          <Link
+                            href={`/tin-tuc/${post.slug}`}
+                            className="mt-3 text-sm font-semibold text-primary hover:underline"
+                          >
+                            Xem tiếp →
+                          </Link>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         )}
 
@@ -132,7 +155,7 @@ export default async function TinTucPage({ searchParams }: Props) {
             {page > 1 ? (
               <Link
                 href={page === 2 ? "/tin-tuc" : `/tin-tuc?page=${page - 1}`}
-                className="rounded border border-line px-3 py-1.5 text-[14px] text-black hover:bg-paper"
+                className="rounded border border-line px-3 py-1.5 text-sm text-black hover:bg-paper"
               >
                 « Trước
               </Link>
@@ -163,7 +186,7 @@ export default async function TinTucPage({ searchParams }: Props) {
                   <Link
                     key={p}
                     href={p === 1 ? "/tin-tuc" : `/tin-tuc?page=${p}`}
-                    className={`min-w-9 rounded px-3 py-1.5 text-center text-[14px] ${
+                    className={`min-w-9 rounded px-3 py-1.5 text-center text-sm ${
                       p === page
                         ? "bg-primary text-white"
                         : "border border-line text-black hover:bg-paper"
@@ -177,7 +200,7 @@ export default async function TinTucPage({ searchParams }: Props) {
             {page < data.totalPages ? (
               <Link
                 href={`/tin-tuc?page=${page + 1}`}
-                className="rounded border border-line px-3 py-1.5 text-[14px] text-black hover:bg-paper"
+                className="rounded border border-line px-3 py-1.5 text-sm text-black hover:bg-paper"
               >
                 Sau »
               </Link>
@@ -185,7 +208,7 @@ export default async function TinTucPage({ searchParams }: Props) {
           </nav>
         ) : null}
 
-        <p className="mt-6 text-center text-[13px] text-muted">
+        <p className="mt-6 text-center text-sm text-muted">
           {data.total > 0
             ? `Hiển thị trang ${data.page}/${data.totalPages} · ${data.total} tin`
             : null}

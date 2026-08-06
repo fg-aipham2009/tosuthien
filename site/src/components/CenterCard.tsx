@@ -40,7 +40,7 @@ export function CenterCard({
       </div>
 
       <div className="pt-4 text-center">
-        <h5 className="text-[15px] font-bold uppercase leading-snug tracking-wide text-ink transition-colors group-hover:text-primary">
+        <h5 className="text-base font-bold uppercase leading-snug tracking-wide text-ink transition-colors group-hover:text-primary">
           {title}
         </h5>
         <span className="mx-auto mt-3 block h-px w-full max-w-[220px] bg-line" />

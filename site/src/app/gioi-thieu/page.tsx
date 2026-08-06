@@ -107,14 +107,14 @@ export default function GioiThieuPage() {
   const [mucA, ...mucBC] = SECTIONS;
 
   return (
-    <article className="mx-auto w-full max-w-[1080px] px-[15px] py-8 text-[16px] leading-[1.6] text-black">
+    <article className="mx-auto w-full max-w-[1080px] px-[15px] py-8 text-base text-black">
       <JsonLd data={pageLd} />
 
       <p className={P}>
         <strong>{INTRO}</strong>
       </p>
 
-      <h1 className="mb-[13.6px] text-center text-[27.2px] leading-[1.3] font-bold text-black">
+      <h1 className="mb-[13.6px] text-center text-[1.7rem] leading-[1.3] font-bold text-black">
         Tiểu sử Hòa thượng Thích Duy Lực
       </h1>
 

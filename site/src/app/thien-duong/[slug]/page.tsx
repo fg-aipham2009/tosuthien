@@ -203,7 +203,7 @@ export default async function CenterDetailPage({ params }: Props) {
               <h2 className="mb-3 text-2xl font-bold text-primary-deep">
                 Giới thiệu
               </h2>
-              <div className="whitespace-pre-wrap rounded-[10px] border border-line bg-white p-5 text-justify text-[1.05rem] leading-8 text-black md:p-6">
+              <div className="whitespace-pre-wrap rounded-[10px] border border-line bg-white p-5 text-justify text-[1.125rem] leading-8 text-black md:p-6">
                 {center.detailContent}
               </div>
             </section>

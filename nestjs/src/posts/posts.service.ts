@@ -150,9 +150,8 @@ export class PostsService {
         where,
         include: postInclude,
         orderBy: [
-          { isPinned: 'desc' },
-          { sortOrder: 'asc' },
-          { publishedAt: 'desc' },
+          { publishedAt: { sort: 'desc', nulls: 'last' } },
+          { createdAt: 'desc' },
         ],
         skip,
         take: limit,

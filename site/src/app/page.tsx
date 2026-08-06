@@ -120,16 +120,16 @@ export default async function HomePage() {
           <SectionTitle className="!px-0">
             Tiểu sử Hòa thượng Thích Duy Lực
           </SectionTitle>
-          <div className="mt-6 space-y-4 text-justify text-[1.05rem] leading-relaxed text-black">
+          <div className="mt-6 space-y-4 text-justify text-[1.125rem] leading-relaxed text-black">
             {THOI_THO_AU.map((p) => (
               <p key={p.slice(0, 24)}>{p}</p>
             ))}
           </div>
           <Link
             href="/gioi-thieu"
-            className="mt-8 inline-flex items-center gap-2 rounded-[11px] bg-success px-6 py-3 text-[13px] font-bold uppercase tracking-wide text-ink transition hover:brightness-95"
+            className="mt-8 inline-flex items-center gap-2 rounded-[11px] bg-success px-6 py-3 text-sm font-bold uppercase tracking-wide text-ink transition hover:brightness-95"
           >
-            Xem thêm <span className="text-[10px]">▾</span>
+            Xem thêm <span className="text-xs">▾</span>
           </Link>
         </div>
       </section>

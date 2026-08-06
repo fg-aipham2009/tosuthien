@@ -1,6 +1,6 @@
 import type { Center, CenterRegion } from "./types";
 
-const API_ORIGIN = (
+export const API_ORIGIN = (
   process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.tosuthien.net"
 ).replace(/\/$/, "");
 

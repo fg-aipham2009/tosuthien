@@ -101,10 +101,10 @@ export default async function TinTucDetailPage({ params }: Props) {
   };
 
   return (
-    <article className="mx-auto w-full max-w-[1080px] px-[15px] py-8 text-[16px] leading-[1.6] text-black">
+    <article className="mx-auto w-full max-w-[1080px] px-[15px] py-8 text-base text-black">
       <JsonLd data={pageLd} />
 
-      <nav className="mb-6 text-[13px] text-muted">
+      <nav className="mb-6 text-sm text-muted">
         <Link href="/" className="hover:text-primary">
           Trang chủ
         </Link>
@@ -116,21 +116,35 @@ export default async function TinTucDetailPage({ params }: Props) {
         <span className="text-ink">{post.title}</span>
       </nav>
 
-      <h1 className="mb-3 text-center text-[27.2px] leading-[1.3] font-bold text-black">
+      {post.categories?.length ? (
+        <p className="mb-2 text-center text-sm font-semibold uppercase tracking-wide text-muted">
+          {post.categories.map((c) => c.name).join(", ")}
+        </p>
+      ) : null}
+
+      <h1 className="mb-3 text-center text-[1.7rem] leading-[1.3] font-bold text-black">
         {post.title}
       </h1>
 
-      <div className="mb-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[13px] text-muted">
-        {date ? <time dateTime={post.publishedAt || undefined}>{date}</time> : null}
-        {post.categories?.length ? (
-          <span>
-            {post.categories.map((c) => c.name).join(", ")}
-          </span>
-        ) : null}
-        {post.authorName ? <span>{post.authorName}</span> : null}
-      </div>
+      {(date || post.authorName) && (
+        <p className="mb-8 text-center text-sm uppercase text-muted">
+          {date ? (
+            <>
+              Đăng vào{" "}
+              <time dateTime={post.publishedAt || undefined}>{date}</time>
+            </>
+          ) : null}
+          {date && post.authorName ? " " : null}
+          {post.authorName ? <>bởi {post.authorName}</> : null}
+        </p>
+      )}
 
-      {post.coverImageUrl ? (
+      {post.content ? (
+        <div
+          className="post-content [&_h1]:mb-[20.8px] [&_h1]:text-base [&_h1]:leading-[1.6] [&_h1]:font-normal [&_img]:mx-auto [&_img]:my-4 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-[10px] [&_p]:mb-[20.8px] [&_a]:text-primary [&_a]:underline"
+          dangerouslySetInnerHTML={{ __html: post.content }}
+        />
+      ) : post.coverImageUrl ? (
         <figure className="mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -139,13 +153,6 @@ export default async function TinTucDetailPage({ params }: Props) {
             className="mx-auto max-h-[520px] w-auto max-w-full rounded-[10px] object-contain"
           />
         </figure>
-      ) : null}
-
-      {post.content ? (
-        <div
-          className="post-content [&_img]:mx-auto [&_img]:my-4 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-[10px] [&_p]:mb-[20.8px] [&_a]:text-primary [&_a]:underline"
-          dangerouslySetInnerHTML={{ __html: post.content }}
-        />
       ) : null}
 
       <p className="mt-10 border-t border-line pt-6 text-center">

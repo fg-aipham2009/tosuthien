@@ -75,6 +75,53 @@ export function formatPostDate(value?: string | null): string {
   });
 }
 
+export type PostTimeGroup = {
+  key: string;
+  label: string;
+  items: Post[];
+};
+
+function postSortInstant(post: Post): Date | null {
+  const raw = post.publishedAt || post.createdAt;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function monthGroupKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function formatMonthGroupLabel(key: string): string {
+  if (key === "unknown") return "Chưa rõ ngày đăng";
+  const [y, m] = key.split("-").map(Number);
+  const d = new Date(y, m - 1, 1);
+  const label = d.toLocaleDateString("vi-VN", {
+    month: "long",
+    year: "numeric",
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/** Nhóm bài đã sort theo thời gian — mỗi nhóm một tháng (mới → cũ). */
+export function groupPostsByMonth(posts: Post[]): PostTimeGroup[] {
+  const groups: PostTimeGroup[] = [];
+  for (const post of posts) {
+    const instant = postSortInstant(post);
+    const key = instant ? monthGroupKey(instant) : "unknown";
+    const last = groups[groups.length - 1];
+    if (last?.key === key) {
+      last.items.push(post);
+    } else {
+      groups.push({
+        key,
+        label: formatMonthGroupLabel(key),
+        items: [post],
+      });
+    }
+  }
+  return groups;
+}
+
 export async function fetchPosts(params?: {
   page?: number;
   limit?: number;

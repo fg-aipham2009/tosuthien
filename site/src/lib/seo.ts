@@ -56,7 +56,7 @@ export function buildMetadata({
     : title.includes(SITE_NAME)
       ? title
       : `${title} - ${SITE_NAME}`;
-  const desc = description?.trim() || undefined;
+  const desc = description?.trim() || SITE_DESCRIPTION;
   const ogImage = image
     ? {
         url: image.startsWith("http") ? image : `${SITE_URL}${image}`,

@@ -5,7 +5,7 @@ export type NavItem = {
   children?: NavItem[];
 };
 
-/** Menu chính, giữ nguyên cấu trúc của tosuthien.com. */
+/** Menu chính — Thư viện dùng API Nest (cùng portal tosuthien.net). */
 export const MAIN_NAV: NavItem[] = [
   { label: "Trang Chủ", href: "/" },
   { label: "Giới Thiệu", href: "/gioi-thieu" },
@@ -34,14 +34,12 @@ export const MAIN_NAV: NavItem[] = [
     external: true,
   },
   {
-    label: "Kinh Sách",
-    href: "/kinh-sach",
+    label: "Thư Viện",
+    href: "/hoi-dap",
     children: [
-      { label: "Chatbox AI vấn đáp Tổ Sư Thiền", href: "/chatbox-ai" },
-      { label: "Media Vấn Đáp HT Thích Duy Lực", href: "/media-van-dap" },
-      { label: "Kinh Sách Mobile", href: "/kinh-sach-mobile" },
-      { label: "Ebook sách HT Thích Duy Lực", href: "/ebook" },
-      { label: "Kinh Sách Liên Quan", href: "/kinh-sach-lien-quan" },
+      { label: "Hỏi Đáp Tổ Sư Thiền", href: "/hoi-dap" },
+      { label: "Pháp Âm", href: "/phap-am" },
+      { label: "Kinh Sách", href: "/kinh-sach" },
     ],
   },
   {
@@ -61,5 +59,4 @@ export const MAIN_NAV: NavItem[] = [
     ],
   },
   { label: "Liên Hệ", href: "/lien-he" },
-  { label: "Hình Ảnh", href: "/hinh-anh" },
 ];

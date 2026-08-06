@@ -38,19 +38,26 @@ function DesktopNav({ pathname }: { pathname: string }) {
           item.href === "/"
             ? pathname === "/"
             : !item.external &&
-              (pathname === item.href.split("?")[0] ||
-                pathname.startsWith(`${item.href.split("?")[0]}/`));
+              (item.label === "Thư Viện"
+                ? pathname === "/hoi-dap" ||
+                  pathname.startsWith("/hoi-dap/") ||
+                  pathname === "/phap-am" ||
+                  pathname.startsWith("/phap-am/") ||
+                  pathname === "/kinh-sach" ||
+                  pathname.startsWith("/kinh-sach/")
+                : pathname === item.href.split("?")[0] ||
+                  pathname.startsWith(`${item.href.split("?")[0]}/`));
 
         return (
           <li key={item.label} className="group relative">
             <NavLink
               item={item}
-              className={`flex items-center gap-1 whitespace-nowrap py-2.5 text-xs font-medium uppercase tracking-wide transition-colors xl:text-[13px] ${
+              className={`flex items-center gap-1 whitespace-nowrap py-2.5 text-xs font-medium uppercase tracking-wide transition-colors xl:text-sm ${
                 active ? "text-success" : "text-white hover:text-success"
               }`}
             >
               {item.label}
-              {item.children ? <span className="text-[9px]">▾</span> : null}
+              {item.children ? <span className="text-[10px]">▾</span> : null}
             </NavLink>
 
             {item.children ? (
@@ -134,7 +141,7 @@ function MobileDrawer({
               <li key={item.label}>
                 <NavLink
                   item={item}
-                  className="block px-5 py-3 text-[13px] font-medium uppercase tracking-wide text-white"
+                  className="block px-5 py-3 text-sm font-medium uppercase tracking-wide text-white"
                 >
                   {item.label}
                 </NavLink>
@@ -235,7 +242,7 @@ export function SiteHeader() {
         >
           ☰
         </button>
-        <span className="text-[13px] font-semibold uppercase tracking-wide text-white">
+        <span className="text-sm font-semibold uppercase tracking-wide text-white">
           Tông Phong Tổ Sư Thiền
         </span>
       </div>

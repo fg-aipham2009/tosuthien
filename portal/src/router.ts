@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { applyPortalSeo } from './lib/seo'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -58,8 +59,7 @@ const router = createRouter({
 })
 
 router.afterEach((to) => {
-  const t = (to.meta.title as string) || 'Tổ Sư Thiền'
-  document.title = `${t} · Tổ Sư Thiền`
+  applyPortalSeo(to.path)
 })
 
 export default router

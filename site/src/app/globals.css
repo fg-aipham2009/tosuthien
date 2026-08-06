@@ -18,6 +18,13 @@
   --color-gold: #b08b4f;
   --color-line: rgb(0 0 0 / 0.1);
   --font-sans: var(--font-body);
+  /* ~+1 bậc so với 16px — đồng bộ cảm giác đọc với tosuthien.com */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.3125rem;
+  --text-2xl: 1.5rem;
 }
 
 @layer base {
@@ -26,7 +33,7 @@
   }
 
   body {
-    @apply min-h-full bg-white text-ink antialiased;
+    @apply min-h-full bg-white text-base leading-[1.6] text-ink antialiased;
   }
 
   a {

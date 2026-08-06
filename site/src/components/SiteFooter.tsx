@@ -5,7 +5,7 @@ const PDF_DANH_SACH =
 
 function FooterTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="mb-4 text-[15px] font-bold uppercase tracking-wide text-white">
+    <h3 className="mb-4 text-base font-bold uppercase tracking-wide text-white">
       {children}
       <span className="mt-2 block h-px w-12 bg-white/30" />
     </h3>
@@ -55,7 +55,7 @@ export function SiteFooter() {
 
           <div>
             <FooterTitle>Thông tin liên quan</FooterTitle>
-            <div className="space-y-3 text-[0.95rem] leading-relaxed">
+            <div className="space-y-3 text-base leading-relaxed">
               <p>
                 <a
                   href={PDF_DANH_SACH}
@@ -69,18 +69,26 @@ export function SiteFooter() {
               </p>
               <p>
                 <Link
-                  href="/chatbox-ai"
+                  href="/hoi-dap"
                   className="underline-offset-4 hover:text-success hover:underline"
                 >
-                  Chatbox AI vấn đáp Tổ Sư Thiền
+                  Hỏi Đáp Tổ Sư Thiền (Chatbot)
                 </Link>
               </p>
               <p>
                 <Link
-                  href="/media-van-dap"
+                  href="/phap-am"
                   className="underline-offset-4 hover:text-success hover:underline"
                 >
-                  Media Vấn Đáp HT. Thích Duy Lực
+                  Pháp Âm MP3
+                </Link>
+              </p>
+              <p>
+                <Link
+                  href="/kinh-sach"
+                  className="underline-offset-4 hover:text-success hover:underline"
+                >
+                  Kinh Sách
                 </Link>
               </p>
             </div>
@@ -88,7 +96,7 @@ export function SiteFooter() {
         </div>
       </div>
 
-      <div className="bg-primary-deep py-4 text-center text-[13px] text-white/70">
+      <div className="bg-primary-deep py-4 text-center text-sm text-white/70">
         Copyright {new Date().getFullYear()} ©{" "}
         <strong className="text-white/90">Tông Phong Tổ Sư Thiền</strong>
       </div>

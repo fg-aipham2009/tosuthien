@@ -32,7 +32,7 @@ export function SectionTitle({
         <span aria-hidden className={`h-px flex-1 ${rule}`} />
         <span
           className={`text-center font-bold uppercase leading-tight tracking-wide ${text} ${
-            bold ? "text-[22px] md:text-[26px]" : "text-[20px] md:text-[24px]"
+            bold ? "text-2xl md:text-[1.75rem]" : "text-xl md:text-2xl"
           }`}
         >
           {children}

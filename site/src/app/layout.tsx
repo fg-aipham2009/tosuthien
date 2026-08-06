@@ -57,9 +57,6 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: SITE_URL,
-    types: {
-      "application/rss+xml": [{ url: `${SITE_URL}/feed`, title: `Dòng thông tin ${SITE_NAME}` }],
-    },
   },
   other: {
     "msapplication-TileImage": "/wp/tile-270.png",
@@ -77,16 +74,6 @@ const siteGraph = {
       description: SITE_DESCRIPTION,
       publisher: { "@id": `${SITE_URL}/#organization` },
       inLanguage: "vi",
-      potentialAction: [
-        {
-          "@type": "SearchAction",
-          target: {
-            "@type": "EntryPoint",
-            urlTemplate: `${SITE_URL}/?s={search_term_string}`,
-          },
-          "query-input": "required name=search_term_string",
-        },
-      ],
     },
     {
       "@type": "Organization",

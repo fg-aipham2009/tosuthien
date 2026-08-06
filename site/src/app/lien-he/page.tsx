@@ -34,10 +34,10 @@ function mapEmbed(center: Center | null): string | null {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5 border-b border-line py-2.5 last:border-0 sm:flex-row sm:gap-3">
-      <span className="w-[150px] shrink-0 text-[13px] font-semibold uppercase tracking-wide text-primary">
+      <span className="w-[150px] shrink-0 text-sm font-semibold uppercase tracking-wide text-primary">
         {label}
       </span>
-      <span className="text-[1.02rem] leading-7 text-black">{children}</span>
+      <span className="text-base leading-7 text-black">{children}</span>
     </div>
   );
 }
@@ -55,7 +55,7 @@ function Card({
 }) {
   return (
     <section className="overflow-hidden rounded-[10px] border border-line">
-      <h2 className="bg-primary px-5 py-3 text-[15px] font-bold uppercase tracking-wide text-white">
+      <h2 className="bg-primary px-5 py-3 text-base font-bold uppercase tracking-wide text-white">
         {title}
       </h2>
       <div className="px-5 py-3">{children}</div>
@@ -76,7 +76,7 @@ function Card({
             href={mapsUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex rounded-[11px] bg-success px-5 py-2.5 text-[13px] font-bold uppercase tracking-wide text-ink transition hover:brightness-95"
+            className="inline-flex rounded-[11px] bg-success px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-ink transition hover:brightness-95"
           >
             Chỉ đường
           </a>
@@ -177,10 +177,10 @@ export default async function LienHePage() {
 
       <div className="mx-auto mt-10 grid max-w-[1080px] gap-8 px-4 md:grid-cols-2">
         <section className="rounded-[10px] border border-line p-5">
-          <h2 className="mb-3 text-[15px] font-bold uppercase tracking-wide text-primary">
+          <h2 className="mb-3 text-base font-bold uppercase tracking-wide text-primary">
             Kênh chính thức
           </h2>
-          <ul className="space-y-2 text-[1.02rem] leading-7">
+          <ul className="space-y-2 text-base leading-7">
             {SOCIAL.map((s) => (
               <li key={s.href}>
                 <a
@@ -197,16 +197,16 @@ export default async function LienHePage() {
         </section>
 
         <section className="rounded-[10px] border border-line p-5">
-          <h2 className="mb-3 text-[15px] font-bold uppercase tracking-wide text-primary">
+          <h2 className="mb-3 text-base font-bold uppercase tracking-wide text-primary">
             Liên hệ thiền đường
           </h2>
-          <p className="text-[1.02rem] leading-7 text-black">
+          <p className="text-base leading-7 text-black">
             Mỗi thiền đường trong Tông Phong đều có địa chỉ, số điện thoại trụ
             trì và bản đồ riêng.
           </p>
           <Link
             href="/thien-duong"
-            className="mt-4 inline-flex rounded-[11px] bg-primary px-5 py-2.5 text-[13px] font-bold uppercase tracking-wide text-white transition hover:brightness-110"
+            className="mt-4 inline-flex rounded-[11px] bg-primary px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-white transition hover:brightness-110"
           >
             Xem danh sách thiền đường
           </Link>
