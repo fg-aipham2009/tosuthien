@@ -12,10 +12,13 @@ text/.ocr-*/
 data/pdf/*
 !data/pdf/.gitkeep
 !data/pdf/*.pdf
-data/mp3/*
+# MP3 / media / backups — không đẩy lên Git (chỉ giữ trên VPS / local)
+data/mp3/**
 !data/mp3/.gitkeep
-data/images/*
+data/images/**
 !data/images/.gitkeep
+data/backups/**
+!data/backups/.gitkeep
 .cicd_vps_ssh_b64.txt
 .cicd_vps_ssh_private
 # Next.js marketing site

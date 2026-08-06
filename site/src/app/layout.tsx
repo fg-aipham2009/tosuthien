@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Be_Vietnam_Pro } from "next/font/google";
 import { JsonLd } from "../components/JsonLd";
 import { SiteFooter } from "../components/SiteFooter";
@@ -8,6 +9,7 @@ import {
   SITE_DESCRIPTION,
   SITE_NAME,
   SITE_URL,
+  SITE_KEYWORDS,
   YOAST_ROBOTS,
   absoluteUrl,
 } from "../lib/seo";
@@ -26,6 +28,17 @@ export const metadata: Metadata = {
     template: `%s - ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,
+  keywords: SITE_KEYWORDS,
+  manifest: "/manifest.webmanifest",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#612200" },
+    { media: "(prefers-color-scheme: dark)", color: "#612200" },
+  ],
+  appleWebApp: {
+    capable: true,
+    title: SITE_NAME,
+    statusBarStyle: "default",
+  },
   applicationName: SITE_NAME,
   authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,
@@ -102,7 +115,17 @@ const siteGraph = {
         "https://www.youtube.com/c/TôngPhongTổSưThiền",
         "https://www.tiktok.com/@tongphongtosuthien",
         "https://www.facebook.com/Nhohoivanhin/",
+        "https://tosuthien.net/",
       ],
+    },
+    {
+      "@type": "WebApplication",
+      "@id": `${SITE_URL}/#pwa`,
+      name: SITE_NAME,
+      url: SITE_URL,
+      applicationCategory: "EducationalApplication",
+      operatingSystem: "Any",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "VND" },
     },
   ],
 };
@@ -115,6 +138,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />
+        <Script src="/pwa-register.js" strategy="afterInteractive" />
       </body>
     </html>
   );

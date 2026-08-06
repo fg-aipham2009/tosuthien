@@ -6,8 +6,21 @@ export const SITE_URL = (
 ).replace(/\/$/, "");
 
 export const SITE_NAME = "Tổ Sư Thiền";
-/** Mô tả site Yoast (giữ nguyên chính tả bản gốc). */
-export const SITE_DESCRIPTION = "Tông Phong Tổ Sư Thiền Viêt Nam";
+/** Mô tả site (chuẩn SEO tiếng Việt). */
+export const SITE_DESCRIPTION =
+  "Tông Phong Tổ Sư Thiền Việt Nam — tin tức, thiền đường, hỏi đáp kinh sách, pháp âm MP3.";
+
+export const SITE_KEYWORDS = [
+  "Tổ Sư Thiền",
+  "Tông Phong Tổ Sư Thiền",
+  "Thiền",
+  "Phật pháp",
+  "Thích Duy Lực",
+  "Thiền đường",
+  "Kinh sách",
+  "Pháp âm",
+  "Tin tức Phật giáo",
+];
 
 export const DEFAULT_OG_IMAGE = {
   url: `${SITE_URL}/wp/header-right.png`,
@@ -36,6 +49,8 @@ type BuildOpts = {
   imageHeight?: number;
   type?: "website" | "article";
   noIndex?: boolean;
+  publishedTime?: string | null;
+  modifiedTime?: string | null;
 };
 
 /** Metadata chuẩn Yoast: title, canonical, og:locale vi_VN, twitter large image. */
@@ -49,6 +64,8 @@ export function buildMetadata({
   imageHeight,
   type = "website",
   noIndex = false,
+  publishedTime,
+  modifiedTime,
 }: BuildOpts): Metadata {
   const url = `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
   const pageTitle = absoluteTitle
@@ -71,6 +88,7 @@ export function buildMetadata({
       ? { absolute: pageTitle }
       : title,
     description: desc,
+    keywords: SITE_KEYWORDS,
     alternates: { canonical: url },
     robots: noIndex
       ? { index: false, follow: false }
@@ -83,6 +101,12 @@ export function buildMetadata({
       title: pageTitle,
       description: desc,
       images: [ogImage],
+      ...(type === "article" && publishedTime
+        ? {
+            publishedTime,
+            modifiedTime: modifiedTime || publishedTime,
+          }
+        : {}),
     },
     twitter: {
       card: "summary_large_image",

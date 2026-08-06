@@ -1,7 +1,21 @@
 import type { MetadataRoute } from "next";
-import { fetchCenters } from "../lib/api";
+import { API_BASE, fetchCenters } from "../lib/api";
 import { fetchAllPostSlugs } from "../lib/posts";
 import { SITE_URL } from "../lib/seo";
+import type { MediaCategory } from "../lib/library/types";
+
+async function fetchMp3CategorySlugs(): Promise<string[]> {
+  try {
+    const res = await fetch(`${API_BASE}/media/categories`, {
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return [];
+    const cats = (await res.json()) as MediaCategory[];
+    return cats.map((c) => c.slug).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
@@ -110,5 +124,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticPages, ...centerPages, ...postPages];
+  let mp3Slugs: string[] = [];
+  try {
+    mp3Slugs = await fetchMp3CategorySlugs();
+  } catch {
+    mp3Slugs = [];
+  }
+
+  const mp3Pages: MetadataRoute.Sitemap = mp3Slugs.map((slug) => ({
+    url: `${SITE_URL}/phap-am/${slug}`,
+    lastModified: now,
+    changeFrequency: "weekly" as const,
+    priority: 0.75,
+  }));
+
+  return [...staticPages, ...centerPages, ...postPages, ...mp3Pages];
 }

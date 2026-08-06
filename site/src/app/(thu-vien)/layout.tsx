@@ -1,5 +1,13 @@
 import { LibrarySubNav } from "../../components/library/LibrarySubNav";
 import { SectionTitle } from "../../components/SectionTitle";
+import { buildMetadata } from "../../lib/seo";
+
+export const metadata = buildMetadata({
+  title: "Thư Viện",
+  path: "/hoi-dap",
+  description:
+    "Hỏi đáp kinh sách Tổ Sư Thiền, nghe pháp âm MP3, đọc kinh sách bản chữ và PDF gốc.",
+});
 
 export default function ThuVienLayout({
   children,

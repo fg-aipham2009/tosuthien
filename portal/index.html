@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta
       name="description"
@@ -28,6 +30,9 @@
     />
     <meta name="twitter:image" content="https://tosuthien.net/icons/icon-512.png" />
     <meta name="theme-color" content="#2A1810" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Tổ Sư Thiền" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Hỏi Đáp · Tổ Sư Thiền</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -38,6 +43,7 @@
   </head>
   <body>
     <div id="app"></div>
+    <script src="/pwa-register.js" defer></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

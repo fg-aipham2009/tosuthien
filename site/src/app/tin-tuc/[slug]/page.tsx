@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "../../../components/JsonLd";
 import {
   fetchPostBySlug,
-  fetchPosts,
+  fetchAllPostSlugs,
   formatPostDate,
   stripHtml,
 } from "../../../lib/posts";
@@ -20,8 +20,8 @@ type Props = {
 };
 
 export async function generateStaticParams() {
-  const data = await fetchPosts({ page: 1, limit: 100, category: "tin-tuc" });
-  return data.items.map((p) => ({ slug: p.slug }));
+  const slugs = await fetchAllPostSlugs();
+  return slugs.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: Props) {
@@ -46,6 +46,8 @@ export async function generateMetadata({ params }: Props) {
     path: `/tin-tuc/${post.slug}`,
     type: "article",
     image: post.coverImageUrl,
+    publishedTime: post.publishedAt || post.createdAt,
+    modifiedTime: post.updatedAt || post.publishedAt || post.createdAt,
   });
 }
 
