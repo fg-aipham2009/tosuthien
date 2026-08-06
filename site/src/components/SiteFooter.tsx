@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PwaInstallBanner } from "./PwaInstallBanner";
 
 const PDF_DANH_SACH =
   "https://tosuthien.com/wp-content/uploads/2026/07/1-Danh-sach-Chu-Ton-Duc-Tang-Ni-Tông-Phong.pdf";
@@ -100,6 +101,8 @@ export function SiteFooter() {
         Copyright {new Date().getFullYear()} ©{" "}
         <strong className="text-white/90">Tông Phong Tổ Sư Thiền</strong>
       </div>
+
+      <PwaInstallBanner />
     </footer>
   );
 }
