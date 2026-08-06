@@ -9,12 +9,22 @@ const TABS = [
   { href: "/kinh-sach", label: "Kinh Sách" },
 ] as const;
 
-export function LibrarySubNav() {
+export function LibrarySubNav({
+  compact = false,
+  onDark = false,
+}: {
+  compact?: boolean;
+  onDark?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
     <nav
-      className="mb-8 flex flex-wrap justify-center gap-2"
+      className={
+        compact
+          ? "flex flex-wrap justify-end gap-1.5"
+          : "mb-8 flex flex-wrap justify-center gap-2"
+      }
       aria-label="Thư viện"
     >
       {TABS.map((tab) => {
@@ -24,10 +34,16 @@ export function LibrarySubNav() {
           <Link
             key={tab.href}
             href={tab.href}
-            className={`rounded-full px-5 py-2 text-sm font-semibold uppercase tracking-wide transition ${
+            className={`rounded-full font-semibold uppercase tracking-wide transition ${
+              compact ? "px-3 py-1 text-xs" : "px-5 py-2 text-sm"
+            } ${
               active
-                ? "bg-primary text-white"
-                : "border border-line bg-white text-ink hover:border-primary hover:text-primary"
+                ? onDark
+                  ? "bg-white text-primary"
+                  : "bg-primary text-white"
+                : onDark
+                  ? "border border-white/35 text-white hover:bg-white/10"
+                  : "border border-line bg-white text-ink hover:border-primary hover:text-primary"
             }`}
             aria-current={active ? "page" : undefined}
           >

@@ -1,0 +1,15 @@
+"use client";
+
+import { useEffect } from "react";
+
+/** Khóa scroll trang ngoài vùng chat. */
+export function HoiDapBodyLock() {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+  return null;
+}

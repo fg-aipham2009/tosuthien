@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { PwaInstallBanner } from "./PwaInstallBanner";
 
 const PDF_DANH_SACH =
@@ -14,6 +17,9 @@ function FooterTitle({ children }: { children: React.ReactNode }) {
 }
 
 export function SiteFooter() {
+  const pathname = usePathname();
+  if (pathname === "/hoi-dap") return null;
+
   return (
     <footer className="mt-auto">
       <div className="bg-primary py-8 text-white">

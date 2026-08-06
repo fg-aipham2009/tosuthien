@@ -137,7 +137,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex min-h-full flex-col font-sans">
         <JsonLd data={siteGraph} />
         <SiteHeader />
-        <main className="flex-1">{children}</main>
+        <main className="flex min-h-0 flex-1 flex-col">{children}</main>
         <SiteFooter />
         <Script src="/pwa-register.js" strategy="afterInteractive" />
       </body>

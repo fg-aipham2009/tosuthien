@@ -42,7 +42,7 @@ export function HoiDapPanel() {
   );
 
   return (
-    <div className="flex h-full min-h-[min(720px,calc(100dvh-320px))]">
+    <div className="flex h-full min-h-0 flex-1">
       {wide ? sidebar : null}
 
       {!wide && chat.drawerOpen ? (
@@ -66,7 +66,7 @@ export function HoiDapPanel() {
 
       <section className="relative flex min-w-0 flex-1 flex-col bg-[var(--c-surface)]">
         <header className="flex shrink-0 items-center gap-2 border-b border-[var(--c-outline)] px-3 py-2.5">
-          {(!wide || chat.drawerOpen) && (
+          {!wide && (
             <button
               type="button"
               className="rounded-lg px-2 py-1.5 text-sm font-semibold text-[var(--c-primary)] hover:bg-[var(--c-surface-mid)]"
