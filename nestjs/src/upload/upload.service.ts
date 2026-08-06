@@ -7,6 +7,7 @@ import { MEDIA_DIRS } from '../common/media-paths';
 import { PdfService } from '../pdf/pdf.service';
 import { CentersService } from '../centers/centers.service';
 import { MediaService } from '../media/media.service';
+import { PostsService } from '../posts/posts.service';
 
 const IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 const MP3_EXT = new Set(['.mp3']);
@@ -31,6 +32,7 @@ export class UploadService {
     private readonly pdfService: PdfService,
     private readonly centersService: CentersService,
     private readonly mediaService: MediaService,
+    private readonly postsService: PostsService,
   ) {
     this.dataRoot = path.resolve(
       this.config.get<string>('DATA_ROOT') || path.join(process.cwd(), '..', 'data'),
@@ -128,6 +130,40 @@ export class UploadService {
 
   async clearPdfCover(id: string) {
     return this.pdfService.setCoverImage(id, null);
+  }
+
+  async uploadPostCover(id: string, file: Express.Multer.File) {
+    this.assertImage(file);
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    const { url } = this.saveFile(
+      MEDIA_DIRS.images,
+      file,
+      path.join('posts', id, `cover${ext}`),
+    );
+    return this.postsService.setCoverImage(id, url);
+  }
+
+  async uploadPostImages(id: string, files: Express.Multer.File[]) {
+    this.requireFiles(files);
+    if (files.length > 50) {
+      throw new BadRequestException('Tối đa 50 ảnh mỗi lần upload');
+    }
+    const images = files.map((file) => {
+      this.assertImage(file);
+      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+      const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+      const { url, size } = this.saveFile(
+        MEDIA_DIRS.images,
+        file,
+        path.join('posts', id, name),
+      );
+      return {
+        url,
+        mimeType: file.mimetype || null,
+        fileSize: size,
+      };
+    });
+    return this.postsService.addContentImages(id, images);
   }
 
   private async saveMp3(file: Express.Multer.File, body: Mp3UploadBody) {

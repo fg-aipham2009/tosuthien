@@ -4,10 +4,11 @@ import { UploadService } from './upload.service';
 import { PdfModule } from '../pdf/pdf.module';
 import { CentersModule } from '../centers/centers.module';
 import { MediaModule } from '../media/media.module';
+import { PostsModule } from '../posts/posts.module';
 import { PublicUrlService } from '../common/public-url.service';
 
 @Module({
-  imports: [PdfModule, CentersModule, MediaModule],
+  imports: [PdfModule, CentersModule, MediaModule, PostsModule],
   controllers: [UploadController],
   providers: [UploadService, PublicUrlService],
 })

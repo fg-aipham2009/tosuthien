@@ -14,6 +14,12 @@ rsync -avz \
   --exclude .env \
   "$REPO_ROOT/nestjs/" "$VPS_HOST:$VPS_REPO/nestjs/"
 
+echo "==> sync database migration"
+ssh "$VPS_HOST" "mkdir -p '$VPS_REPO/docker/postgres/migrations'"
+rsync -avz \
+  "$REPO_ROOT/docker/postgres/migrations/013-posts-news-gallery.sql" \
+  "$VPS_HOST:$VPS_REPO/docker/postgres/migrations/"
+
 echo "==> docker compose up api (local build, clear API_IMAGE)"
 ssh "$VPS_HOST" bash -s <<REMOTE
 set -euo pipefail
@@ -21,6 +27,10 @@ cd "$VPS_REPO"
 # Prefer local build over a stale CI API_IMAGE in the shell env.
 unset API_IMAGE || true
 export API_PULL_POLICY=missing
+echo "==> apply posts/news database migration"
+docker compose exec -T db sh -c \
+  'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < docker/postgres/migrations/013-posts-news-gallery.sql
 # Drop stuck "Created" / orphaned api containers from prior races.
 docker ps -aq --filter name=tosu_api --filter status=created | xargs -r docker rm -f
 docker compose up -d --build --force-recreate --remove-orphans api

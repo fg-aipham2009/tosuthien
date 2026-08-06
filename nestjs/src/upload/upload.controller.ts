@@ -119,4 +119,22 @@ export class UploadController {
   clearPdfCover(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.clearPdfCover(id);
   }
+
+  @Post('posts/:id/cover')
+  @UseInterceptors(FileInterceptor('file', UPLOAD_OPTS))
+  uploadPostCover(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.service.uploadPostCover(id, file);
+  }
+
+  @Post('posts/:id/images')
+  @UseInterceptors(FilesInterceptor('files', 50, UPLOAD_OPTS))
+  uploadPostImages(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    return this.service.uploadPostImages(id, files);
+  }
 }

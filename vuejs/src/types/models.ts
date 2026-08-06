@@ -198,3 +198,82 @@ export interface YoutubeFormData {
   sortOrder?: number;
   isPublished?: boolean;
 }
+
+/** Danh mục tin tức (post_categories). */
+export interface PostCategory {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** Ảnh nội dung / cover gắn với bài viết (post_images). */
+export interface PostImage {
+  id: string;
+  postId: string;
+  role: string;
+  url: string;
+  altText?: string | null;
+  caption?: string | null;
+  mimeType?: string | null;
+  width?: number | null;
+  height?: number | null;
+  sortOrder: number;
+  createdAt?: string;
+}
+
+/** Tin tức / bài viết (posts). */
+export interface Post {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  content: string | null;
+  contentFormat?: string;
+  coverImageUrl: string | null;
+  sourceUrl?: string | null;
+  authorName: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  publishedAt: string | null;
+  isPinned: boolean;
+  sortOrder: number;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  categories: PostCategory[];
+  images: PostImage[];
+}
+
+export interface PostFormData {
+  title: string;
+  slug?: string;
+  categoryIds?: string[];
+  excerpt?: string;
+  content?: string;
+  authorName?: string;
+  publishedAt?: string | null;
+  seoTitle?: string;
+  seoDescription?: string;
+  isPinned?: boolean;
+  sortOrder?: number;
+  isPublished?: boolean;
+}
+
+export interface PostCategoryFormData {
+  name: string;
+  slug?: string;
+  description?: string;
+  sortOrder?: number;
+}
+
+export interface PaginatedPosts {
+  items: Post[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}

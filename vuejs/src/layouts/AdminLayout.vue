@@ -10,6 +10,7 @@ const activeMenu = computed(() => {
   if (route.path.startsWith('/files')) return '/files';
   if (route.path.startsWith('/books')) return '/books';
   if (route.path.startsWith('/youtube')) return '/youtube';
+  if (route.path.startsWith('/posts')) return '/posts';
   return route.path;
 });
 
@@ -47,6 +48,10 @@ function go(path: string) {
         <el-menu-item index="/youtube">
           <el-icon><VideoCamera /></el-icon>
           <span>YouTube</span>
+        </el-menu-item>
+        <el-menu-item index="/posts">
+          <el-icon><Document /></el-icon>
+          <span>Tin tức</span>
         </el-menu-item>
       </el-menu>
     </el-aside>

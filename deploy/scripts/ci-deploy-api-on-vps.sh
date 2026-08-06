@@ -18,6 +18,11 @@ echo "==> git sync"
 git fetch origin main
 git reset --hard origin/main
 
+echo "==> apply posts/news database migration"
+docker compose exec -T db sh -c \
+  'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < docker/postgres/migrations/013-posts-news-gallery.sql
+
 if [[ -n "${GHCR_TOKEN:-}" ]]; then
   echo "==> docker login ghcr.io"
   echo "$GHCR_TOKEN" | docker login ghcr.io -u "${GHCR_USER:-github}" --password-stdin

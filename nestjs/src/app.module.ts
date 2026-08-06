@@ -7,6 +7,7 @@ import { PdfModule } from './pdf/pdf.module';
 import { CentersModule } from './centers/centers.module';
 import { CoursesModule } from './courses/courses.module';
 import { MediaModule } from './media/media.module';
+import { PostsModule } from './posts/posts.module';
 import { RagModule } from './rag/rag.module';
 import { UploadModule } from './upload/upload.module';
 import { FilesModule } from './files/files.module';
@@ -37,6 +38,7 @@ import { AppController } from './app.controller';
     CentersModule,
     CoursesModule,
     MediaModule,
+    PostsModule,
     RagModule,
     UploadModule,
     FilesModule,

@@ -17,6 +17,7 @@ model PdfFile {
   folderPath    String   @default("pdf/") @map("folder_path")
   storagePath   String   @unique @map("storage_path")
   publicUrl     String   @map("public_url")
+  coverImageUrl String?  @map("cover_image_url")
   pageCount     Int?     @map("page_count")
   fileSizeBytes BigInt?  @map("file_size_bytes")
   sortOrder     Int      @default(0) @map("sort_order")
@@ -243,14 +244,16 @@ model Course {
 
 /// Danh mục tin tức (admin Vue CRUD). Tách khỏi media_categories (mp3/youtube).
 model PostCategory {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug        String   @unique
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wpSourceId  Int?      @unique @map("wp_source_id")
+  slug        String    @unique
   name        String
   description String?
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  posts Post[]
+  posts PostCategoryLink[]
 
   @@index([sortOrder], map: "idx_post_categories_sort")
   @@map("post_categories")
@@ -259,12 +262,15 @@ model PostCategory {
 /// Tin tức / bài viết trang web (clone WP category tin-tuc).
 model Post {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  categoryId      String?   @map("category_id") @db.Uuid
+  wpSourceId      Int?      @unique @map("wp_source_id")
   slug            String    @unique
   title           String
   excerpt         String?
   content         String?
+  contentFormat   String    @default("html") @map("content_format")
   coverImageUrl   String?   @map("cover_image_url")
+  sourceUrl       String?   @map("source_url")
+  authorName      String?   @map("author_name")
   seoTitle        String?   @map("seo_title")
   seoDescription  String?   @map("seo_description")
   /// Ngày hiển thị công khai (sắp xếp list tin). Null = dùng createdAt.
@@ -275,12 +281,49 @@ model Post {
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  category PostCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categories PostCategoryLink[]
+  images     PostImage[]
 
-  @@index([categoryId], map: "idx_posts_category")
   @@index([isPublished, publishedAt(sort: Desc)], map: "idx_posts_published_at")
   @@index([isPinned, sortOrder], map: "idx_posts_pinned_sort")
   @@map("posts")
+}
+
+/// Quan hệ nhiều-nhiều vì một bài WordPress có thể thuộc nhiều danh mục.
+model PostCategoryLink {
+  postId     String @map("post_id") @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
+
+  post     Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category PostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([postId, categoryId])
+  @@index([categoryId], map: "idx_post_category_links_category")
+  @@map("post_category_links")
+}
+
+/// Danh mục ảnh của bài: cover và ảnh nằm trong HTML. DB giữ cả URL nguồn và URL local.
+model PostImage {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId      String   @map("post_id") @db.Uuid
+  wpSourceId  Int?     @map("wp_source_id")
+  role        String   @default("content")
+  sourceUrl   String?  @map("source_url")
+  url         String
+  altText     String?  @map("alt_text")
+  caption     String?
+  mimeType    String?  @map("mime_type")
+  width       Int?
+  height      Int?
+  fileSize    BigInt?  @map("file_size")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, sourceUrl])
+  @@index([postId, sortOrder], map: "idx_post_images_post_sort")
+  @@map("post_images")
 }
 
 /// Album hình ảnh trang /hinh-anh (admin Vue CRUD).
