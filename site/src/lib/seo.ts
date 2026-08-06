@@ -6,6 +6,10 @@ export const SITE_URL = (
 ).replace(/\/$/, "");
 
 export const SITE_NAME = "Tổ Sư Thiền";
+
+/** Tên hiển thị khi cài PWA (phân biệt .com vs .net). */
+export const PWA_APP_NAME =
+  process.env.NEXT_PUBLIC_PWA_APP_NAME?.trim() || "tosuthien.com";
 /** Mô tả site (chuẩn SEO tiếng Việt). */
 export const SITE_DESCRIPTION =
   "Tông Phong Tổ Sư Thiền Việt Nam — tin tức, thiền đường, hỏi đáp kinh sách, pháp âm MP3.";

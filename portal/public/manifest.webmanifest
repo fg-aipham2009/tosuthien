@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Tổ Sư Thiền",
-  "short_name": "Tổ Sư Thiền",
+  "name": "tosuthien.net",
+  "short_name": "tosuthien.net",
   "description": "Hỏi đáp ngữ lục, kinh sách, Pháp Âm và thiền đường — tosuthien.net",
   "start_url": "/?source=pwa",
   "scope": "/",

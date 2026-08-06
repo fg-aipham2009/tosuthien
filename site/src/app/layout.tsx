@@ -6,6 +6,7 @@ import { SiteFooter } from "../components/SiteFooter";
 import { SiteHeader } from "../components/SiteHeader";
 import {
   DEFAULT_OG_IMAGE,
+  PWA_APP_NAME,
   SITE_DESCRIPTION,
   SITE_NAME,
   SITE_URL,
@@ -36,10 +37,10 @@ export const metadata: Metadata = {
   ],
   appleWebApp: {
     capable: true,
-    title: SITE_NAME,
+    title: PWA_APP_NAME,
     statusBarStyle: "default",
   },
-  applicationName: SITE_NAME,
+  applicationName: PWA_APP_NAME,
   authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,
   publisher: SITE_NAME,
@@ -121,7 +122,7 @@ const siteGraph = {
     {
       "@type": "WebApplication",
       "@id": `${SITE_URL}/#pwa`,
-      name: SITE_NAME,
+      name: PWA_APP_NAME,
       url: SITE_URL,
       applicationCategory: "EducationalApplication",
       operatingSystem: "Any",

@@ -5,6 +5,9 @@ export const PORTAL_SITE_URL = (
 
 export const PORTAL_SITE_NAME = "Tổ Sư Thiền";
 
+/** Tên icon khi cài PWA portal. */
+export const PORTAL_PWA_APP_NAME = "tosuthien.net";
+
 const DEFAULT_DESCRIPTION =
   "Hỏi đáp ngữ lục và kinh sách Hòa thượng Thích Duy Lực, pháp âm MP3, thiền đường — Tổ Sư Thiền.";
 

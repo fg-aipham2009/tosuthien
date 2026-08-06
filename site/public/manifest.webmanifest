@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Tổ Sư Thiền",
-  "short_name": "Tổ Sư Thiền",
+  "name": "tosuthien.com",
+  "short_name": "tosuthien.com",
   "description": "Tin tức, thiền đường, hỏi đáp kinh sách, pháp âm MP3 — Tông Phong Tổ Sư Thiền.",
   "start_url": "/?source=pwa",
   "scope": "/",

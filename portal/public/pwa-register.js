@@ -36,7 +36,7 @@
     var bar = document.createElement("div");
     bar.id = "tosuthien-pwa-banner";
     bar.setAttribute("role", "dialog");
-    bar.setAttribute("aria-label", "Cài đặt ứng dụng Tổ Sư Thiền");
+    bar.setAttribute("aria-label", "Cài đặt ứng dụng tosuthien.net");
     bar.style.cssText =
       "position:fixed;z-index:9999;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));" +
       "display:flex;gap:10px;align-items:center;justify-content:space-between;" +
@@ -46,7 +46,7 @@
     var text = document.createElement("div");
     text.style.cssText = "flex:1;min-width:0";
     text.innerHTML =
-      "<strong style='display:block;font-weight:600'>Cài Tổ Sư Thiền</strong>" +
+      "<strong style='display:block;font-weight:600'>Cài tosuthien.net</strong>" +
       "<span style='opacity:.85;font-weight:400;font-size:13px'>Mở như app trên máy tính / điện thoại</span>";
 
     var actions = document.createElement("div");

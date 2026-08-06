@@ -1,6 +1,4 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import { PWA_APP_NAME } from "../lib/seo";
 
 const DISMISS_KEY = "tosuthien-pwa-dismiss";
 
@@ -69,11 +67,11 @@ export function PwaInstallBanner() {
     <div
       className="border-t border-white/10 bg-[#612200] px-4 py-4 text-[#F7F2F0]"
       role="dialog"
-      aria-label="Cài đặt ứng dụng Tổ Sư Thiền"
+      aria-label={`Cài đặt ứng dụng ${PWA_APP_NAME}`}
     >
       <div className="mx-auto flex max-w-[1080px] flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold">Cài Tổ Sư Thiền</p>
+          <p className="text-base font-semibold">Cài {PWA_APP_NAME}</p>
           <p className="text-sm font-normal opacity-85">
             Mở như app trên máy tính / điện thoại
           </p>
