@@ -27,7 +27,7 @@ if [[ ! -f /etc/letsencrypt/live/demo.tosuthien.net/fullchain.pem ]]; then
   sudo certbot certonly --nginx -d demo.tosuthien.net --non-interactive --agree-tos --register-unsafely-without-email
 fi
 
-echo "==> nginx test"
+echo "==> nginx test + reload (before site build — API TLS must work)"
 sudo nginx -t
 sudo systemctl reload nginx
 

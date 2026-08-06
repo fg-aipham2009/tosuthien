@@ -1,8 +1,14 @@
 import type { Center, CenterRegion } from "./types";
 
-export const API_ORIGIN = (
+const publicApi = (
   process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.tosuthien.net"
 ).replace(/\/$/, "");
+
+/** SSR/build on VPS: gọi API nội bộ, tránh lỗi TLS khi nginx đang sửa. */
+export const API_ORIGIN =
+  typeof window === "undefined" && process.env.API_INTERNAL_BASE_URL
+    ? process.env.API_INTERNAL_BASE_URL.replace(/\/$/, "")
+    : publicApi;
 
 export const API_BASE = `${API_ORIGIN}/api`;
 
