@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useAuth } from '@/composables/useAuth';
 
 const route = useRoute();
 const router = useRouter();
+const { user, clearSession } = useAuth();
 
 const activeMenu = computed(() => {
   if (route.path.startsWith('/centers')) return '/centers';
@@ -11,6 +13,7 @@ const activeMenu = computed(() => {
   if (route.path.startsWith('/books')) return '/books';
   if (route.path.startsWith('/youtube')) return '/youtube';
   if (route.path.startsWith('/posts')) return '/posts';
+  if (route.path.startsWith('/admins')) return '/admins';
   return route.path;
 });
 
@@ -18,6 +21,11 @@ const pageTitle = computed(() => (route.meta.title as string) ?? 'Admin');
 
 function go(path: string) {
   router.push(path);
+}
+
+function logout() {
+  clearSession();
+  router.replace('/login');
 }
 </script>
 
@@ -53,12 +61,20 @@ function go(path: string) {
           <el-icon><Document /></el-icon>
           <span>Tin tức</span>
         </el-menu-item>
+        <el-menu-item index="/admins">
+          <el-icon><User /></el-icon>
+          <span>Tài khoản admin</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
     <el-container>
       <el-header class="admin-header">
         <h2>{{ pageTitle }}</h2>
+        <div class="header-right">
+          <span class="who">{{ user?.displayName || user?.username }}</span>
+          <el-button size="small" @click="logout">Đăng xuất</el-button>
+        </div>
       </el-header>
       <el-main class="admin-main">
         <router-view />
@@ -120,6 +136,7 @@ function go(path: string) {
   border-bottom: 1px solid #ebeef5;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   height: 56px;
 }
 
@@ -127,6 +144,17 @@ function go(path: string) {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.who {
+  color: #606266;
+  font-size: 0.9rem;
 }
 
 .admin-main {

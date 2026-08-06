@@ -363,3 +363,17 @@ model GalleryImage {
   @@index([albumId, sortOrder], map: "idx_gallery_images_album_sort")
   @@map("gallery_images")
 }
+
+/// Tài khoản đăng nhập admin (Vue admin).
+model AdminUser {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username     String    @unique
+  passwordHash String    @map("password_hash")
+  displayName  String?   @map("display_name")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("admin_users")
+}

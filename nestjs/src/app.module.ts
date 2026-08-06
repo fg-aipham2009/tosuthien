@@ -12,6 +12,7 @@ import { RagModule } from './rag/rag.module';
 import { UploadModule } from './upload/upload.module';
 import { FilesModule } from './files/files.module';
 import { TextBooksModule } from './text-books/text-books.module';
+import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -21,6 +22,7 @@ import { AppController } from './app.controller';
       envFilePath: [path.join(__dirname, '../../.env'), '.env'],
     }),
     PrismaModule,
+    AuthModule,
     ServeStaticModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {

@@ -19,6 +19,7 @@ ssh "$VPS_HOST" "mkdir -p '$VPS_REPO/docker/postgres/migrations'"
 rsync -avz \
   "$REPO_ROOT/docker/postgres/migrations/013-posts-news-gallery.sql" \
   "$REPO_ROOT/docker/postgres/migrations/014-centers-display-order.sql" \
+  "$REPO_ROOT/docker/postgres/migrations/015-admin-users.sql" \
   "$VPS_HOST:$VPS_REPO/docker/postgres/migrations/"
 
 echo "==> docker compose up api (local build, clear API_IMAGE)"
@@ -34,7 +35,10 @@ docker compose exec -T db sh -c \
   < docker/postgres/migrations/013-posts-news-gallery.sql || true
 docker compose exec -T db sh -c \
   'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
-  < docker/postgres/migrations/014-centers-display-order.sql
+  < docker/postgres/migrations/014-centers-display-order.sql || true
+docker compose exec -T db sh -c \
+  'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
+  < docker/postgres/migrations/015-admin-users.sql
 # Drop stuck "Created" / orphaned api containers from prior races.
 docker ps -aq --filter name=tosu_api --filter status=created | xargs -r docker rm -f
 docker compose up -d --build --force-recreate --remove-orphans api

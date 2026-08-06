@@ -1,12 +1,20 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import { useAuth } from '@/composables/useAuth';
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/LoginView.vue'),
+      meta: { public: true, title: 'Đăng nhập' },
+    },
+    {
       path: '/',
       component: AdminLayout,
+      meta: { requiresAuth: true },
       children: [
         { path: '', redirect: '/centers' },
         {
@@ -63,9 +71,31 @@ const router = createRouter({
           component: () => import('@/views/PostEditView.vue'),
           meta: { title: 'Sửa tin tức' },
         },
+        {
+          path: 'admins',
+          name: 'admins',
+          component: () => import('@/views/AdminUsersView.vue'),
+          meta: { title: 'Tài khoản admin' },
+        },
       ],
     },
   ],
+});
+
+router.beforeEach((to) => {
+  const { isAuthenticated } = useAuth();
+  if (to.meta.public) {
+    if (isAuthenticated.value && to.path === '/login') {
+      return '/centers';
+    }
+    return true;
+  }
+  if (to.meta.requiresAuth || to.matched.some((r) => r.meta.requiresAuth)) {
+    if (!isAuthenticated.value) {
+      return { path: '/login', query: { redirect: to.fullPath } };
+    }
+  }
+  return true;
 });
 
 export default router;
