@@ -119,12 +119,19 @@ export class UploadService {
 
   async uploadPdfCover(id: string, file: Express.Multer.File) {
     this.assertImage(file);
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    const { url } = this.saveFile(
+    // Always store book covers as PNG to avoid broken JPEG/WebP display.
+    const pngBuffer = await this.toPngBuffer(file);
+    const { url } = this.saveBuffer(
       MEDIA_DIRS.images,
-      file,
-      path.join('books', id, `cover${ext}`),
+      pngBuffer,
+      path.join('books', id, 'cover.png'),
     );
+    // Remove legacy cover.* if present
+    const bookDir = path.join(this.dataRoot, MEDIA_DIRS.images, 'books', id);
+    for (const legacy of ['cover.jpg', 'cover.jpeg', 'cover.webp', 'cover.gif']) {
+      const p = path.join(bookDir, legacy);
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
     return this.pdfService.setCoverImage(id, url);
   }
 
@@ -216,5 +223,23 @@ export class UploadService {
     fs.mkdirSync(path.dirname(abs), { recursive: true });
     fs.writeFileSync(abs, file.buffer);
     return { rel, url: this.urls.file(rel), size: file.size };
+  }
+
+  private saveBuffer(subdir: string, buffer: Buffer, filename: string) {
+    const rel = path.join(subdir, filename).replace(/\\/g, '/');
+    const abs = path.join(this.dataRoot, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, buffer);
+    return { rel, url: this.urls.file(rel), size: buffer.length };
+  }
+
+  /** Chuẩn hóa mọi ảnh bìa kinh sách về PNG để tránh bể hiển thị. */
+  private async toPngBuffer(file: Express.Multer.File): Promise<Buffer> {
+    const sharp = (await import('sharp')).default;
+    try {
+      return await sharp(file.buffer).rotate().png({ compressionLevel: 9 }).toBuffer();
+    } catch {
+      throw new BadRequestException('Không chuyển được ảnh sang PNG');
+    }
   }
 }
