@@ -4,22 +4,34 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { listPdfs, listTextBooks } from '../api/books'
 import type { BookPdf, TextBook } from '../types'
 
-type Mode = 'pdf' | 'text'
+type Mode = 'pdf' | 'text' | 'shelf'
+
+const FLIP_SHELF_SRC =
+  (import.meta.env.VITE_FLIPHTML5_SHELF_URL as string | undefined)?.trim() ||
+  'https://fliphtml5.com/bookcase/smonj/red'
 
 const route = useRoute()
 const router = useRouter()
 
-const mode = ref<Mode>(route.query.mode === 'pdf' ? 'pdf' : 'text')
+function modeFromQuery(m: unknown): Mode {
+  if (m === 'pdf') return 'pdf'
+  if (m === 'shelf') return 'shelf'
+  return 'text'
+}
+
+const mode = ref<Mode>(modeFromQuery(route.query.mode))
 const pdfs = ref<BookPdf[]>([])
 const texts = ref<TextBook[]>([])
 const loading = ref(true)
 const error = ref('')
+const shelfReady = ref(false)
 
-const subtitle = computed(() =>
-  mode.value === 'pdf'
-    ? 'PDF gốc — giữ đúng trang sách in, phóng to / tìm chữ.'
-    : 'Đọc chữ — từng trang rõ ràng, chỉnh cỡ chữ, mở nhanh.',
-)
+const subtitle = computed(() => {
+  if (mode.value === 'pdf') return 'PDF gốc — giữ đúng trang sách in, phóng to / tìm chữ.'
+  if (mode.value === 'shelf')
+    return 'Kệ sách 3D FlipHTML5 — lật sách đẹp; chỉ tải khi mở tab này (không nặng trang chính).'
+  return 'Đọc chữ — từng trang rõ ràng, chỉnh cỡ chữ, mở nhanh.'
+})
 
 const listCount = computed(() =>
   mode.value === 'pdf' ? pdfs.value.length : texts.value.length,
@@ -36,7 +48,9 @@ function coverStyle(index: number) {
 
 function setMode(next: Mode) {
   mode.value = next
-  void router.replace({ query: next === 'text' ? {} : { mode: 'pdf' } })
+  void router.replace({
+    query: next === 'text' ? {} : { mode: next },
+  })
 }
 
 function bookLink(b: BookPdf | TextBook) {
@@ -44,6 +58,12 @@ function bookLink(b: BookPdf | TextBook) {
 }
 
 async function reload() {
+  if (mode.value === 'shelf') {
+    shelfReady.value = true
+    loading.value = false
+    error.value = ''
+    return
+  }
   loading.value = true
   error.value = ''
   try {
@@ -60,7 +80,8 @@ onMounted(reload)
 watch(
   () => route.query.mode,
   (m) => {
-    mode.value = m === 'pdf' ? 'pdf' : 'text'
+    mode.value = modeFromQuery(m)
+    void reload()
   },
 )
 </script>
@@ -79,7 +100,7 @@ watch(
       </div>
 
       <div
-        class="inline-grid min-w-[260px] grid-cols-2 gap-1 rounded-full bg-black/25 p-1"
+        class="inline-grid min-w-[280px] grid-cols-3 gap-1 rounded-full bg-black/25 p-1"
         role="tablist"
         aria-label="Chế độ đọc"
       >
@@ -87,7 +108,7 @@ watch(
           type="button"
           role="tab"
           :aria-selected="mode === 'text'"
-          class="rounded-full px-4 py-2.5 text-sm font-semibold transition"
+          class="rounded-full px-3 py-2.5 text-sm font-semibold transition"
           :class="mode === 'text' ? 'bg-surface text-brand' : 'text-white/80 hover:text-white'"
           @click="setMode('text')"
         >
@@ -97,78 +118,100 @@ watch(
           type="button"
           role="tab"
           :aria-selected="mode === 'pdf'"
-          class="rounded-full px-4 py-2.5 text-sm font-semibold transition"
+          class="rounded-full px-3 py-2.5 text-sm font-semibold transition"
           :class="mode === 'pdf' ? 'bg-surface text-brand' : 'text-white/80 hover:text-white'"
           @click="setMode('pdf')"
         >
           Bản gốc
         </button>
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="mode === 'shelf'"
+          class="rounded-full px-3 py-2.5 text-sm font-semibold transition"
+          :class="mode === 'shelf' ? 'bg-surface text-brand' : 'text-white/80 hover:text-white'"
+          @click="setMode('shelf')"
+        >
+          Kệ 3D
+        </button>
       </div>
     </header>
 
-    <div v-if="!loading && !error" class="mb-4 flex items-center justify-between text-sm text-muted">
-      <span>{{ listCount }} sách · {{ mode === 'text' ? 'Đọc chữ' : 'Bản gốc PDF' }}</span>
-      <button
-        type="button"
-        class="font-semibold text-brand underline underline-offset-2"
-        @click="reload"
-      >
-        Làm mới
-      </button>
-    </div>
+    <template v-if="mode === 'shelf'">
+      <div class="overflow-hidden rounded-2xl border border-black/10 bg-[#F5EDE6]">
+        <iframe
+          v-if="shelfReady"
+          :src="FLIP_SHELF_SRC"
+          title="Kệ sách FlipHTML5"
+          class="h-[min(80vh,900px)] w-full border-0"
+          loading="lazy"
+          allowfullscreen
+        />
+        <p v-else class="py-10 text-center text-muted">Đang mở kệ sách 3D…</p>
+        <p class="px-4 py-3 text-center text-sm text-muted">
+          FlipHTML5 chỉ tải khi mở tab này. Ảnh bìa nét dùng tab Bản gốc / Đọc chữ.
+        </p>
+      </div>
+    </template>
 
-    <p v-if="loading" class="py-10 text-center text-muted">Đang tải danh sách…</p>
-    <p v-else-if="error" class="py-10 text-center text-red-800">{{ error }}</p>
+    <template v-else>
+      <div v-if="!loading && !error" class="mb-4 flex items-center justify-between text-sm text-muted">
+        <span>{{ listCount }} sách · {{ mode === 'text' ? 'Đọc chữ' : 'Bản gốc PDF' }}</span>
+        <button
+          type="button"
+          class="font-semibold text-brand underline underline-offset-2"
+          @click="reload"
+        >
+          Làm mới
+        </button>
+      </div>
 
-    <ul
-      v-else
-      class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
-    >
-      <li
-        v-if="!items.length"
-        class="col-span-full rounded-2xl border border-dashed border-black/15 px-4 py-10 text-center text-muted"
+      <p v-if="loading" class="py-10 text-center text-muted">Đang tải danh sách…</p>
+      <p v-else-if="error" class="py-10 text-center text-red-800">{{ error }}</p>
+
+      <ul
+        v-else
+        class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
       >
-        {{ mode === 'pdf' ? 'Chưa có PDF bản gốc.' : 'Chưa có sách đọc chữ.' }}
-      </li>
-      <li v-for="(b, i) in items" :key="b.id">
-        <RouterLink class="group flex h-full flex-col gap-2.5" :to="bookLink(b)">
-          <div
-            class="relative flex aspect-[3/4.2] flex-col justify-between overflow-hidden rounded-2xl p-3 text-white shadow-md shadow-brand-deep/20 transition duration-200 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:shadow-brand-deep/30"
-            :style="b.coverImageUrl ? undefined : coverStyle(i)"
-            aria-hidden="true"
-          >
-            <img
-              v-if="b.coverImageUrl"
-              :src="b.coverImageUrl"
-              :alt="b.title"
-              class="absolute inset-0 size-full object-cover"
-            />
+        <li
+          v-if="!items.length"
+          class="col-span-full rounded-2xl border border-dashed border-black/15 px-4 py-10 text-center text-muted"
+        >
+          {{ mode === 'pdf' ? 'Chưa có PDF bản gốc.' : 'Chưa có sách đọc chữ.' }}
+        </li>
+        <li v-for="(b, i) in items" :key="b.id">
+          <RouterLink class="group flex h-full flex-col gap-2.5" :to="bookLink(b)">
             <div
-              class="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,rgba(0,0,0,.45)_100%),radial-gradient(circle_at_20%_15%,rgba(255,255,255,.18),transparent_42%)]"
-            />
-            <span
-              class="relative z-[1] w-fit rounded-full bg-white/15 px-2 py-0.5 text-[0.68rem] font-bold tracking-wider backdrop-blur-sm"
-              :class="mode === 'text' ? 'font-serif text-[0.85rem] tracking-normal' : ''"
+              class="relative flex aspect-[3/4.2] flex-col justify-between overflow-hidden rounded-2xl bg-[#EDE4DA] p-3 text-white shadow-md shadow-brand-deep/20 transition duration-200 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:shadow-brand-deep/30"
+              :style="b.coverImageUrl ? undefined : coverStyle(i)"
+              aria-hidden="true"
             >
-              {{ mode === 'pdf' ? 'PDF' : 'Aa' }}
-            </span>
-            <span
-              class="relative z-[1] line-clamp-4 font-serif text-[0.92rem] leading-snug font-semibold text-shadow-sm"
-            >
-              {{ b.title }}
-            </span>
-          </div>
-          <div class="flex flex-col gap-0.5 px-0.5">
-            <strong class="line-clamp-2 text-[0.9rem] leading-snug font-bold">{{ b.title }}</strong>
-            <span v-if="b.lastPage" class="text-[0.78rem] font-semibold text-brand">
-              Đọc dở · tr.{{ b.lastPage }}
-            </span>
-            <span v-else class="text-[0.78rem] text-muted">
-              {{ b.pageCount ? `${b.pageCount} trang` : mode === 'pdf' ? 'PDF gốc' : 'Đọc chữ' }}
-            </span>
-          </div>
-        </RouterLink>
-      </li>
-    </ul>
+              <img
+                v-if="b.coverImageUrl"
+                :src="b.coverImageUrl"
+                :alt="b.title"
+                class="absolute inset-0 size-full object-contain"
+                decoding="async"
+              />
+              <span
+                class="relative z-[1] w-fit rounded-full bg-black/35 px-2 py-0.5 text-[0.68rem] font-bold tracking-wider backdrop-blur-sm"
+                :class="mode === 'text' ? 'font-serif text-[0.85rem] tracking-normal' : ''"
+              >
+                {{ mode === 'pdf' ? 'PDF' : 'Aa' }}
+              </span>
+            </div>
+            <div class="flex flex-col gap-0.5 px-0.5">
+              <strong class="line-clamp-2 text-[0.9rem] leading-snug font-bold">{{ b.title }}</strong>
+              <span v-if="b.lastPage" class="text-[0.78rem] font-semibold text-brand">
+                Đọc dở · tr.{{ b.lastPage }}
+              </span>
+              <span v-else class="text-[0.78rem] text-muted">
+                {{ b.pageCount ? `${b.pageCount} trang` : mode === 'pdf' ? 'PDF gốc' : 'Đọc chữ' }}
+              </span>
+            </div>
+          </RouterLink>
+        </li>
+      </ul>
+    </template>
   </div>
 </template>

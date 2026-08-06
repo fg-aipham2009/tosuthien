@@ -1,0 +1,32 @@
+<!--
+  Dán vào trang WordPress tosuthien.com/kinh-sach/ (Custom HTML / shortcode HTML).
+  Thay iframe FlipHTML5 cũ bằng thư viện mới (ảnh bìa PNG nét + Đọc chữ / PDF / Kệ 3D).
+
+  Cách A — iframe full (nhanh, giữ URL .com):
+-->
+<div style="width:100%;min-height:90vh">
+  <iframe
+    src="https://demo.tosuthien.net/kinh-sach"
+    title="Kinh sách Tổ Sư Thiền"
+    style="width:100%;height:90vh;border:0;border-radius:8px"
+    loading="lazy"
+    allowfullscreen
+  ></iframe>
+</div>
+<p style="text-align:center;margin-top:12px">
+  <a href="https://demo.tosuthien.net/kinh-sach?mode=shelf">Mở kệ sách 3D (FlipHTML5)</a>
+  ·
+  <a href="https://demo.tosuthien.net/kinh-sach?mode=pdf">Bản gốc PDF</a>
+  ·
+  <a href="https://demo.tosuthien.net/kinh-sach">Đọc chữ</a>
+</p>
+
+<!--
+  Cách B — chuyển hướng 301 (khuyên dùng khi đã cutover .com → Next):
+  Trong WordPress: trang Kinh Sách → Redirect plugin / Rank Math →
+  Destination: https://demo.tosuthien.net/kinh-sach
+  (sau này đổi thành https://tosuthien.com/kinh-sach khi DNS trỏ về VPS).
+
+  Cách C — chỉ giữ FlipHTML5 (nặng hơn, ảnh dễ mờ):
+  <iframe src="https://fliphtml5.com/bookcase/smonj/red" style="width:100%;height:800px;border:0" allowfullscreen></iframe>
+-->
