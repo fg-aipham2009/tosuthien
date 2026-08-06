@@ -30,10 +30,10 @@ unset API_IMAGE || true
 export API_PULL_POLICY=missing
 echo "==> apply database migrations"
 docker compose exec -T db sh -c \
-  'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
   < docker/postgres/migrations/013-posts-news-gallery.sql || true
 docker compose exec -T db sh -c \
-  'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
   < docker/postgres/migrations/014-centers-display-order.sql
 # Drop stuck "Created" / orphaned api containers from prior races.
 docker ps -aq --filter name=tosu_api --filter status=created | xargs -r docker rm -f
