@@ -17,7 +17,7 @@ export default function ThuVienLayout({
   return (
     <div className="py-8">
       <SectionTitle as="h1">Thư Viện</SectionTitle>
-      <div className="mx-auto max-w-[1080px] px-[15px]">
+      <div className="mx-auto max-w-[1200px] px-[15px] sm:px-5">
         <LibrarySubNav />
         {children}
       </div>

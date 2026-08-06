@@ -5,7 +5,8 @@ import { buildMetadata } from "../../../lib/seo";
 export const metadata = buildMetadata({
   title: "Kinh Sách",
   path: "/kinh-sach",
-  description: "Đọc kinh sách Hòa thượng Thích Duy Lực — bản chữ và PDF gốc.",
+  description:
+    "Thư viện kinh sách Tổ Sư Thiền — đọc chữ, PDF gốc, và kệ sách 3D.",
 });
 
 export default function KinhSachPage() {
