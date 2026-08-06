@@ -85,7 +85,7 @@ onMounted(load);
     <div class="page-header">
       <div>
         <h1>Kinh sách — ảnh bìa</h1>
-        <p class="sub">Upload ảnh bìa cho từng PDF. Đọc chữ dùng chung bìa khi trùng tên file (1.pdf → sách 1).</p>
+        <p class="sub">Upload ảnh bìa cho từng PDF. Đọc chữ dùng chung bìa theo số thứ tự sách (sortOrder / id 1…22).</p>
       </div>
       <el-button @click="load">Làm mới</el-button>
     </div>

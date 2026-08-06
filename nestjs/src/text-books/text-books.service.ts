@@ -98,12 +98,17 @@ export class TextBooksService {
     if (ready.length === 0) return [];
 
     const pdfs = await this.prisma.pdfFile.findMany({
-      select: { id: true, filename: true, coverImageUrl: true },
+      select: { id: true, filename: true, coverImageUrl: true, sortOrder: true },
     });
+    /** Match Đọc chữ id "21" ↔ PDF: sortOrder 21, hoặc stem "21.pdf" (legacy). */
     const pdfByStem = new Map<string, { id: string; coverImageUrl: string | null }>();
     for (const pdf of pdfs) {
+      const entry = { id: pdf.id, coverImageUrl: pdf.coverImageUrl };
       const stem = pdf.filename.replace(/\.pdf$/i, '');
-      pdfByStem.set(stem, { id: pdf.id, coverImageUrl: pdf.coverImageUrl });
+      pdfByStem.set(stem, entry);
+      if (pdf.sortOrder > 0) {
+        pdfByStem.set(String(pdf.sortOrder), entry);
+      }
     }
 
     const progressMap = new Map<string, { lastPage: number; updatedAt: Date }>();
@@ -144,10 +149,7 @@ export class TextBooksService {
       throw new ConflictException(`Text book not ready: ${id}`);
     }
 
-    const pdf = await this.prisma.pdfFile.findFirst({
-      where: { filename: `${id}.pdf` },
-      select: { id: true, coverImageUrl: true },
-    });
+    const pdf = await this.findLinkedPdf(id);
     let lastPage: number | null = null;
     let lastReadAt: Date | null = null;
     if (pdf && deviceId) {
@@ -172,6 +174,22 @@ export class TextBooksService {
       lastPage,
       lastReadAt,
     };
+  }
+
+  /** Liên kết sách chữ id (1…22) với PDF sau khi đổi tên file theo tựa. */
+  private async findLinkedPdf(id: string) {
+    const numeric = Number(id);
+    const or: Array<{ filename: string } | { sortOrder: number }> = [
+      { filename: `${id}.pdf` },
+    ];
+    if (Number.isFinite(numeric) && numeric > 0) {
+      or.push({ sortOrder: numeric });
+    }
+    return this.prisma.pdfFile.findFirst({
+      where: { OR: or },
+      select: { id: true, coverImageUrl: true },
+      orderBy: { sortOrder: 'asc' },
+    });
   }
 
   getPages(id: string, from = 1, to?: number) {

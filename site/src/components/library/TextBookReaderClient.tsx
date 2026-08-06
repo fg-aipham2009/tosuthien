@@ -123,12 +123,13 @@ export function TextBookReaderClient({ id }: Props) {
 
         const stem = id;
         setPdfId(
-          pdfs.find(
-            (p) =>
-              p.slug === stem ||
-              p.filename?.replace(/\.pdf$/i, "") === stem,
-          )?.id ??
-            hit.pdfFileId ??
+          hit.pdfFileId ??
+            pdfs.find(
+              (p) =>
+                String(p.sortOrder) === stem ||
+                p.slug === stem ||
+                p.filename?.replace(/\.pdf$/i, "") === stem,
+            )?.id ??
             null,
         );
 

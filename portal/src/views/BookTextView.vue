@@ -151,7 +151,12 @@ onMounted(async () => {
 
     const stem = String(route.params.id)
     pdfId.value =
-      pdfs.find((p) => p.slug === stem || p.filename?.replace(/\.pdf$/i, '') === stem)?.id ?? null
+      pdfs.find(
+        (p) =>
+          String(p.sortOrder) === stem ||
+          p.slug === stem ||
+          p.filename?.replace(/\.pdf$/i, '') === stem,
+      )?.id ?? null
 
     if (!pages.value.some((p) => p.page === page.value)) {
       await loadWindow(page.value)
