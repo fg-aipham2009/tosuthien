@@ -109,6 +109,11 @@ export class CreateCenterDto {
 
   @IsOptional()
   @IsInt()
+  displayOrder?: number;
+
+  /** @deprecated Dùng displayOrder */
+  @IsOptional()
+  @IsInt()
   sortOrder?: number;
 
   @IsOptional()

@@ -57,7 +57,7 @@ CREATE TABLE public.centers (
     main_image_url text,
     gallery_images jsonb DEFAULT '[]'::jsonb NOT NULL,
     detail_content text,
-    sort_order integer DEFAULT 0,
+    display_order integer DEFAULT 0,
     is_published boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     abbot_rank text,
@@ -452,10 +452,10 @@ CREATE INDEX idx_centers_region ON public.centers USING btree (region);
 
 
 --
--- Name: idx_centers_sort; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_centers_display_order; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_centers_sort ON public.centers USING btree (sort_order);
+CREATE INDEX idx_centers_display_order ON public.centers USING btree (display_order);
 
 
 --

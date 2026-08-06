@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CenterCard } from "../components/CenterCard";
 import { HeroSlider, type Slide } from "../components/HeroSlider";
 import { JsonLd } from "../components/JsonLd";
+import { Reveal } from "../components/motion/Reveal";
 import { SectionTitle } from "../components/SectionTitle";
 import { THOI_THO_AU } from "../content/gioi-thieu";
 import { fetchCenters } from "../lib/api";
@@ -24,14 +25,46 @@ export const metadata = buildMetadata({
 });
 
 const SLIDES: Slide[] = [
-  { src: "/wp/slide-1.png", href: "/thien-duong", alt: "Thiền viện Linh Sơn" },
-  { src: "/wp/slide-2.jpg", href: "/thien-duong", alt: "Thiền đường Liễu Quán 1" },
-  { src: "/wp/slide-3.png", href: "/thien-duong", alt: "Thiền viện Duy Lực" },
-  { src: "/wp/slide-4.png", href: "/thien-duong", alt: "Thiền tự Quy Sơn" },
-  { src: "/wp/slide-5.png", href: "/thien-duong", alt: "Chùa Phật Đà" },
-  { src: "/wp/slide-6.png", href: "/thien-duong", alt: "Chùa Tam Bảo" },
-  { src: "/wp/slide-7.png", href: "/thien-duong", alt: "Chùa Thiên Trì" },
-  { src: "/wp/slide-8.png", href: "/thien-duong", alt: "Chùa Liên Hoa" },
+  {
+    src: "/wp/slide-1.png",
+    href: "/thien-duong/thien-vien-linh-son-thich-minh-hien-1",
+    alt: "Thiền viện Linh Sơn",
+  },
+  {
+    src: "/wp/slide-2.jpg",
+    href: "/thien-duong/thien-duong-lieu-quan-1-thich-hue-minh-4",
+    alt: "Thiền đường Liễu Quán 1",
+  },
+  {
+    src: "/wp/slide-3.png",
+    href: "/thien-duong/thien-vien-duy-luc-thich-nu-phap-ngan-41",
+    alt: "Thiền viện Duy Lực",
+  },
+  {
+    src: "/wp/slide-4.png",
+    href: "/thien-duong/thien-tu-quy-son-thich-nhut-tay-12",
+    alt: "Thiền tự Quy Sơn",
+  },
+  {
+    src: "/wp/slide-5.png",
+    href: "/thien-duong/chua-phat-da-thich-thien-chon-15",
+    alt: "Chùa Phật Đà",
+  },
+  {
+    src: "/wp/slide-6.png",
+    href: "/thien-duong/chua-tam-bao-thich-minh-thien-7",
+    alt: "Chùa Tam Bảo",
+  },
+  {
+    src: "/wp/slide-7.png",
+    href: "/thien-duong/chua-thien-tri-thich-hue-minh-5",
+    alt: "Chùa Thiên Trì",
+  },
+  {
+    src: "/wp/slide-8.png",
+    href: "/thien-duong/chua-lien-hoa-thich-duy-tran-3",
+    alt: "Chùa Liên Hoa",
+  },
 ];
 
 const ZOOM_ROOMS = [
@@ -105,14 +138,16 @@ export default async function HomePage() {
   return (
     <div className="py-8">
       <JsonLd data={homeLd} />
-      <div className="mx-auto max-w-[1080px] px-4">
+      <div className="mx-auto max-w-[1080px] px-4 animate-fade-up">
         <HeroSlider slides={SLIDES} />
       </div>
 
       <section className="pb-4">
-        <SectionTitle>Tiểu sử Hòa thượng Thích Duy Lực</SectionTitle>
+        <Reveal>
+          <SectionTitle>Tiểu sử Hòa thượng Thích Duy Lực</SectionTitle>
+        </Reveal>
         <div className="mx-auto mt-8 grid max-w-[1080px] grid-cols-1 items-start gap-8 px-4 md:grid-cols-2 md:gap-10 lg:gap-12">
-          <div className="flex w-full justify-center md:justify-end">
+          <Reveal className="flex w-full justify-center md:justify-end">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/wp/to-su.jpg"
@@ -121,8 +156,8 @@ export default async function HomePage() {
               height={630}
               className="h-auto w-full max-w-full object-contain md:max-w-[100%]"
             />
-          </div>
-          <div className="min-w-0 w-full">
+          </Reveal>
+          <Reveal delay={100} className="min-w-0 w-full">
             <div className="space-y-4 text-justify text-[1.125rem] leading-relaxed text-black">
               {THOI_THO_AU.map((p) => (
                 <p key={p.slice(0, 24)}>{p}</p>
@@ -130,25 +165,27 @@ export default async function HomePage() {
             </div>
             <Link
               href="/gioi-thieu"
-              className="mt-8 inline-flex items-center gap-2 rounded-[11px] bg-success px-6 py-3 text-sm font-bold uppercase tracking-wide text-ink transition hover:brightness-95"
+              className="hover-lift mt-8 inline-flex items-center gap-2 rounded-[11px] bg-success px-6 py-3 text-sm font-bold uppercase tracking-wide text-ink transition hover:brightness-95"
             >
               Xem thêm <span className="text-xs">▾</span>
             </Link>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       <section className="py-8">
-        <SectionTitle tone="danger">Link vào phòng học trực tuyến</SectionTitle>
+        <Reveal>
+          <SectionTitle tone="danger">Link vào phòng học trực tuyến</SectionTitle>
+        </Reveal>
         <div className="mx-auto mt-8 grid max-w-[1080px] gap-8 px-4 md:grid-cols-2">
-          {ZOOM_ROOMS.map((room) => (
-            <div key={room.href}>
-              <a href={room.href} target="_blank" rel="noreferrer" className="block">
+          {ZOOM_ROOMS.map((room, i) => (
+            <Reveal key={room.href} delay={i * 90}>
+              <a href={room.href} target="_blank" rel="noreferrer" className="group block overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/wp/zoom.jpg"
                   alt="Phòng học trực tuyến"
-                  className="w-full transition-transform duration-500 hover:scale-[1.03]"
+                  className="w-full rounded-none transition-transform duration-700 ease-out group-hover:scale-[1.03]"
                 />
               </a>
               {room.lines.map((line) => (
@@ -159,15 +196,17 @@ export default async function HomePage() {
                   {line}
                 </p>
               ))}
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       <section className="py-6">
-        <SectionTitle as="h1" tone="danger-dark">
-          Danh sách thiền đường
-        </SectionTitle>
+        <Reveal>
+          <SectionTitle as="h1" tone="danger-dark">
+            Danh sách thiền đường
+          </SectionTitle>
+        </Reveal>
 
         {centers.length === 0 ? (
           <p className="mx-auto mt-8 max-w-[1080px] px-4 text-center text-muted">
@@ -177,16 +216,19 @@ export default async function HomePage() {
           REGION_ORDER.filter((region) => groups[region].length > 0).map(
             (region) => (
               <div key={region} className="mt-10">
-                <SectionTitle as="h3" variant="bold-center" tone="danger">
-                  {REGION_HEADINGS[region]}
-                </SectionTitle>
+                <Reveal>
+                  <SectionTitle as="h3" variant="bold-center" tone="danger">
+                    {REGION_HEADINGS[region]}
+                  </SectionTitle>
+                </Reveal>
                 <div className="mx-auto mt-8 grid max-w-[1080px] gap-x-8 gap-y-10 px-4 md:grid-cols-2 lg:grid-cols-3">
-                  {groups[region].map((center) => (
-                    <CenterCard
-                      key={center.id}
-                      center={center}
-                      showProvince={region !== "NUOC_NGOAI"}
-                    />
+                  {groups[region].map((center, i) => (
+                    <Reveal key={center.id} delay={(i % 3) * 70} variant="zoom">
+                      <CenterCard
+                        center={center}
+                        showProvince={region !== "NUOC_NGOAI"}
+                      />
+                    </Reveal>
                   ))}
                 </div>
               </div>

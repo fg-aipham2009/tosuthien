@@ -103,15 +103,15 @@ export default async function TinTucDetailPage({ params }: Props) {
   };
 
   return (
-    <article className="mx-auto w-full max-w-[1080px] px-[15px] py-8 text-base text-black">
+    <article className="mx-auto w-full max-w-[1080px] px-[15px] py-8 text-base text-black animate-fade-up">
       <JsonLd data={pageLd} />
 
       <nav className="mb-6 text-sm text-muted">
-        <Link href="/" className="hover:text-primary">
+        <Link href="/" className="link-underline hover:text-primary">
           Trang chủ
         </Link>
         <span className="mx-2">/</span>
-        <Link href="/tin-tuc" className="hover:text-primary">
+        <Link href="/tin-tuc" className="link-underline hover:text-primary">
           Tin Tức
         </Link>
         <span className="mx-2">/</span>

@@ -21,6 +21,14 @@ export class CentersService {
     );
   }
 
+  private resolveDisplayOrder(
+    dto: CreateCenterDto | UpdateCenterDto,
+  ): number | undefined {
+    if (dto.displayOrder !== undefined) return dto.displayOrder;
+    if (dto.sortOrder !== undefined) return dto.sortOrder;
+    return undefined;
+  }
+
   async findAll(publishedOnly = true, region?: string) {
     const rows = await this.prisma.center.findMany({
       where: {
@@ -30,7 +38,7 @@ export class CentersService {
       include: {
         courses: { orderBy: { sortOrder: 'asc' } },
       },
-      orderBy: [{ sortOrder: 'asc' }],
+      orderBy: [{ region: 'asc' }, { displayOrder: 'asc' }, { templeName: 'asc' }],
     });
 
     const regionRank: Record<string, number> = {
@@ -40,16 +48,15 @@ export class CentersService {
       NUOC_NGOAI: 3,
     };
 
+    // Region cố định NAM→… rồi displayOrder (không ưu tiên có khóa tu nữa)
     return [...rows].sort((a, b) => {
       const ra = regionRank[a.region ?? ''] ?? 9;
       const rb = regionRank[b.region ?? ''] ?? 9;
       if (ra !== rb) return ra - rb;
-
-      const ac = a.courses.length > 0 ? 0 : 1;
-      const bc = b.courses.length > 0 ? 0 : 1;
-      if (ac !== bc) return ac - bc;
-
-      return a.sortOrder - b.sortOrder;
+      if (a.displayOrder !== b.displayOrder) {
+        return a.displayOrder - b.displayOrder;
+      }
+      return a.templeName.localeCompare(b.templeName, 'vi');
     });
   }
 
@@ -96,7 +103,7 @@ export class CentersService {
         mainImageUrl: dto.mainImageUrl,
         galleryImages: galleryImagesToJson(dto.galleryImages ?? []),
         detailContent: dto.detailContent,
-        sortOrder: dto.sortOrder ?? 0,
+        displayOrder: this.resolveDisplayOrder(dto) ?? 0,
         isPublished: dto.isPublished ?? true,
       },
     });
@@ -126,7 +133,8 @@ export class CentersService {
     if (dto.customs !== undefined) data.customs = dto.customs;
     if (dto.mainImageUrl !== undefined) data.mainImageUrl = dto.mainImageUrl;
     if (dto.detailContent !== undefined) data.detailContent = dto.detailContent;
-    if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
+    const displayOrder = this.resolveDisplayOrder(dto);
+    if (displayOrder !== undefined) data.displayOrder = displayOrder;
     if (dto.isPublished !== undefined) data.isPublished = dto.isPublished;
     if (dto.galleryImages !== undefined) {
       data.galleryImages = galleryImagesToJson(dto.galleryImages);

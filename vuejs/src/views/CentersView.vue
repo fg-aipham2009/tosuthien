@@ -2,12 +2,13 @@
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { fetchCenters, deleteCenter } from '@/api/centers';
+import { fetchCenters, deleteCenter, updateCenter } from '@/api/centers';
 import type { Center } from '@/types/models';
 
 const router = useRouter();
 const loading = ref(false);
 const centers = ref<Center[]>([]);
+const savingOrderId = ref<string | null>(null);
 
 async function load() {
   loading.value = true;
@@ -17,6 +18,29 @@ async function load() {
     ElMessage.error(e instanceof Error ? e.message : 'Không tải được danh sách');
   } finally {
     loading.value = false;
+  }
+}
+
+async function onDisplayOrderChange(row: Center, value: number | undefined) {
+  const next = Number(value ?? 0);
+  if (row.displayOrder === next) return;
+  savingOrderId.value = row.id;
+  try {
+    await updateCenter(row.id, { displayOrder: next });
+    row.displayOrder = next;
+    centers.value = [...centers.value].sort((a, b) => {
+      const ra = a.region ?? '';
+      const rb = b.region ?? '';
+      if (ra !== rb) return ra.localeCompare(rb);
+      if (a.displayOrder !== b.displayOrder) return a.displayOrder - b.displayOrder;
+      return a.templeName.localeCompare(b.templeName, 'vi');
+    });
+    ElMessage.success('Đã cập nhật displayOrder');
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Không lưu được thứ tự');
+    await load();
+  } finally {
+    savingOrderId.value = null;
   }
 }
 
@@ -60,7 +84,19 @@ onMounted(load);
 
     <el-card shadow="never">
       <el-table v-loading="loading" :data="centers" stripe>
-        <el-table-column prop="sortOrder" label="#" width="60" />
+        <el-table-column label="Display order" width="140" align="center">
+          <template #default="{ row }">
+            <el-input-number
+              :model-value="row.displayOrder"
+              :min="0"
+              :disabled="savingOrderId === row.id"
+              controls-position="right"
+              size="small"
+              style="width: 110px"
+              @change="(v: number | undefined) => onDisplayOrderChange(row, v)"
+            />
+          </template>
+        </el-table-column>
         <el-table-column prop="templeName" label="Tên" min-width="180" />
         <el-table-column label="Vùng" width="110">
           <template #default="{ row }">

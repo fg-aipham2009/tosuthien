@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CenterGallery } from "../../../components/CenterGallery";
 import { JsonLd } from "../../../components/JsonLd";
+import { Reveal } from "../../../components/motion/Reveal";
 import { fetchCenterBySlug, fetchCenters } from "../../../lib/api";
 import {
   abbotLine,
@@ -36,9 +38,13 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const center = await fetchCenterBySlug(slug);
-  if (!center) return buildMetadata({ title: "Không tìm thấy", path: `/thien-duong/${slug}`, noIndex: true });
+  if (!center)
+    return buildMetadata({
+      title: "Không tìm thấy",
+      path: `/thien-duong/${slug}`,
+      noIndex: true,
+    });
 
-  // Yoast kiểu: "Chùa Thiên Trì – Bình Chánh - Tổ Sư Thiền"
   const headline = center.province
     ? `${center.templeName} – ${center.province}`
     : center.templeName;
@@ -48,7 +54,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     path: `/thien-duong/${slug}`,
     type: "article",
     description: excerptForOg(
-      center.detailContent || addressLine(center) || `Thiền đường ${center.templeName}`,
+      center.detailContent ||
+        addressLine(center) ||
+        `Thiền đường ${center.templeName}`,
     ),
     image: center.mainImageUrl,
   });
@@ -71,7 +79,9 @@ export default async function CenterDetailPage({ params }: Props) {
     : center.templeName;
   const pageUrl = `${SITE_URL}/thien-duong/${slug}`;
   const desc = excerptForOg(
-    center.detailContent || addressLine(center) || `Thiền đường ${center.templeName}`,
+    center.detailContent ||
+      addressLine(center) ||
+      `Thiền đường ${center.templeName}`,
   );
 
   const pageLd = {
@@ -164,143 +174,174 @@ export default async function CenterDetailPage({ params }: Props) {
   };
 
   return (
-    <article className="mx-auto max-w-5xl px-4 py-10 md:px-6 md:py-14">
+    <article className="pb-16 md:pb-24">
       <JsonLd data={pageLd} />
-      <nav className="mb-6 text-sm text-muted">
-        <Link href="/thien-duong" className="hover:text-primary">
-          Thiền đường
-        </Link>
-        <span className="mx-2">/</span>
-        <span>{regionLabel(center.region)}</span>
-      </nav>
 
-      <header className="mb-8">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-          {regionLabel(center.region)}
-          {center.province ? ` · ${center.province}` : ""}
-        </p>
-        <h1 className="text-4xl font-bold text-primary md:text-5xl">
-          {center.templeName}
-        </h1>
-        {abbot ? <p className="mt-3 text-lg text-muted">{abbot}</p> : null}
-      </header>
-
+      {/* Full-bleed hero */}
       {center.mainImageUrl ? (
-        <div className="mb-8 overflow-hidden rounded-[10px] border border-line bg-paper-warm">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={center.mainImageUrl}
-            alt={center.templeName}
-            className="max-h-[480px] w-full rounded-none object-cover"
-          />
+        <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-hidden">
+          <div className="relative aspect-[16/10] max-h-[min(72vh,620px)] w-full min-h-[240px] overflow-hidden bg-paper-warm md:aspect-[21/9]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={center.mainImageUrl}
+              alt={center.templeName}
+              className="animate-ken-burns h-full w-full rounded-none object-cover"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#1a0f0a]/55 via-[#1a0f0a]/10 to-transparent" />
+          </div>
         </div>
       ) : null}
 
-      <div className="grid gap-8 lg:grid-cols-[1.4fr_0.9fr]">
-        <div className="space-y-8">
-          {center.detailContent ? (
-            <section>
-              <h2 className="mb-3 text-2xl font-bold text-primary-deep">
-                Giới thiệu
-              </h2>
-              <div className="whitespace-pre-wrap rounded-[10px] border border-line bg-white p-5 text-justify text-[1.125rem] leading-8 text-black md:p-6">
-                {center.detailContent}
-              </div>
-            </section>
-          ) : null}
+      <div className="mx-auto max-w-5xl px-4 md:px-6">
+        <nav className="animate-fade-up pt-6 text-sm text-muted md:pt-8">
+          <Link href="/thien-duong" className="link-underline hover:text-primary">
+            Thiền đường
+          </Link>
+          <span className="mx-2 text-line">/</span>
+          <Link
+            href={`/thien-duong?region=${center.region ?? ""}`}
+            className="link-underline hover:text-primary"
+          >
+            {regionLabel(center.region)}
+          </Link>
+        </nav>
 
-          {gallery.length > 0 ? (
-            <section>
-              <h2 className="mb-3 text-2xl font-bold text-primary-deep">
-                Hình ảnh
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {gallery.map((url) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={url}
-                    src={url}
-                    alt=""
-                    className="aspect-[4/3] w-full rounded-[10px] border border-line object-cover"
-                  />
-                ))}
-              </div>
-            </section>
+        <header className="animate-fade-up mt-6 max-w-3xl md:mt-8" style={{ animationDelay: "80ms" }}>
+          <p className="mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-accent">
+            {regionLabel(center.region)}
+            {center.province ? ` · ${center.province}` : ""}
+          </p>
+          <h1 className="text-[2rem] font-bold leading-[1.15] tracking-tight text-primary md:text-5xl">
+            {center.templeName}
+          </h1>
+          <div className="ornament-line mt-5" aria-hidden />
+          {abbot ? (
+            <p className="mt-5 text-lg leading-relaxed text-muted md:text-xl">
+              {abbot}
+            </p>
           ) : null}
+        </header>
 
-          {courses.length > 0 ? (
-            <section>
-              <h2 className="mb-3 text-2xl font-bold text-primary-deep">
-                Khóa tu
+        <div className="mt-10 grid gap-12 lg:mt-14 lg:grid-cols-[minmax(0,1.45fr)_minmax(260px,0.85fr)] lg:gap-14">
+          <div className="min-w-0 space-y-12">
+            {center.detailContent ? (
+              <Reveal>
+                <section>
+                  <h2 className="mb-4 text-xl font-bold tracking-wide text-primary-deep md:text-2xl">
+                    Giới thiệu
+                  </h2>
+                  <div className="whitespace-pre-wrap text-justify text-[1.125rem] leading-[1.85] text-ink">
+                    {center.detailContent}
+                  </div>
+                </section>
+              </Reveal>
+            ) : null}
+
+            {gallery.length > 0 ? (
+              <section>
+                <Reveal>
+                  <h2 className="mb-5 text-xl font-bold tracking-wide text-primary-deep md:text-2xl">
+                    Hình ảnh
+                  </h2>
+                </Reveal>
+                <CenterGallery urls={gallery} templeName={center.templeName} />
+              </section>
+            ) : null}
+
+            {courses.length > 0 ? (
+              <Reveal delay={80}>
+                <section>
+                  <h2 className="mb-5 text-xl font-bold tracking-wide text-primary-deep md:text-2xl">
+                    Khóa tu
+                  </h2>
+                  <ul className="divide-y divide-line border-y border-line">
+                    {courses.map((course) => (
+                      <li key={course.id} className="py-4 first:pt-5 last:pb-5">
+                        <p className="font-semibold text-ink">
+                          {courseTypeLabel(course)}
+                        </p>
+                        <p className="mt-1 text-sm text-muted">
+                          {courseScheduleLabel(course)}
+                        </p>
+                        {course.description ? (
+                          <p className="mt-2 text-sm leading-relaxed text-ink/80">
+                            {course.description}
+                          </p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              </Reveal>
+            ) : null}
+          </div>
+
+          <Reveal delay={120} className="lg:pt-1">
+            <aside className="relative overflow-hidden border border-line/80 bg-white/70 p-6 backdrop-blur-sm lg:sticky lg:top-24">
+              <div
+                className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-gold/15 blur-2xl"
+                aria-hidden
+              />
+              <h2 className="relative text-lg font-bold text-primary">
+                Thông tin liên hệ
               </h2>
-              <ul className="space-y-3">
-                {courses.map((course) => (
-                  <li
-                    key={course.id}
-                    className="rounded-[10px] border border-line bg-white px-4 py-3"
-                  >
-                    <p className="font-medium text-ink">
-                      {courseTypeLabel(course)}
+              <div className="relative mt-5 space-y-5">
+                {address ? (
+                  <div>
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted">
+                      Địa chỉ
                     </p>
-                    <p className="text-sm text-muted">
-                      {courseScheduleLabel(course)}
+                    <p className="mt-1.5 text-sm leading-relaxed text-ink">
+                      {address}
                     </p>
-                    {course.description ? (
-                      <p className="mt-1 text-sm text-ink/80">
-                        {course.description}
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+                  </div>
+                ) : null}
+                {center.phone ? (
+                  <div>
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted">
+                      Điện thoại
+                    </p>
+                    <a
+                      href={`tel:${center.phone.replace(/\s+/g, "")}`}
+                      className="link-underline mt-1.5 inline-block text-sm font-semibold text-primary"
+                    >
+                      {center.phone}
+                    </a>
+                  </div>
+                ) : null}
+                {center.activityHours ? (
+                  <div>
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted">
+                      Thời khóa
+                    </p>
+                    <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                      {center.activityHours}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+              {center.googleMapsUrl ? (
+                <a
+                  href={center.googleMapsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover-lift relative mt-7 inline-flex w-full items-center justify-center bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary-deep"
+                >
+                  Xem bản đồ
+                </a>
+              ) : null}
+            </aside>
+          </Reveal>
         </div>
 
-        <aside className="h-fit space-y-4 rounded-[10px] border border-line bg-white p-5 lg:sticky lg:top-24">
-          <h2 className="text-xl font-bold text-primary">Thông tin liên hệ</h2>
-          {address ? (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                Địa chỉ
-              </p>
-              <p className="mt-1 text-sm leading-relaxed">{address}</p>
-            </div>
-          ) : null}
-          {center.phone ? (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                Điện thoại
-              </p>
-              <a
-                href={`tel:${center.phone.replace(/\s+/g, "")}`}
-                className="mt-1 block text-sm font-medium text-primary hover:underline"
-              >
-                {center.phone}
-              </a>
-            </div>
-          ) : null}
-          {center.activityHours ? (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                Thời khóa
-              </p>
-              <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">
-                {center.activityHours}
-              </p>
-            </div>
-          ) : null}
-          {center.googleMapsUrl ? (
-            <a
-              href={center.googleMapsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex rounded-[11px] bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-deep"
-            >
-              Xem bản đồ
-            </a>
-          ) : null}
-        </aside>
+        <Reveal className="mt-14 border-t border-line pt-8">
+          <Link
+            href="/thien-duong"
+            className="link-underline text-sm font-medium text-muted hover:text-primary"
+          >
+            ← Về danh sách thiền đường
+          </Link>
+        </Reveal>
       </div>
     </article>
   );

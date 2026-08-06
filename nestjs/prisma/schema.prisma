@@ -201,13 +201,13 @@ model Center {
   mainImageUrl   String?               @map("main_image_url")
   galleryImages  Json                  @default("[]") @map("gallery_images")
   detailContent  String?               @map("detail_content")
-  sortOrder      Int                   @default(0) @map("sort_order")
+  displayOrder   Int                   @default(0) @map("display_order")
   isPublished    Boolean               @default(true) @map("is_published")
   createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
 
   courses Course[]
 
-  @@index([sortOrder], map: "idx_centers_sort")
+  @@index([displayOrder], map: "idx_centers_display_order")
   @@index([region], map: "idx_centers_region")
   @@index([province], map: "idx_centers_province")
   @@map("centers")

@@ -172,7 +172,7 @@ export async function resolveCitationPdfFileUrl(
     const hit = pdfs.find((b) => b.id === id)
     if (hit?.publicUrl) return `${stripHash(hit.publicUrl)}#page=${page}`
     if (hit?.filename) {
-      return `${API_ORIGIN}/files/pdf/${hit.filename.replace(/^pdf\//, '')}#page=${page}`
+      return `${API_ORIGIN}/files/pdf/${encodeURIComponent(hit.filename.replace(/^pdf\//, '')).replace(/%2F/gi, '/')}#page=${page}`
     }
   }
   return null

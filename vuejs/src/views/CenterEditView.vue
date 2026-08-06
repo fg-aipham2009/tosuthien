@@ -49,7 +49,7 @@ const form = reactive({
   rules: '',
   customs: '',
   detailContent: '',
-  sortOrder: 0,
+  displayOrder: 0,
   isPublished: true,
 });
 
@@ -132,7 +132,7 @@ async function loadCenter() {
     form.rules = c.rules ?? '';
     form.customs = c.customs ?? '';
     form.detailContent = c.detailContent ?? '';
-    form.sortOrder = c.sortOrder;
+    form.displayOrder = c.displayOrder ?? 0;
     form.isPublished = c.isPublished;
     mainImageUrl.value = c.mainImageUrl;
     gallery.value = parseGallery(c.galleryImages);
@@ -166,7 +166,7 @@ function buildPayload() {
     rules: form.rules.trim() || undefined,
     customs: form.customs.trim() || undefined,
     detailContent: form.detailContent.trim() || undefined,
-    sortOrder: form.sortOrder,
+    displayOrder: form.displayOrder,
     isPublished: form.isPublished,
   };
 }
@@ -452,8 +452,9 @@ watch(() => route.params.id, loadCenter);
 
         <el-row :gutter="20">
           <el-col :xs="12" :md="6">
-            <el-form-item label="Thứ tự hiển thị">
-              <el-input-number v-model="form.sortOrder" :min="0" style="width: 100%" />
+            <el-form-item label="Display order">
+              <el-input-number v-model="form.displayOrder" :min="0" style="width: 100%" />
+              <p class="hint" style="margin-top: 6px">Số nhỏ hiện trước trong danh sách (theo từng vùng).</p>
             </el-form-item>
           </el-col>
           <el-col :xs="12" :md="6">

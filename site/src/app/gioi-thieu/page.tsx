@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { GioiThieuBookList } from "../../components/GioiThieuBookList";
 import { JsonLd } from "../../components/JsonLd";
 import {
   INTRO,
@@ -11,6 +12,8 @@ import {
   SECTIONS_CUOI,
   type Section,
 } from "../../content/gioi-thieu";
+import { fetchPdfs, fetchTextBooks } from "../../lib/library/api";
+import { matchBookIds, type MatchedBookIds } from "../../lib/library/matchBook";
 import {
   SITE_NAME,
   SITE_URL,
@@ -60,7 +63,7 @@ function Block({ section }: { section: Section }) {
   );
 }
 
-export default function GioiThieuPage() {
+export default async function GioiThieuPage() {
   const pageLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -106,8 +109,23 @@ export default function GioiThieuPage() {
 
   const [mucA, ...mucBC] = SECTIONS;
 
+  let bookMatches: Record<string, MatchedBookIds> = {};
+  try {
+    const [pdfs, texts] = await Promise.all([fetchPdfs(), fetchTextBooks()]);
+    const titles = new Set<string>();
+    for (const b of KINH_SACH) {
+      titles.add(b.title);
+      b.items?.forEach((t) => titles.add(t));
+    }
+    bookMatches = Object.fromEntries(
+      [...titles].map((t) => [t, matchBookIds(t, pdfs, texts)]),
+    );
+  } catch {
+    bookMatches = {};
+  }
+
   return (
-    <article className="mx-auto w-full max-w-[1080px] px-[15px] py-8 text-base text-black">
+    <article className="mx-auto w-full max-w-[1080px] px-[15px] py-8 text-base text-black animate-fade-up">
       <JsonLd data={pageLd} />
 
       <p className={P}>
@@ -146,16 +164,7 @@ export default function GioiThieuPage() {
         ))}
       </p>
 
-      {KINH_SACH.map((book, i) => (
-        <Fragment key={book.title}>
-          <p className={`${P} italic`}>{`${i + 1}) ${book.title}`}</p>
-          {book.items?.map((item) => (
-            <p key={item} className={`${P} pl-[3em] italic`}>
-              {item}
-            </p>
-          ))}
-        </Fragment>
-      ))}
+      <GioiThieuBookList books={KINH_SACH} matches={bookMatches} />
 
       <p className={P}>***</p>
 

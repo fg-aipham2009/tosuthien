@@ -119,6 +119,7 @@ export interface Center {
   rules?: string | null
   customs?: string | null
   detailContent?: string | null
+  displayOrder?: number
   courses?: CenterCourse[]
 }
 

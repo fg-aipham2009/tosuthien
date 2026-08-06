@@ -44,20 +44,22 @@ export function HeroSlider({ slides }: { slides: Slide[] }) {
       }}
     >
       <div
-        className="flex transition-transform duration-500 ease-out"
+        className="flex transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ transform: `translateX(-${index * 100}%)` }}
       >
-        {slides.map((slide) => (
+        {slides.map((slide, i) => (
           <Link
             key={slide.src}
             href={slide.href}
-            className="relative aspect-video w-full shrink-0"
+            className="relative aspect-video w-full shrink-0 overflow-hidden"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={slide.src}
               alt={slide.alt ?? ""}
-              className="h-full w-full rounded-none object-cover"
+              className={`h-full w-full rounded-none object-cover transition-transform duration-[8000ms] ease-out ${
+                i === index ? "scale-105" : "scale-100"
+              }`}
             />
           </Link>
         ))}

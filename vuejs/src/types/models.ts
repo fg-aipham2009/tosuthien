@@ -28,7 +28,7 @@ export interface Center {
   mainImageUrl: string | null;
   galleryImages: GalleryImage[] | unknown;
   detailContent: string | null;
-  sortOrder: number;
+  displayOrder: number;
   isPublished: boolean;
   createdAt: string;
   courses?: Course[];
@@ -90,7 +90,7 @@ export interface CenterFormData {
   rules?: string;
   customs?: string;
   detailContent?: string;
-  sortOrder?: number;
+  displayOrder?: number;
   isPublished?: boolean;
 }
 

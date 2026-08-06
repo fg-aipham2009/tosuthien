@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { JsonLd } from "../../components/JsonLd";
+import { Reveal } from "../../components/motion/Reveal";
 import { SectionTitle } from "../../components/SectionTitle";
 import {
   fetchPosts,
@@ -93,23 +94,24 @@ export default async function TinTucPage({ searchParams }: Props) {
                   {group.label}
                 </h2>
                 <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-                  {group.items.map((post) => {
+                  {group.items.map((post, i) => {
                     const excerpt = excerptForOg(
                       stripHtml(post.excerpt || post.content),
                       140,
                     );
                     const date = formatPostDate(post.publishedAt);
                     return (
-                      <article key={post.id} className="flex flex-col">
+                      <Reveal key={post.id} delay={(i % 3) * 60} variant="zoom">
+                      <article className="flex flex-col">
                         <Link
                           href={`/tin-tuc/${post.slug}`}
-                          className="group block overflow-hidden rounded-[10px] bg-paper-warm"
+                          className="group block overflow-hidden bg-paper-warm"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={post.coverImageUrl || "/wp/header-right.png"}
                             alt={post.title}
-                            className="aspect-[4/3] w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                            className="aspect-[4/3] w-full rounded-none object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
                           />
                         </Link>
                         <div className="mt-4 flex flex-1 flex-col">
@@ -121,7 +123,7 @@ export default async function TinTucPage({ searchParams }: Props) {
                           <h3 className="text-lg leading-snug font-bold text-black">
                             <Link
                               href={`/tin-tuc/${post.slug}`}
-                              className="hover:text-primary"
+                              className="link-underline transition-colors hover:text-primary"
                             >
                               {post.title}
                             </Link>
@@ -133,12 +135,13 @@ export default async function TinTucPage({ searchParams }: Props) {
                           ) : null}
                           <Link
                             href={`/tin-tuc/${post.slug}`}
-                            className="mt-3 text-sm font-semibold text-primary hover:underline"
+                            className="mt-3 text-sm font-semibold text-primary link-underline"
                           >
                             Xem tiếp →
                           </Link>
                         </div>
                       </article>
+                      </Reveal>
                     );
                   })}
                 </div>

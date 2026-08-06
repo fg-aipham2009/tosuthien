@@ -7,13 +7,20 @@ import { toPdfFilePage } from './rag-source.util';
 
 type PdfIndexEntry = Pick<
   PdfFile,
-  'id' | 'title' | 'volume' | 'publicUrl' | 'slug' | 'filename' | 'storagePath'
+  | 'id'
+  | 'title'
+  | 'volume'
+  | 'publicUrl'
+  | 'slug'
+  | 'filename'
+  | 'storagePath'
+  | 'sortOrder'
 >;
 
 @Injectable()
 export class CitationLinkService implements OnModuleInit {
   private pdfIndex: PdfIndexEntry[] = [];
-  /** Map "13.pdf" / "13" → entry — matches rag source_file "13.txt" */
+  /** Map "13.pdf" / "13" → entry — matches rag source_file "13.txt" (by basename or sort_order) */
   private byBasename = new Map<string, PdfIndexEntry>();
 
   constructor(
@@ -35,6 +42,7 @@ export class CitationLinkService implements OnModuleInit {
         slug: true,
         filename: true,
         storagePath: true,
+        sortOrder: true,
       },
       orderBy: { sortOrder: 'asc' },
     });
@@ -162,9 +170,14 @@ export class CitationLinkService implements OnModuleInit {
       this.byBasename.get(base) ?? this.byBasename.get(`${base}.pdf`);
     if (cached) return cached;
 
+    const numeric = /^\d+$/.test(base) ? Number(base) : NaN;
     const row = await this.prisma.pdfFile.findFirst({
       where: {
-        OR: [{ filename: `${base}.pdf` }, { storagePath: `pdf/${base}.pdf` }],
+        OR: [
+          { filename: `${base}.pdf` },
+          { storagePath: `pdf/${base}.pdf` },
+          ...(Number.isFinite(numeric) ? [{ sortOrder: numeric }] : []),
+        ],
       },
       select: {
         id: true,
@@ -174,6 +187,7 @@ export class CitationLinkService implements OnModuleInit {
         slug: true,
         filename: true,
         storagePath: true,
+        sortOrder: true,
       },
     });
     if (!row) return null;
@@ -185,9 +199,16 @@ export class CitationLinkService implements OnModuleInit {
 
   private cacheBasename(pdf: PdfIndexEntry): void {
     const base = basenameNoExt(pdf.filename) || basenameNoExt(pdf.storagePath);
-    if (!base) return;
-    this.byBasename.set(base, pdf);
-    this.byBasename.set(`${base}.pdf`, pdf);
+    if (base) {
+      this.byBasename.set(base, pdf);
+      this.byBasename.set(`${base}.pdf`, pdf);
+    }
+    // Giữ khớp RAG N.txt ↔ PDF sau khi đổi tên file theo tựa sách
+    if (pdf.sortOrder > 0) {
+      const n = String(pdf.sortOrder);
+      this.byBasename.set(n, pdf);
+      this.byBasename.set(`${n}.pdf`, pdf);
+    }
   }
 
   /**

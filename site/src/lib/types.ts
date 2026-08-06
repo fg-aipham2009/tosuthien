@@ -45,6 +45,8 @@ export type Center = {
   mainImageUrl?: string | null;
   galleryImages?: GalleryImage[] | string[];
   detailContent?: string | null;
+  displayOrder?: number;
+  /** @deprecated dùng displayOrder */
   sortOrder?: number;
   isPublished?: boolean;
   courses?: CenterCourse[];
