@@ -9,10 +9,22 @@ import { LoadingBlock } from "../ui/Spinner";
 
 type Mode = "text" | "pdf" | "shelf";
 
-/** Kệ sách 3D FlipHTML5 hiện có trên tosuthien.com — chỉ tải khi mở tab (không nặng trang chính). */
+/** Kệ sách 3D FlipHTML5 — chỉ tải khi mở tab (không nặng trang chính). */
 const FLIP_SHELF_SRC =
   process.env.NEXT_PUBLIC_FLIPHTML5_SHELF_URL?.trim() ||
   "https://fliphtml5.com/bookcase/smonj/red";
+
+function modeFromQuery(raw: string | null): Mode {
+  if (raw === "pdf") return "pdf";
+  if (raw === "shelf") return "shelf";
+  return "text";
+}
+
+function hrefForMode(mode: Mode): string {
+  if (mode === "pdf") return "/kinh-sach?mode=pdf";
+  if (mode === "shelf") return "/kinh-sach?mode=shelf";
+  return "/kinh-sach";
+}
 
 function coverStyle(index: number): React.CSSProperties {
   const hue = [18, 28, 8, 35, 14, 22, 12, 30][index % 8];
@@ -21,12 +33,19 @@ function coverStyle(index: number): React.CSSProperties {
   };
 }
 
+function tabClass(active: boolean) {
+  return `rounded-full px-4 py-2 text-sm font-semibold ${
+    active ? "bg-white text-primary" : "text-white/80 hover:text-white"
+  }`;
+}
+
 export function KinhSachGrid() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const raw = searchParams.get("mode");
-  const mode: Mode =
-    raw === "pdf" ? "pdf" : raw === "shelf" ? "shelf" : "text";
+  /** Local mode: đổi tab ngay cả khi soft-nav query chậm / lỗi. */
+  const [mode, setMode] = useState<Mode>(() =>
+    modeFromQuery(searchParams.get("mode")),
+  );
 
   const [pdfs, setPdfs] = useState<BookPdf[]>([]);
   const [texts, setTexts] = useState<TextBook[]>([]);
@@ -34,6 +53,10 @@ export function KinhSachGrid() {
   const [error, setError] = useState("");
   /** Lazy: chỉ mount iframe FlipHTML5 sau khi user mở tab kệ sách. */
   const [shelfReady, setShelfReady] = useState(false);
+
+  useEffect(() => {
+    setMode(modeFromQuery(searchParams.get("mode")));
+  }, [searchParams]);
 
   useEffect(() => {
     if (mode === "shelf") {
@@ -55,14 +78,9 @@ export function KinhSachGrid() {
       .finally(() => setLoading(false));
   }, [mode]);
 
-  function setMode(next: Mode) {
-    const href =
-      next === "pdf"
-        ? "/kinh-sach?mode=pdf"
-        : next === "shelf"
-          ? "/kinh-sach?mode=shelf"
-          : "/kinh-sach";
-    router.replace(href);
+  function go(next: Mode) {
+    setMode(next);
+    router.replace(hrefForMode(next), { scroll: false });
   }
 
   const items = mode === "pdf" ? pdfs : texts;
@@ -81,28 +99,49 @@ export function KinhSachGrid() {
                 : "Đọc chữ — từng trang, chỉnh cỡ chữ."}
           </p>
         </div>
-        <div className="inline-flex flex-wrap rounded-full bg-black/25 p-1">
-          <button
-            type="button"
-            onClick={() => setMode("text")}
-            className={`rounded-full px-4 py-2 text-sm font-semibold ${mode === "text" ? "bg-white text-primary" : "text-white/80"}`}
+        <div className="inline-flex flex-wrap rounded-full bg-black/25 p-1" role="tablist" aria-label="Chế độ đọc">
+          <Link
+            href="/kinh-sach"
+            replace
+            scroll={false}
+            role="tab"
+            aria-selected={mode === "text"}
+            onClick={(e) => {
+              e.preventDefault();
+              go("text");
+            }}
+            className={tabClass(mode === "text")}
           >
             Đọc chữ
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("pdf")}
-            className={`rounded-full px-4 py-2 text-sm font-semibold ${mode === "pdf" ? "bg-white text-primary" : "text-white/80"}`}
+          </Link>
+          <Link
+            href="/kinh-sach?mode=pdf"
+            replace
+            scroll={false}
+            role="tab"
+            aria-selected={mode === "pdf"}
+            onClick={(e) => {
+              e.preventDefault();
+              go("pdf");
+            }}
+            className={tabClass(mode === "pdf")}
           >
             Bản gốc
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("shelf")}
-            className={`rounded-full px-4 py-2 text-sm font-semibold ${mode === "shelf" ? "bg-white text-primary" : "text-white/80"}`}
+          </Link>
+          <Link
+            href="/kinh-sach?mode=shelf"
+            replace
+            scroll={false}
+            role="tab"
+            aria-selected={mode === "shelf"}
+            onClick={(e) => {
+              e.preventDefault();
+              go("shelf");
+            }}
+            className={tabClass(mode === "shelf")}
           >
             Kệ 3D
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -122,11 +161,11 @@ export function KinhSachGrid() {
           )}
           <p className="px-4 py-3 text-center text-sm text-muted">
             Kệ 3D chạy trên FlipHTML5 (CDN ngoài). Muốn đọc nhanh / ảnh bìa nét — dùng tab{" "}
-            <button type="button" className="font-semibold text-primary" onClick={() => setMode("pdf")}>
+            <button type="button" className="font-semibold text-primary" onClick={() => go("pdf")}>
               Bản gốc
             </button>{" "}
             hoặc{" "}
-            <button type="button" className="font-semibold text-primary" onClick={() => setMode("text")}>
+            <button type="button" className="font-semibold text-primary" onClick={() => go("text")}>
               Đọc chữ
             </button>
             .
