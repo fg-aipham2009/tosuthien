@@ -182,7 +182,7 @@ HHTECH_CHAT_MODEL=claude-opus-4-6
 
 # --- Nexus (dự phòng) ---
 NEXUS_API_KEY=
-NEXUS_BASE_URL=https://nexusmmo.store/api/v1
+NEXUS_BASE_URL=https://api.nexusmmo.store/api/v1
 NEXUS_CHAT_MODEL=claude-opus-4-6
 
 # --- ShopAIKey (dự phòng) ---
@@ -261,7 +261,7 @@ Lưu ý: giá trị thật nằm trong file `.env` ở root repo.
 | `HHTECH_BASE_URL` | Không | `https://hhtechapi.com/v1` |
 | `HHTECH_CHAT_MODEL` | Không | Model chat (khuyên `claude-opus-4-6`) |
 | `NEXUS_API_KEY` | Khi `CHAT_PROVIDER=nexus` | API key Nexus |
-| `NEXUS_BASE_URL` | Không | `https://nexusmmo.store/api/v1` |
+| `NEXUS_BASE_URL` | Không | `https://api.nexusmmo.store/api/v1` |
 | `NEXUS_CHAT_MODEL` | Không | Model Nexus |
 | `SHOPAIKEY_API_KEY` | Khi `CHAT_PROVIDER=shopaikey` | API key ShopAIKey |
 | `SHOPAIKEY_BASE_URL` | Không | `https://api.shopaikey.com` |

@@ -16,7 +16,7 @@ if ! command -v node >/dev/null; then
   exit 1
 fi
 
-echo "==> Build site (SITE_URL=$NEXT_PUBLIC_SITE_URL API=$NEXT_PUBLIC_API_BASE_URL)"
+echo "==> Build site (SITE_URL=$NEXT_PUBLIC_SITE_URL publicAPI=$NEXT_PUBLIC_API_BASE_URL internal=$API_INTERNAL_BASE_URL)"
 npm ci
 npm run build
 

@@ -43,7 +43,7 @@ def fix_vn_pdf_text(text: str) -> str:
 
 SHOPAIKEY_BASE_URL = os.environ.get("SHOPAIKEY_BASE_URL", "https://api.shopaikey.com").rstrip("/")
 SHOPAIKEY_API_KEY = os.environ.get("SHOPAIKEY_API_KEY")
-NEXUS_BASE_URL = os.environ.get("NEXUS_BASE_URL", "https://nexusmmo.store/api/v1").rstrip("/")
+NEXUS_BASE_URL = os.environ.get("NEXUS_BASE_URL", "https://api.nexusmmo.store/api/v1").rstrip("/")
 NEXUS_API_KEY = os.environ.get("NEXUS_API_KEY")
 TAPHOA_BASE_URL = os.environ.get("TAPHOA_BASE_URL", "https://taphoaapi.info.vn").rstrip("/")
 TAPHOA_API_KEY = os.environ.get("TAPHOA_API_KEY")

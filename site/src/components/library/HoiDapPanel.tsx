@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useHoiDapChat, useMediaWide } from "../../hooks/useHoiDapChat";
+import { LoadingBlock, Spinner } from "../ui/Spinner";
+import { useToast } from "../ui/ToastProvider";
 import {
   defaultFilePage,
   mergeCitationsByBook,
@@ -22,6 +24,16 @@ export function HoiDapPanel() {
   const listRef = useRef<HTMLDivElement>(null);
   const wide = useMediaWide();
   const chat = useHoiDapChat(listRef);
+  const toast = useToast();
+  const lastError = useRef("");
+
+  useEffect(() => {
+    if (chat.error && chat.error !== lastError.current) {
+      toast.error(chat.error);
+      lastError.current = chat.error;
+    }
+    if (!chat.error) lastError.current = "";
+  }, [chat.error, toast]);
 
   function onSuggest(text: string) {
     void chat.send(text);
@@ -42,7 +54,7 @@ export function HoiDapPanel() {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-1">
+    <div className="flex min-h-0 flex-1 items-stretch self-stretch">
       {wide ? sidebar : null}
 
       {!wide && chat.drawerOpen ? (
@@ -55,7 +67,7 @@ export function HoiDapPanel() {
       ) : null}
       {!wide ? (
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-[min(280px,86vw)] shadow-xl transition-transform duration-200 ${
+          className={`fixed inset-y-0 left-0 z-50 w-[min(280px,86vw)] bg-[var(--c-sidebar)] shadow-xl transition-transform duration-200 ${
             chat.drawerOpen ? "translate-x-0" : "-translate-x-[105%]"
           }`}
           aria-hidden={!chat.drawerOpen}
@@ -65,6 +77,10 @@ export function HoiDapPanel() {
       ) : null}
 
       <section className="relative flex min-w-0 flex-1 flex-col bg-[var(--c-surface)]">
+        {chat.sourcesLoading ? (
+          <LoadingBlock label="Đang tải thư viện kinh sách…" className="min-h-[280px] flex-1" />
+        ) : (
+          <>
         <header className="flex shrink-0 items-center gap-2 border-b border-[var(--c-outline)] px-3 py-2.5">
           {!wide && (
             <button
@@ -85,15 +101,6 @@ export function HoiDapPanel() {
           </button>
         </header>
 
-        {chat.error ? (
-          <div className="mx-4 mt-2 flex items-center justify-between gap-2 rounded-lg bg-[var(--c-error-bg)] px-3 py-2 text-sm text-[var(--c-error)]">
-            <span>{chat.error}</span>
-            <button type="button" onClick={chat.clearError}>
-              ×
-            </button>
-          </div>
-        ) : null}
-
         <div
           ref={listRef}
           className={`min-h-0 flex-1 overflow-y-auto ${!chat.messages.length ? "flex flex-col justify-center" : ""}`}
@@ -106,9 +113,12 @@ export function HoiDapPanel() {
                 <ChatMessageBubble key={i} message={m} />
               ))}
               {(chat.busy || chat.phase) && (
-                <p className="py-2 text-center text-sm text-[var(--c-muted)]">
-                  {chat.phase === "retrieving" ? "Đang tìm kinh sách…" : "Đang trả lời…"}
-                </p>
+                <div className="flex items-center justify-center gap-2.5 py-4 text-sm text-[var(--c-muted)]">
+                  <Spinner size="sm" variant="muted" />
+                  <span>
+                    {chat.phase === "retrieving" ? "Đang tìm kinh sách…" : "Đang trả lời…"}
+                  </span>
+                </div>
               )}
             </div>
           )}
@@ -135,6 +145,8 @@ export function HoiDapPanel() {
             </p>
           </div>
         </footer>
+          </>
+        )}
       </section>
 
       {chat.pickerOpen ? (
@@ -143,7 +155,10 @@ export function HoiDapPanel() {
           draft={chat.pickerDraft}
           onToggle={chat.togglePickerDraft}
           onClose={() => chat.setPickerOpen(false)}
-          onApply={chat.applyPicker}
+          onApply={() => {
+            chat.applyPicker();
+            toast.success("Đã áp dụng bộ lọc sách");
+          }}
           onClearAll={chat.clearPickerDraft}
         />
       ) : null}
@@ -167,7 +182,7 @@ function ChatSidebar({
   onCollapse: () => void;
 }) {
   return (
-    <div className="flex h-full w-[260px] shrink-0 flex-col bg-[var(--c-sidebar)] text-[var(--c-sidebar-on)]">
+    <div className="flex min-h-full w-[220px] shrink-0 flex-col self-stretch bg-[var(--c-sidebar)] text-[var(--c-sidebar-on)]">
       <div className="flex items-center gap-1 px-2.5 pt-3 pb-1">
         <button
           type="button"
@@ -344,7 +359,7 @@ function Composer({
         aria-busy={busy}
       >
         {busy ? (
-          <span className="chat-spinner light" />
+          <Spinner size="sm" variant="light" />
         ) : (
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
@@ -441,6 +456,7 @@ function BookPickerModal({
 }
 
 function ChatMessageBubble({ message }: { message: ChatMessage }) {
+  const toast = useToast();
   if (message.role === "user") {
     return (
       <div className="mb-4 flex justify-end">
@@ -475,7 +491,12 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
                 <button
                   type="button"
                   className="text-xs text-[var(--c-muted)] hover:text-[var(--c-primary)]"
-                  onClick={() => void navigator.clipboard.writeText(scripture)}
+                  onClick={() => {
+                    void navigator.clipboard.writeText(scripture).then(
+                      () => toast.success("Đã sao chép nguyên văn"),
+                      () => toast.error("Không sao chép được"),
+                    );
+                  }}
                 >
                   Sao chép
                 </button>

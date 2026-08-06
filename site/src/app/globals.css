@@ -36,6 +36,15 @@
     @apply min-h-full bg-white text-base leading-[1.6] text-ink antialiased;
   }
 
+  body.hoi-dap-page {
+    min-height: 100dvh;
+  }
+
+  body.hoi-dap-page main {
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
   a {
     @apply no-underline;
   }

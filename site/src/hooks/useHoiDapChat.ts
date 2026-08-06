@@ -38,6 +38,7 @@ export function useHoiDapChat(listRef: React.RefObject<HTMLElement | null>) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerDraft, setPickerDraft] = useState<string[]>([]);
+  const [sourcesLoading, setSourcesLoading] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const persistPaused = useRef(false);
 
@@ -166,7 +167,8 @@ export function useHoiDapChat(listRef: React.RefObject<HTMLElement | null>) {
       .then((s) => setSources(s.filter((x) => !!x.sourceFile)))
       .catch((e) =>
         setError(e instanceof Error ? e.message : "Không tải được danh sách sách"),
-      );
+      )
+      .finally(() => setSourcesLoading(false));
     return () => {
       abortRef.current?.abort();
       persist();
@@ -268,6 +270,7 @@ export function useHoiDapChat(listRef: React.RefObject<HTMLElement | null>) {
     phase,
     busy,
     error,
+    sourcesLoading,
     drawerOpen,
     setDrawerOpen,
     pickerOpen,

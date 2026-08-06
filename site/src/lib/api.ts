@@ -10,7 +10,12 @@ export const API_ORIGIN =
     ? process.env.API_INTERNAL_BASE_URL.replace(/\/$/, "")
     : publicApi;
 
-export const API_BASE = `${API_ORIGIN}/api`;
+/**
+ * Client: `/api` (Next rewrite → Nest). Server: API_ORIGIN + /api.
+ * Hỏi đáp AI: POST /rag/chat/stream — LLM trên Nest (CHAT_PROVIDER=flare → 9flare).
+ */
+export const API_BASE =
+  typeof window !== "undefined" ? "/api" : `${API_ORIGIN}/api`;
 
 export async function fetchCenters(region?: CenterRegion | ""): Promise<Center[]> {
   const qs = region ? `?region=${encodeURIComponent(region)}` : "";

@@ -31,3 +31,6 @@ portal/.next/
 portal/node_modules/
 # Local broken git recovery leftovers
 .git.broken-*/
+# Flutter web build output (deploy via CI / flutter build web → VPS www)
+www/
+logs/*.log

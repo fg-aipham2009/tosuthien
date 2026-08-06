@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { fetchPdfs, fetchTextBooks } from "../../lib/library/api";
 import type { BookPdf, TextBook } from "../../lib/library/types";
+import { LoadingBlock } from "../ui/Spinner";
 
 type Mode = "text" | "pdf";
 
@@ -76,7 +77,7 @@ export function KinhSachGrid() {
       </div>
 
       {loading ? (
-        <p className="py-12 text-center text-muted">Đang tải danh sách…</p>
+        <LoadingBlock label="Đang tải danh sách kinh sách…" />
       ) : error ? (
         <p className="py-12 text-center text-alert">{error}</p>
       ) : !items.length ? (

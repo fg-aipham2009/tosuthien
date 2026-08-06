@@ -143,7 +143,7 @@ export class AiConfigService {
       const apiKey = this.config.get<string>('NEXUS_API_KEY') ?? '';
       const baseUrl = (
         this.config.get<string>('NEXUS_BASE_URL') ||
-        'https://nexusmmo.store/api/v1'
+        'https://api.nexusmmo.store/api/v1'
       ).replace(/\/$/, '');
       const model =
         this.config.get<string>('NEXUS_CHAT_MODEL') ||

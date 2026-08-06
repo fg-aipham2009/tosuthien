@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fetchPdfs, saveReadingProgress } from "../../lib/library/api";
 import type { BookPdf } from "../../lib/library/types";
+import { LoadingBlock } from "../ui/Spinner";
 
 type Props = { id: string; initialPage?: number };
 
@@ -36,7 +37,7 @@ export function PdfReaderClient({ id, initialPage }: Props) {
     return Math.min(max, Math.max(1, n));
   }
 
-  if (loading) return <p className="py-12 text-center text-muted">Đang tải…</p>;
+  if (loading) return <LoadingBlock label="Đang mở PDF…" />;
   if (error || !book) {
     return (
       <p className="py-12 text-center text-alert">{error || "Không tìm thấy sách"}</p>

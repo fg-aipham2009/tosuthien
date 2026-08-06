@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LibrarySubNav } from "./library/LibrarySubNav";
 import { MAIN_NAV, type NavItem } from "../lib/nav";
 
 const STICKY_AT = 120;
@@ -185,44 +184,17 @@ function MobileDrawer({
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const isHoiDap = pathname === "/hoi-dap";
   const [open, setOpen] = useState(false);
   const [stuck, setStuck] = useState(false);
 
   useEffect(() => {
-    if (isHoiDap) return;
     const onScroll = () => setStuck(window.scrollY > STICKY_AT);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [isHoiDap]);
+  }, []);
 
   useEffect(() => setOpen(false), [pathname]);
-
-  if (isHoiDap) {
-    return (
-      <header className="sticky top-0 z-40 shrink-0 border-b border-white/10 bg-primary shadow-sm">
-        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-2 px-3 py-2 min-[850px]:px-4">
-          <Link
-            href="/"
-            className="shrink-0 text-xs font-bold uppercase tracking-wide text-white hover:text-success min-[850px]:text-sm"
-          >
-            Tổ Sư Thiền
-          </Link>
-          <LibrarySubNav compact />
-          <button
-            type="button"
-            className="min-[850px]:hidden flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-lg text-white"
-            aria-label="Menu"
-            onClick={() => setOpen(true)}
-          >
-            ☰
-          </button>
-        </div>
-        <MobileDrawer open={open} onClose={() => setOpen(false)} />
-      </header>
-    );
-  }
 
   return (
     <header className="relative z-40">

@@ -109,28 +109,32 @@ export default async function HomePage() {
         <HeroSlider slides={SLIDES} />
       </div>
 
-      <section className="mx-auto max-w-[1080px] px-4 pb-4">
-        <div className="flex flex-col items-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/wp/to-su.jpg"
-            alt="Hòa thượng Thích Duy Lực"
-            className="mb-6 w-1/2 max-w-[420px]"
-          />
-          <SectionTitle className="!px-0">
-            Tiểu sử Hòa thượng Thích Duy Lực
-          </SectionTitle>
-          <div className="mt-6 space-y-4 text-justify text-[1.125rem] leading-relaxed text-black">
-            {THOI_THO_AU.map((p) => (
-              <p key={p.slice(0, 24)}>{p}</p>
-            ))}
+      <section className="pb-4">
+        <SectionTitle>Tiểu sử Hòa thượng Thích Duy Lực</SectionTitle>
+        <div className="mx-auto mt-8 grid max-w-[1080px] grid-cols-1 items-start gap-8 px-4 md:grid-cols-2 md:gap-10 lg:gap-12">
+          <div className="flex w-full justify-center md:justify-end">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/wp/to-su.jpg"
+              alt="Hòa thượng Thích Duy Lực"
+              width={420}
+              height={630}
+              className="h-auto w-full max-w-full object-contain md:max-w-[100%]"
+            />
           </div>
-          <Link
-            href="/gioi-thieu"
-            className="mt-8 inline-flex items-center gap-2 rounded-[11px] bg-success px-6 py-3 text-sm font-bold uppercase tracking-wide text-ink transition hover:brightness-95"
-          >
-            Xem thêm <span className="text-xs">▾</span>
-          </Link>
+          <div className="min-w-0 w-full">
+            <div className="space-y-4 text-justify text-[1.125rem] leading-relaxed text-black">
+              {THOI_THO_AU.map((p) => (
+                <p key={p.slice(0, 24)}>{p}</p>
+              ))}
+            </div>
+            <Link
+              href="/gioi-thieu"
+              className="mt-8 inline-flex items-center gap-2 rounded-[11px] bg-success px-6 py-3 text-sm font-bold uppercase tracking-wide text-ink transition hover:brightness-95"
+            >
+              Xem thêm <span className="text-xs">▾</span>
+            </Link>
+          </div>
         </div>
       </section>
 
