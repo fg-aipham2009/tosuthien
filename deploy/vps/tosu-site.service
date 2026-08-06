@@ -1,0 +1,15 @@
+[Unit]
+Description=Tổ Sư Thiền Next.js public site (demo.tosuthien.net)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/tosu-thien/site
+Environment=NODE_ENV=production
+Environment=PORT=5175
+ExecStart=/usr/bin/npm run start --silent
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -6,13 +6,46 @@
 | `admin.tosuthien.net.conf` | `admin.tosuthien.net` | `127.0.0.1:5173` (Docker `admin`) |
 | `app.tosuthien.net.conf` | `app.tosuthien.net` | `/opt/tosu-thien/www` (Flutter `build/web`) |
 | `tosuthien.net.conf` | `tosuthien.net`, `www` | `/opt/tosu-thien/portal-dist` (built Vue portal) |
+| `demo.tosuthien.net.conf` | `demo.tosuthien.net` | `127.0.0.1:5175` (Next `site/`) |
 
-DNS (A → VPS IP `168.144.120.72`): `@`, `www`, `app`, `api`, `admin`.
+DNS (A → VPS):
+
+| Host | Ghi chú |
+|------|---------|
+| `@`, `www`, `app`, `api`, `admin` | Máy chủ API/portal (ví dụ `163.128.43.45`) |
+| `demo` | **Cùng IP** với VPS chạy Next `site/` (nếu `demo` trỏ IP khác, chạy `deploy-demo-on-vps.sh` trên đúng máy đó) |
 
 | URL | Nội dung |
 |-----|----------|
+| **https://demo.tosuthien.net** | Site tin tức + thư viện (Next, tương đương tosuthien.com) |
 | **https://tosuthien.net** | Cổng chính (Vue 3) |
 | **https://app.tosuthien.net** | Ứng dụng Flutter web |
+
+## Demo site (Next) — demo.tosuthien.net
+
+Trên VPS có DNS `demo` trỏ tới (cần **Node.js 20+**):
+
+```bash
+cd /opt/tosu-thien
+git pull origin main
+chmod +x deploy/scripts/deploy-demo-on-vps.sh
+./deploy/scripts/deploy-demo-on-vps.sh
+```
+
+SSL:
+
+```bash
+sudo certbot --nginx -d demo.tosuthien.net
+```
+
+Build env (mặc định trong script):
+
+```env
+NEXT_PUBLIC_SITE_URL=https://demo.tosuthien.net
+NEXT_PUBLIC_API_BASE_URL=https://api.tosuthien.net
+```
+
+Khi lên `tosuthien.com`: sửa `NEXT_PUBLIC_SITE_URL`, build lại, thêm `server_name` + `certbot --expand`.
 
 ## Quick install on VPS
 

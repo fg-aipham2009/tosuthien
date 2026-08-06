@@ -19,17 +19,20 @@ if [[ -f /etc/nginx/sites-enabled/tosuthien.net.conf ]] \
   sudo cp "$NGINX_SRC/api.tosuthien.net.conf" "$NGINX_DST/"
   sudo cp "$NGINX_SRC/admin.tosuthien.net.conf" "$NGINX_DST/"
   sudo cp "$NGINX_SRC/app.tosuthien.net.conf" "$NGINX_DST/"
+  sudo cp "$NGINX_SRC/demo.tosuthien.net.conf" "$NGINX_DST/"
 else
   sudo cp "$NGINX_SRC/api.tosuthien.net.conf" "$NGINX_DST/"
   sudo cp "$NGINX_SRC/admin.tosuthien.net.conf" "$NGINX_DST/"
   sudo cp "$NGINX_SRC/app.tosuthien.net.conf" "$NGINX_DST/"
   sudo cp "$NGINX_SRC/tosuthien.net.conf" "$NGINX_DST/"
+  sudo cp "$NGINX_SRC/demo.tosuthien.net.conf" "$NGINX_DST/"
 fi
 
 echo "==> Enable sites"
 sudo ln -sf "$NGINX_DST/api.tosuthien.net.conf" /etc/nginx/sites-enabled/
 sudo ln -sf "$NGINX_DST/admin.tosuthien.net.conf" /etc/nginx/sites-enabled/
 sudo ln -sf "$NGINX_DST/app.tosuthien.net.conf" /etc/nginx/sites-enabled/
+sudo ln -sf "$NGINX_DST/demo.tosuthien.net.conf" /etc/nginx/sites-enabled/
 sudo ln -sf "$NGINX_DST/tosuthien.net.conf" /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
