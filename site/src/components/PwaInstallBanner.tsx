@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { PWA_APP_NAME } from "../lib/seo";
 
 const DISMISS_KEY = "tosuthien-pwa-dismiss";
