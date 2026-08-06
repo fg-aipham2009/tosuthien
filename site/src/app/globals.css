@@ -44,3 +44,37 @@
     @apply h-auto max-w-full rounded-[10px];
   }
 }
+
+/* MP3 mini player seek bar (Howler) */
+.mp3-seek {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 5px;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.mp3-seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #c4a484;
+  border: 0;
+  box-shadow: 0 0 0 2px rgba(42, 24, 16, 0.55);
+}
+
+.mp3-seek::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #c4a484;
+  border: 0;
+}
+
+.mp3-seek:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

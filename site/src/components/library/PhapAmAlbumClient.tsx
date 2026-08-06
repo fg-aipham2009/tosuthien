@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMp3Player } from "../../hooks/useMp3Player";
 import {
   fetchMediaCategories,
   fetchMp3Folders,
@@ -81,10 +82,8 @@ export function PhapAmAlbumClient({ slug }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
-  const [current, setCurrent] = useState<Mp3Track | null>(null);
-  const [playing, setPlaying] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const player = useMp3Player();
 
   const years = useMemo(() => filterMp3Years(yearsRaw), [yearsRaw]);
   const isSingleFolder = folders.length === 1;
@@ -178,23 +177,11 @@ export function PhapAmAlbumClient({ slug }: Props) {
   function playAt(list: Mp3Track[], i: number) {
     const track = list[i];
     if (!track) return;
-    if (current?.id === track.id) {
-      const a = audioRef.current;
-      if (a) {
-        if (a.paused) void a.play().catch(() => {});
-        else a.pause();
-      }
+    if (player.isTrackActive(track.id)) {
+      player.toggle();
       return;
     }
-    setCurrent(track);
-    setPlaying(true);
-    requestAnimationFrame(() => {
-      const a = audioRef.current;
-      if (a) {
-        a.src = track.publicUrl;
-        void a.play().catch(() => setPlaying(false));
-      }
-    });
+    player.playQueue(list, i);
   }
 
   async function onDownload(t: Mp3Track, e: React.MouseEvent) {
@@ -335,7 +322,8 @@ export function PhapAmAlbumClient({ slug }: Props) {
           ) : (
             <ol className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white">
               {filteredTracks.map((t, i) => {
-                const active = current?.id === t.id;
+                const active = player.isTrackActive(t.id);
+                const playing = active && player.state.playing;
                 return (
                   <li key={t.id}>
                     <div
@@ -388,21 +376,6 @@ export function PhapAmAlbumClient({ slug }: Props) {
           )}
         </>
       )}
-
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-white px-4 py-3 shadow-lg">
-        <p className="mb-1 truncate text-sm font-semibold text-black">
-          {current?.title ?? "Chọn bài để nghe"}
-        </p>
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <audio
-          ref={audioRef}
-          controls
-          className="w-full"
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-          onEnded={() => setPlaying(false)}
-        />
-      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import { Be_Vietnam_Pro } from "next/font/google";
+import { Mp3PlayerShell } from "../components/library/Mp3PlayerShell";
 import { JsonLd } from "../components/JsonLd";
 import { SiteFooter } from "../components/SiteFooter";
 import { SiteHeader } from "../components/SiteHeader";
@@ -136,9 +137,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="vi" className={`${body.variable} h-full`}>
       <body className="flex min-h-full flex-col font-sans">
         <JsonLd data={siteGraph} />
-        <SiteHeader />
-        <main className="flex min-h-0 flex-1 flex-col">{children}</main>
-        <SiteFooter />
+        <Mp3PlayerShell>
+          <SiteHeader />
+          <main className="flex min-h-0 flex-1 flex-col">{children}</main>
+          <SiteFooter />
+        </Mp3PlayerShell>
         <Script src="/pwa-register.js" strategy="afterInteractive" />
       </body>
     </html>

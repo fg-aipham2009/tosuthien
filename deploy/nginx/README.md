@@ -17,8 +17,24 @@ DNS (A → VPS):
 
 | URL | Nội dung |
 |-----|----------|
-| **https://demo.tosuthien.net** | Site tin tức + thư viện (Next, tương đương tosuthien.com) |
-| **https://tosuthien.net** | Cổng chính (Vue 3) |
+## Domain map (VPS)
+
+| URL | App | Nginx upstream |
+|-----|-----|----------------|
+| **https://demo.tosuthien.net** | Next `site/` (preview **tosuthien.com**) | `127.0.0.1:5175` |
+| **https://admin.tosuthien.net** | Vue admin (Docker) | `127.0.0.1:5173` |
+| **https://api.tosuthien.net** | Nest API | `127.0.0.1:8000` |
+| **https://tosuthien.net** | Vue portal `portal-dist` | static |
+| **https://app.tosuthien.net** | Flutter web | `/opt/tosu-thien/www` |
+
+**Không** trỏ admin lên demo. Cert riêng: `demo.tosuthien.net` vs SAN `tosuthien.net` (api, admin, app, www).
+
+Sau khi sửa DNS/nginx:
+
+```bash
+cd /opt/tosu-thien && git pull && chmod +x deploy/scripts/reconcile-vps-domains.sh && ./deploy/scripts/reconcile-vps-domains.sh
+```
+
 | **https://app.tosuthien.net** | Ứng dụng Flutter web |
 
 ## Demo site (Next) — demo.tosuthien.net
