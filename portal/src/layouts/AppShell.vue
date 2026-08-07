@@ -1,7 +1,19 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import MiniPlayer from '../components/MiniPlayer.vue'
+
+type PwaApi = {
+  canInstall: () => boolean
+  onChange: (fn: (can: boolean) => void) => () => void
+  install: () => Promise<boolean>
+}
+
+declare global {
+  interface Window {
+    tosuthienPwa?: PwaApi
+  }
+}
 
 const route = useRoute()
 const tabs = [
@@ -13,6 +25,25 @@ const tabs = [
 
 const activePath = computed(() => route.path)
 const isChat = computed(() => route.path === '/')
+const canInstall = ref(false)
+let offPwa: (() => void) | undefined
+
+onMounted(() => {
+  const pwa = window.tosuthienPwa
+  if (!pwa) return
+  canInstall.value = pwa.canInstall()
+  offPwa = pwa.onChange((can) => {
+    canInstall.value = can
+  })
+})
+
+onUnmounted(() => {
+  offPwa?.()
+})
+
+async function installApp() {
+  await window.tosuthienPwa?.install()
+}
 </script>
 
 <template>
@@ -21,23 +52,34 @@ const isChat = computed(() => route.path === '/')
     :class="{ 'bg-surface': isChat }"
   >
     <header
-      class="z-20 flex shrink-0 items-center justify-between gap-4 border-b border-black/10 bg-surface px-4 py-2.5 lg:px-8"
+      class="z-20 flex shrink-0 items-center justify-between gap-3 border-b border-black/10 bg-surface px-4 py-2.5 lg:px-8"
     >
       <RouterLink class="inline-flex items-center gap-2.5 text-[1.05rem] font-semibold text-brand" to="/">
         <img class="size-9 rounded-full" src="/logo-tosuthien.png" alt="" width="36" height="36" />
         <span>Tổ Sư Thiền</span>
       </RouterLink>
-      <nav class="hidden gap-1 lg:flex" aria-label="Chính">
-        <RouterLink
-          v-for="t in tabs"
-          :key="t.to"
-          :to="t.to"
-          class="rounded-full px-3.5 py-2 text-[0.92rem] text-muted transition hover:bg-brand hover:text-white"
-          :class="{ 'bg-brand font-semibold text-white': t.match(activePath) }"
+      <div class="flex items-center gap-2">
+        <nav class="hidden gap-1 lg:flex" aria-label="Chính">
+          <RouterLink
+            v-for="t in tabs"
+            :key="t.to"
+            :to="t.to"
+            class="rounded-full px-3.5 py-2 text-[0.92rem] text-muted transition hover:bg-brand hover:text-white"
+            :class="{ 'bg-brand font-semibold text-white': t.match(activePath) }"
+          >
+            {{ t.label }}
+          </RouterLink>
+        </nav>
+        <button
+          v-if="canInstall"
+          type="button"
+          class="rounded-full border border-brand/25 bg-brand/5 px-3.5 py-2 text-[0.92rem] font-semibold text-brand transition hover:bg-brand hover:text-white"
+          title="Cài đặt tosuthien.net như ứng dụng"
+          @click="installApp"
         >
-          {{ t.label }}
-        </RouterLink>
-      </nav>
+          Cài đặt
+        </button>
+      </div>
     </header>
 
     <main
