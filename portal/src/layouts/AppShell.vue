@@ -26,6 +26,7 @@ const tabs = [
 const activePath = computed(() => route.path)
 const isChat = computed(() => route.path === '/')
 const canInstall = ref(false)
+const installHint = ref('')
 let offPwa: (() => void) | undefined
 
 onMounted(() => {
@@ -42,7 +43,14 @@ onUnmounted(() => {
 })
 
 async function installApp() {
-  await window.tosuthienPwa?.install()
+  installHint.value = ''
+  const ok = await window.tosuthienPwa?.install()
+  if (ok) return
+  const ua = navigator.userAgent
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  installHint.value = isIOS
+    ? 'Trên iPhone/iPad: bấm Share → Thêm vào Màn hình chính.'
+    : 'Trên Chrome/Edge: menu ⋮ → Cài đặt ứng dụng / Install app.'
 }
 </script>
 
@@ -71,16 +79,23 @@ async function installApp() {
           </RouterLink>
         </nav>
         <button
-          v-if="canInstall"
           type="button"
           class="rounded-full border border-brand/25 bg-brand/5 px-3.5 py-2 text-[0.92rem] font-semibold text-brand transition hover:bg-brand hover:text-white"
-          title="Cài đặt tosuthien.net như ứng dụng"
+          :title="canInstall ? 'Cài đặt tosuthien.net như ứng dụng' : 'Hướng dẫn cài đặt ứng dụng'"
           @click="installApp"
         >
           Cài đặt
         </button>
       </div>
     </header>
+    <p
+      v-if="installHint"
+      class="shrink-0 border-b border-black/10 bg-brand/5 px-4 py-2 text-center text-sm text-brand lg:px-8"
+      role="status"
+    >
+      {{ installHint }}
+      <button type="button" class="ml-2 font-semibold underline" @click="installHint = ''">Đóng</button>
+    </p>
 
     <main
       class="min-h-0 flex-1 overflow-auto"
