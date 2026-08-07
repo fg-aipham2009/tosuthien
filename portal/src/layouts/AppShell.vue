@@ -5,8 +5,9 @@ import MiniPlayer from '../components/MiniPlayer.vue'
 
 type PwaApi = {
   canInstall: () => boolean
+  isStandalone?: () => boolean
   onChange: (fn: (can: boolean) => void) => () => void
-  install: () => Promise<boolean>
+  install: () => Promise<boolean | { ok: boolean; reason?: string; outcome?: string }>
 }
 
 declare global {
@@ -27,30 +28,56 @@ const activePath = computed(() => route.path)
 const isChat = computed(() => route.path === '/')
 const canInstall = ref(false)
 const installHint = ref('')
+const installing = ref(false)
 let offPwa: (() => void) | undefined
+let syncTimer1 = 0
+let syncTimer2 = 0
+
+function syncInstallable() {
+  canInstall.value = !!window.tosuthienPwa?.canInstall()
+}
 
 onMounted(() => {
-  const pwa = window.tosuthienPwa
-  if (!pwa) return
-  canInstall.value = pwa.canInstall()
-  offPwa = pwa.onChange((can) => {
+  syncInstallable()
+  offPwa = window.tosuthienPwa?.onChange((can) => {
     canInstall.value = can
   })
+  window.addEventListener('tosuthien-pwa', syncInstallable)
+  // SW / prompt có thể sẵn sàng sau vài giây
+  syncTimer1 = window.setTimeout(syncInstallable, 800)
+  syncTimer2 = window.setTimeout(syncInstallable, 2500)
 })
 
 onUnmounted(() => {
   offPwa?.()
+  window.removeEventListener('tosuthien-pwa', syncInstallable)
+  window.clearTimeout(syncTimer1)
+  window.clearTimeout(syncTimer2)
 })
 
+/** Giống nút Cài đặt banner cũ: mở hộp thoại cài PWA. */
 async function installApp() {
+  if (installing.value) return
   installHint.value = ''
-  const ok = await window.tosuthienPwa?.install()
-  if (ok) return
-  const ua = navigator.userAgent
-  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  installHint.value = isIOS
-    ? 'Trên iPhone/iPad: bấm Share → Thêm vào Màn hình chính.'
-    : 'Trên Chrome/Edge: menu ⋮ → Cài đặt ứng dụng / Install app.'
+  installing.value = true
+  try {
+    const result = await window.tosuthienPwa?.install()
+    const ok = result === true || (typeof result === 'object' && result?.ok)
+    if (ok) return
+    if (window.tosuthienPwa?.isStandalone?.()) {
+      installHint.value = 'Ứng dụng đã được cài trên máy này.'
+      return
+    }
+    const ua = navigator.userAgent
+    const isIOS =
+      /iPad|iPhone|iPod/.test(ua) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    installHint.value = isIOS
+      ? 'Trên iPhone/iPad: bấm Share → Thêm vào Màn hình chính.'
+      : 'Đang chờ trình duyệt cho phép cài. Thử Chrome/Edge, mở https://tosuthien.net rồi bấm lại Cài đặt.'
+  } finally {
+    installing.value = false
+  }
 }
 </script>
 
@@ -80,11 +107,17 @@ async function installApp() {
         </nav>
         <button
           type="button"
-          class="rounded-full border border-brand/25 bg-brand/5 px-3.5 py-2 text-[0.92rem] font-semibold text-brand transition hover:bg-brand hover:text-white"
-          :title="canInstall ? 'Cài đặt tosuthien.net như ứng dụng' : 'Hướng dẫn cài đặt ứng dụng'"
+          class="rounded-full px-3.5 py-2 text-[0.92rem] font-semibold transition"
+          :class="
+            canInstall
+              ? 'bg-brand text-white hover:bg-brand-deep'
+              : 'border border-brand/25 bg-brand/5 text-brand hover:bg-brand hover:text-white'
+          "
+          title="Cài đặt tosuthien.net như ứng dụng (PWA)"
+          :disabled="installing"
           @click="installApp"
         >
-          Cài đặt
+          {{ installing ? 'Đang cài…' : 'Cài đặt' }}
         </button>
       </div>
     </header>

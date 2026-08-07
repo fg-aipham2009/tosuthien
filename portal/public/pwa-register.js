@@ -1,6 +1,4 @@
 (function () {
-  if (!("serviceWorker" in navigator)) return;
-
   var deferredPrompt = null;
   var listeners = [];
 
@@ -23,12 +21,18 @@
     );
   }
 
+  /** Same behavior as old bottom "Cài đặt" banner: trigger native PWA install. */
   window.tosuthienPwa = {
     canInstall: function () {
       return !!(deferredPrompt && !isStandalone());
     },
+    isStandalone: isStandalone,
     onChange: function (fn) {
       if (typeof fn === "function") listeners.push(fn);
+      // push current state immediately
+      try {
+        fn(!!(deferredPrompt && !isStandalone()));
+      } catch (e) {}
       return function () {
         listeners = listeners.filter(function (x) {
           return x !== fn;
@@ -36,14 +40,20 @@
       };
     },
     install: async function () {
-      if (!deferredPrompt || isStandalone()) return false;
-      deferredPrompt.prompt();
-      try {
-        await deferredPrompt.userChoice;
-      } catch (e) {}
+      if (isStandalone()) return { ok: false, reason: "installed" };
+      if (!deferredPrompt) return { ok: false, reason: "unavailable" };
+      var promptEvent = deferredPrompt;
       deferredPrompt = null;
+      promptEvent.prompt();
+      var choice = null;
+      try {
+        choice = await promptEvent.userChoice;
+      } catch (e) {}
       notify();
-      return true;
+      return {
+        ok: true,
+        outcome: choice && choice.outcome ? choice.outcome : "unknown",
+      };
     },
   };
 
@@ -58,7 +68,8 @@
     notify();
   });
 
-  window.addEventListener("load", function () {
+  if ("serviceWorker" in navigator) {
+    // Register ASAP so Chrome can fire beforeinstallprompt (same as old banner).
     navigator.serviceWorker.register("/sw.js").catch(function () {});
-  });
+  }
 })();
