@@ -38,11 +38,14 @@ onMounted(async () => {
           class="flex h-full flex-col justify-start rounded-xl border border-black/10 bg-surface px-3 py-2.5 transition hover:border-brand/30 hover:shadow-sm"
           :to="`/mp3/${c.slug}`"
         >
-          <strong class="line-clamp-2 font-serif text-[0.98rem] leading-snug font-semibold">
+          <strong class="font-serif text-[0.98rem] leading-snug font-semibold break-words whitespace-normal">
             {{ c.name }}
           </strong>
-          <span class="mt-0.5 block h-4 overflow-hidden text-xs leading-4 text-muted">
-            {{ c.description || '\u00A0' }}
+          <span
+            v-if="c.description"
+            class="mt-1 text-xs leading-snug text-muted break-words whitespace-normal"
+          >
+            {{ c.description }}
           </span>
         </RouterLink>
       </li>

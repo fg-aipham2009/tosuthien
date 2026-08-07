@@ -39,12 +39,14 @@ export default async function PhapAmPage() {
                 href={`/phap-am/${c.slug}`}
                 className="flex h-full flex-col justify-start rounded-[10px] border border-line bg-white px-3 py-2.5 transition hover:border-primary hover:shadow-sm"
               >
-                <strong className="line-clamp-2 text-[0.98rem] leading-snug font-bold text-black">
+                <strong className="text-[0.98rem] leading-snug font-bold break-words whitespace-normal text-black">
                   {c.name}
                 </strong>
-                <span className="mt-0.5 block h-4 overflow-hidden text-xs leading-4 text-muted">
-                  {c.description || "\u00A0"}
-                </span>
+                {c.description ? (
+                  <span className="mt-1 text-xs leading-snug break-words whitespace-normal text-muted">
+                    {c.description}
+                  </span>
+                ) : null}
               </Link>
             </li>
           ))}
