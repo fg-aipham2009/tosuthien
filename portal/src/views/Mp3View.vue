@@ -31,18 +31,18 @@ onMounted(async () => {
 
     <ul
       v-else
-      class="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      class="grid auto-rows-fr grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
     >
       <li v-for="c in cats" :key="c.id" class="min-h-0">
         <RouterLink
-          class="flex h-full min-h-[8.5rem] flex-col rounded-2xl border border-black/10 bg-surface p-4 transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md"
+          class="flex h-full min-h-[4.75rem] flex-col justify-center rounded-2xl border border-black/10 bg-surface px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md"
           :to="`/mp3/${c.slug}`"
         >
-          <strong class="line-clamp-2 font-serif text-lg leading-snug font-semibold">
+          <strong class="line-clamp-2 font-serif text-[1.05rem] leading-snug font-semibold">
             {{ c.name }}
           </strong>
           <span
-            class="mt-auto line-clamp-2 pt-2 text-sm leading-snug text-muted"
+            class="mt-1 line-clamp-1 text-xs leading-snug text-muted"
             :class="{ invisible: !c.description }"
           >
             {{ c.description || '—' }}
