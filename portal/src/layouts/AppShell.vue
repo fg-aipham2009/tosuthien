@@ -27,22 +27,31 @@ const tabs = [
 const activePath = computed(() => route.path)
 const isChat = computed(() => route.path === '/')
 const canInstall = ref(false)
+const alreadyInstalled = ref(false)
+const showInstallButton = computed(() => !alreadyInstalled.value)
 const installHint = ref('')
 const installing = ref(false)
 let offPwa: (() => void) | undefined
 let syncTimer1 = 0
 let syncTimer2 = 0
 
+function isAppInstalled() {
+  return !!window.tosuthienPwa?.isStandalone?.()
+}
+
 function syncInstallable() {
-  canInstall.value = !!window.tosuthienPwa?.canInstall()
+  alreadyInstalled.value = isAppInstalled()
+  canInstall.value = !alreadyInstalled.value && !!window.tosuthienPwa?.canInstall()
 }
 
 onMounted(() => {
   syncInstallable()
   offPwa = window.tosuthienPwa?.onChange((can) => {
-    canInstall.value = can
+    alreadyInstalled.value = isAppInstalled()
+    canInstall.value = !alreadyInstalled.value && can
   })
   window.addEventListener('tosuthien-pwa', syncInstallable)
+  window.addEventListener('appinstalled', syncInstallable)
   // SW / prompt có thể sẵn sàng sau vài giây
   syncTimer1 = window.setTimeout(syncInstallable, 800)
   syncTimer2 = window.setTimeout(syncInstallable, 2500)
@@ -51,21 +60,29 @@ onMounted(() => {
 onUnmounted(() => {
   offPwa?.()
   window.removeEventListener('tosuthien-pwa', syncInstallable)
+  window.removeEventListener('appinstalled', syncInstallable)
   window.clearTimeout(syncTimer1)
   window.clearTimeout(syncTimer2)
 })
 
 /** Giống nút Cài đặt banner cũ: mở hộp thoại cài PWA. */
 async function installApp() {
-  if (installing.value) return
+  if (installing.value || alreadyInstalled.value) return
   installHint.value = ''
   installing.value = true
   try {
     const result = await window.tosuthienPwa?.install()
     const ok = result === true || (typeof result === 'object' && result?.ok)
-    if (ok) return
-    if (window.tosuthienPwa?.isStandalone?.()) {
-      installHint.value = 'Ứng dụng đã được cài trên máy này.'
+    syncInstallable()
+    if (ok) {
+      // Nếu user chấp nhận cài, ẩn nút; appinstalled cũng sẽ sync.
+      if (typeof result === 'object' && result.outcome === 'accepted') {
+        alreadyInstalled.value = true
+      }
+      return
+    }
+    if (isAppInstalled()) {
+      alreadyInstalled.value = true
       return
     }
     const ua = navigator.userAgent
@@ -106,6 +123,7 @@ async function installApp() {
           </RouterLink>
         </nav>
         <button
+          v-if="showInstallButton"
           type="button"
           class="rounded-full px-3.5 py-2 text-[0.92rem] font-semibold transition"
           :class="
@@ -122,7 +140,7 @@ async function installApp() {
       </div>
     </header>
     <p
-      v-if="installHint"
+      v-if="installHint && showInstallButton"
       class="shrink-0 border-b border-black/10 bg-brand/5 px-4 py-2 text-center text-sm text-brand lg:px-8"
       role="status"
     >
