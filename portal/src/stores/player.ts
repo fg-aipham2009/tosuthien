@@ -47,7 +47,7 @@ function syncMediaSession() {
   navigator.mediaSession.metadata = new MediaMetadata({
     title: t.title,
     artist: 'Tổ Sư Thiền',
-    album: 'MP3 khai thị',
+    album: 'Pháp Âm',
   })
   navigator.mediaSession.playbackState = state.playing ? 'playing' : 'paused'
 }

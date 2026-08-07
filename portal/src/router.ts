@@ -14,13 +14,13 @@ const router = createRouter({
       path: '/mp3',
       name: 'mp3',
       component: () => import('./views/Mp3View.vue'),
-      meta: { title: 'MP3' },
+      meta: { title: 'Pháp Âm' },
     },
     {
       path: '/mp3/:slug',
       name: 'mp3-album',
       component: () => import('./views/Mp3AlbumView.vue'),
-      meta: { title: 'Album MP3' },
+      meta: { title: 'Album Pháp Âm' },
     },
     {
       path: '/kinh-sach',

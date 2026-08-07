@@ -19,7 +19,7 @@ declare global {
 const route = useRoute()
 const tabs = [
   { to: '/', label: 'Hỏi Đáp', match: (p: string) => p === '/' },
-  { to: '/mp3', label: 'MP3', match: (p: string) => p.startsWith('/mp3') },
+  { to: '/mp3', label: 'Pháp Âm', match: (p: string) => p.startsWith('/mp3') },
   { to: '/kinh-sach', label: 'Kinh sách', match: (p: string) => p.startsWith('/kinh-sach') },
   { to: '/thien-duong', label: 'Thiền đường', match: (p: string) => p.startsWith('/thien-duong') },
 ] as const

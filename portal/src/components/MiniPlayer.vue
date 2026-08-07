@@ -56,7 +56,7 @@ function onScrubCommit() {
     v-if="current"
     class="fixed right-3 bottom-[calc(4.2rem+env(safe-area-inset-bottom))] left-3 z-25 overflow-hidden rounded-2xl border border-white/10 bg-[#2a1810]/96 text-white shadow-2xl backdrop-blur-md lg:right-5 lg:bottom-5 lg:left-auto lg:w-[min(420px,calc(100vw-2.5rem))]"
     role="region"
-    aria-label="Trình phát MP3"
+    aria-label="Trình phát Pháp Âm"
   >
     <div class="flex items-start justify-between gap-2 px-3 pt-2.5">
       <div class="min-w-0 flex-1">

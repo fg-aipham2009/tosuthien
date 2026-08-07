@@ -22,8 +22,8 @@ const ROUTE_SEO: Record<
     path: "/",
   },
   "/mp3": {
-    title: "Pháp Âm MP3",
-    description: "Nghe MP3 khai thị, pháp thoại Tông Phong Tổ Sư Thiền.",
+    title: "Pháp Âm",
+    description: "Nghe pháp âm khai thị, pháp thoại Tông Phong Tổ Sư Thiền.",
     path: "/mp3",
   },
   "/kinh-sach": {
