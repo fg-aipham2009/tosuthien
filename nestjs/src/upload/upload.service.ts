@@ -141,12 +141,18 @@ export class UploadService {
 
   async uploadPostCover(id: string, file: Express.Multer.File) {
     this.assertImage(file);
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    const { url } = this.saveFile(
+    // Always store tin tức covers as PNG (same pipeline as book covers).
+    const pngBuffer = await this.toPngBuffer(file);
+    const { url } = this.saveBuffer(
       MEDIA_DIRS.images,
-      file,
-      path.join('posts', id, `cover${ext}`),
+      pngBuffer,
+      path.join('posts', id, 'cover.png'),
     );
+    const postDir = path.join(this.dataRoot, MEDIA_DIRS.images, 'posts', id);
+    for (const legacy of ['cover.jpg', 'cover.jpeg', 'cover.webp', 'cover.gif']) {
+      const p = path.join(postDir, legacy);
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
     return this.postsService.setCoverImage(id, url);
   }
 
@@ -155,21 +161,22 @@ export class UploadService {
     if (files.length > 50) {
       throw new BadRequestException('Tối đa 50 ảnh mỗi lần upload');
     }
-    const images = files.map((file) => {
+    const images = [];
+    for (const file of files) {
       this.assertImage(file);
-      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-      const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
-      const { url, size } = this.saveFile(
+      const pngBuffer = await this.toPngBuffer(file);
+      const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+      const { url, size } = this.saveBuffer(
         MEDIA_DIRS.images,
-        file,
+        pngBuffer,
         path.join('posts', id, name),
       );
-      return {
+      images.push({
         url,
-        mimeType: file.mimetype || null,
+        mimeType: 'image/png',
         fileSize: size,
-      };
-    });
+      });
+    }
     return this.postsService.addContentImages(id, images);
   }
 
