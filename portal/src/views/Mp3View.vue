@@ -21,9 +21,9 @@ onMounted(async () => {
 
 <template>
   <div class="w-full pb-28">
-    <header class="mb-5">
+    <header class="mb-4">
       <h1 class="font-serif text-3xl font-bold tracking-tight">Pháp Âm</h1>
-      <p class="mt-1.5 text-muted">Chọn album để nghe trên trình duyệt.</p>
+      <p class="mt-1 text-muted">Chọn album để nghe trên trình duyệt.</p>
     </header>
 
     <p v-if="loading" class="text-muted">Đang tải…</p>
@@ -31,21 +31,18 @@ onMounted(async () => {
 
     <ul
       v-else
-      class="grid auto-rows-fr grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      class="grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
     >
       <li v-for="c in cats" :key="c.id" class="min-h-0">
         <RouterLink
-          class="flex h-full min-h-[4.75rem] flex-col justify-center rounded-2xl border border-black/10 bg-surface px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md"
+          class="flex h-full flex-col justify-start rounded-xl border border-black/10 bg-surface px-3 py-2.5 transition hover:border-brand/30 hover:shadow-sm"
           :to="`/mp3/${c.slug}`"
         >
-          <strong class="line-clamp-2 font-serif text-[1.05rem] leading-snug font-semibold">
+          <strong class="line-clamp-2 font-serif text-[0.98rem] leading-snug font-semibold">
             {{ c.name }}
           </strong>
-          <span
-            class="mt-1 line-clamp-1 text-xs leading-snug text-muted"
-            :class="{ invisible: !c.description }"
-          >
-            {{ c.description || '—' }}
+          <span class="mt-0.5 block h-4 overflow-hidden text-xs leading-4 text-muted">
+            {{ c.description || '\u00A0' }}
           </span>
         </RouterLink>
       </li>

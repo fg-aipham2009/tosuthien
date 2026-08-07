@@ -32,22 +32,18 @@ export default async function PhapAmPage() {
       {!cats.length ? (
         <p className="py-12 text-center text-muted">Chưa có album MP3.</p>
       ) : (
-        <ul className="grid auto-rows-fr grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {cats.map((c) => (
             <li key={c.id} className="min-h-0">
               <Link
                 href={`/phap-am/${c.slug}`}
-                className="flex h-full min-h-[4.75rem] flex-col justify-center rounded-[10px] border border-line bg-white px-3.5 py-3 transition hover:border-primary hover:shadow-md"
+                className="flex h-full flex-col justify-start rounded-[10px] border border-line bg-white px-3 py-2.5 transition hover:border-primary hover:shadow-sm"
               >
-                <strong className="line-clamp-2 text-[1.05rem] leading-snug font-bold text-black">
+                <strong className="line-clamp-2 text-[0.98rem] leading-snug font-bold text-black">
                   {c.name}
                 </strong>
-                <span
-                  className={`mt-1 line-clamp-1 text-xs leading-snug text-muted ${
-                    c.description ? "" : "invisible"
-                  }`}
-                >
-                  {c.description || "—"}
+                <span className="mt-0.5 block h-4 overflow-hidden text-xs leading-4 text-muted">
+                  {c.description || "\u00A0"}
                 </span>
               </Link>
             </li>
