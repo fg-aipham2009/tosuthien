@@ -41,8 +41,8 @@ export async function generateMetadata({ searchParams }: Props) {
   const path = region ? `/thien-duong?region=${region}` : "/thien-duong";
 
   const regionDesc = region
-    ? `Danh sách thiền đường ${REGION_LABELS[region]} thuộc Tông Phong Tổ Sư Thiền (tosuthien.com).`
-    : "Danh sách thiền đường Tông Phong Tổ Sư Thiền trên toàn quốc và ngoài nước — tosuthien.com.";
+    ? `Thiền đường Tổ Sư Thiền khu vực ${REGION_LABELS[region]} — hệ thống Tông Phong trên tosuthien.com.`
+    : "Hệ thống thiền đường Tổ Sư Thiền toàn quốc và ngoài nước — Tông Phong Thiền Việt Nam trên tosuthien.com.";
 
   return buildMetadata({
     title,

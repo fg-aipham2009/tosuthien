@@ -1,9 +1,10 @@
 /* Tổ Sư Thiền PWA — network-first (tosuthien.com) */
-const CACHE = "tosuthien-site-pwa-v1";
+const CACHE = "tosuthien-site-pwa-v2";
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",
   "/wp/favicon-192.png",
+  "/wp/icon-512.png",
   "/wp/header-right.png",
 ];
 

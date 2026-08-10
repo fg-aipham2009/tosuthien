@@ -19,20 +19,27 @@ export const SEO_DOMAIN_LABEL = "tosuthien.com";
 export const PWA_APP_NAME =
   process.env.NEXT_PUBLIC_PWA_APP_NAME?.trim() || SITE_NAME;
 
-/** Site-wide meta description — brand and official domain first. */
+/** Site-wide meta description — Tổ Sư Thiền + thư viện Hòa thượng (~155 chars for Google). */
 export const SITE_DESCRIPTION =
-  "Tổ Sư Thiền — trang chính thức tosuthien.com, Tông Phong Thiền Việt Nam. Tin tức Phật giáo, thiền đường, Hòa thượng Thích Duy Lực, hỏi đáp kinh sách, pháp âm MP3, kinh sách online.";
+  "Tổ Sư Thiền (tosuthien.com) — Tông Phong Thiền Việt Nam. Thư viện Hòa thượng Thích Duy Lực: kinh sách, pháp âm MP3, hỏi đáp Phật pháp và thiền đường.";
 
 export const SITE_KEYWORDS = [
   "Tổ Sư Thiền",
   "Tổ Sư Thiền Việt Nam",
   "Tông Phong Tổ Sư Thiền",
   "Tông Phong Thiền Việt Nam",
+  "Thư viện Tổ Sư Thiền",
+  "Thư viện Hòa thượng Thích Duy Lực",
+  "Hòa thượng Thích Duy Lực",
+  "Thích Duy Lực",
+  "Kinh sách Tổ Sư Thiền",
+  "Ngữ lục Tổ Sư Thiền",
+  "Pháp âm Tổ Sư Thiền",
+  "Hỏi đáp Tổ Sư Thiền",
   "Tổ Sư Thiền online",
   "trang chính thức Tổ Sư Thiền",
   "tosuthien",
   "tosuthien.com",
-  "Thích Duy Lực",
   "Thiền",
   "Phật pháp",
   "Thiền đường",
@@ -45,7 +52,7 @@ export const DEFAULT_OG_IMAGE = {
   url: `${SITE_URL}/wp/header-right.png`,
   width: 512,
   height: 512,
-  alt: `${SEO_PRIMARY_KEYWORD} — ${SEO_DOMAIN_LABEL}`,
+  alt: `${SEO_PRIMARY_KEYWORD} — Thư viện Hòa thượng Thích Duy Lực`,
 };
 
 const BRAND_LEAD_RE = /^(Tổ Sư Thiền|tosuthien)/i;
@@ -72,7 +79,7 @@ export function formatBrandDescription(
 }
 
 export const HOME_SEO_TITLE = formatBrandTitle(
-  "Tông Phong Thiền Việt Nam — tosuthien.com",
+  "Thư viện Hòa thượng Thích Duy Lực — tosuthien.com",
 );
 
 /** robots.txt parity with legacy Yoast on tosuthien.com */
@@ -177,6 +184,8 @@ export function absoluteUrl(path = "/"): string {
 export const SCHEMA_ALTERNATE_NAMES = [
   "Tông Phong Tổ Sư Thiền",
   "Tông Phong Thiền Việt Nam",
+  "Thư viện Hòa thượng Thích Duy Lực",
+  "Thư viện Tổ Sư Thiền",
   SEO_DOMAIN_KEYWORD,
   SEO_DOMAIN_LABEL,
 ] as const;

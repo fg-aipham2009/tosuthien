@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Tổ Sư Thiền",
   "short_name": "Tổ Sư Thiền",
-  "description": "Tổ Sư Thiền — trang chính thức tosuthien.com, Tông Phong Thiền Việt Nam. Tin tức, thiền đường, hỏi đáp kinh sách, pháp âm MP3.",
+  "description": "Tổ Sư Thiền (tosuthien.com) — thư viện Hòa thượng Thích Duy Lực: kinh sách, pháp âm MP3, hỏi đáp Phật pháp và thiền đường.",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
@@ -11,7 +11,7 @@
   "theme_color": "#612200",
   "lang": "vi",
   "dir": "ltr",
-  "categories": ["news", "education", "lifestyle"],
+  "categories": ["education", "books", "lifestyle"],
   "icons": [
     {
       "src": "/wp/favicon-192.png",
@@ -20,13 +20,13 @@
       "purpose": "any"
     },
     {
-      "src": "/wp/header-right.png",
+      "src": "/wp/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/wp/header-right.png",
+      "src": "/wp/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

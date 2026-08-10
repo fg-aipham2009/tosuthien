@@ -3,9 +3,9 @@ import { SectionTitle } from "../../components/SectionTitle";
 import { buildMetadata } from "../../lib/seo";
 
 export const metadata = buildMetadata({
-  title: "Thư Viện",
+  title: "Thư Viện Hòa thượng Thích Duy Lực",
   description:
-    "Thư viện Tông Phong Tổ Sư Thiền — hỏi đáp kinh sách, pháp âm MP3, kinh sách online trên tosuthien.com.",
+    "Thư viện Hòa thượng Thích Duy Lực — kinh sách Tổ Sư Thiền, pháp âm MP3 và hỏi đáp Phật pháp trên tosuthien.com.",
 });
 
 export default function ThuVienLayout({

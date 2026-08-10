@@ -21,11 +21,11 @@ import {
 import { preferFullPostImageUrl } from "../../lib/postContent";
 
 export const metadata = buildMetadata({
-  title: "Lưu trữ Tin Tức",
+  title: "Tin Tức Tổ Sư Thiền",
   path: "/tin-tuc",
   type: "article",
   description:
-    "Tin tức và thông báo Tông Phong Tổ Sư Thiền — tosuthien.com.",
+    "Tin tức Tổ Sư Thiền — thông báo khóa học, thiền đường và hoạt động Tông Phong trên tosuthien.com.",
   image: "/wp/header-right.png",
   imageWidth: 512,
   imageHeight: 512,

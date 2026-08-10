@@ -4,10 +4,10 @@ import { DelayedLoadingBlock } from "../../../components/ui/DelayedLoading";
 import { buildMetadata } from "../../../lib/seo";
 
 export const metadata = buildMetadata({
-  title: "Kinh Sách",
+  title: "Kinh Sách — Thư viện Hòa thượng Thích Duy Lực",
   path: "/kinh-sach",
   description:
-    "Thư viện kinh sách Tổ Sư Thiền — kệ FlipHTML5, đọc chữ và PDF gốc.",
+    "Kinh sách Tổ Sư Thiền trong thư viện Hòa thượng Thích Duy Lực — đọc chữ online và bản PDF gốc trên tosuthien.com.",
 });
 
 export default function KinhSachPage() {

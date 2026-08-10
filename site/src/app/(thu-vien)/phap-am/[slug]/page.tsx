@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props) {
   return buildMetadata({
     title,
     path: `/phap-am/${slug}`,
-    description: `Nghe pháp âm MP3 — ${title}. Tông Phong Tổ Sư Thiền.`,
+    description: `Pháp âm ${title} — MP3 Tổ Sư Thiền trong thư viện Hòa thượng Thích Duy Lực.`,
   });
 }
 
