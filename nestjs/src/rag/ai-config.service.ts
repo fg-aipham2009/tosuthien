@@ -137,7 +137,7 @@ export class AiConfigService {
     if (provider === 'hhtech') {
       const apiKey = this.config.get<string>('HHTECH_API_KEY') ?? '';
       const baseUrl = (
-        this.config.get<string>('HHTECH_BASE_URL') || 'https://hhtechapi.net/v1'
+        this.config.get<string>('HHTECH_BASE_URL') || 'https://hhtechapi.com/v1'
       ).replace(/\/$/, '');
       if (!apiKey) {
         throw new ServiceUnavailableException(

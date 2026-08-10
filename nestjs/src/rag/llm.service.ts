@@ -294,6 +294,7 @@ ${context}`;
     const res = await fetch(url, {
       method: 'POST',
       headers: {
+        Authorization: `Bearer ${endpoint.apiKey}`,
         'x-api-key': endpoint.apiKey,
         'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
