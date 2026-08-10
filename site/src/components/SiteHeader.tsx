@@ -32,7 +32,7 @@ function NavLink({
 
 function DesktopNav({ pathname }: { pathname: string }) {
   return (
-    <ul className="flex flex-wrap items-center justify-center gap-x-6 xl:gap-x-8">
+    <ul className="flex flex-nowrap items-center justify-center gap-x-2.5 lg:gap-x-3.5 xl:gap-x-5">
       {MAIN_NAV.map((item) => {
         const active =
           item.href === "/"
@@ -46,13 +46,13 @@ function DesktopNav({ pathname }: { pathname: string }) {
                   pathname === "/kinh-sach" ||
                   pathname.startsWith("/kinh-sach/")
                 : pathname === item.href.split("?")[0] ||
-                  pathname.startsWith(`${item.href.split("?")[0]}/`));
+                    pathname.startsWith(`${item.href.split("?")[0]}/`));
 
         return (
-          <li key={item.label} className="group relative">
+          <li key={item.label} className="group relative shrink-0">
             <NavLink
               item={item}
-              className={`flex items-center gap-1 whitespace-nowrap py-2.5 text-xs font-medium uppercase tracking-wide transition-colors xl:text-sm ${
+              className={`flex items-center gap-0.5 whitespace-nowrap py-2.5 text-[11px] font-medium uppercase tracking-wide transition-colors xl:text-xs 2xl:text-sm ${
                 active ? "text-success" : "text-white hover:text-success"
               }`}
             >
@@ -228,7 +228,7 @@ export function SiteHeader() {
           stuck ? "sticky top-0 z-40 shadow-md" : ""
         }`}
       >
-        <div className="mx-auto max-w-[1200px] px-4">
+        <div className="mx-auto max-w-[1400px] px-3 xl:px-4">
           <DesktopNav pathname={pathname} />
         </div>
       </div>

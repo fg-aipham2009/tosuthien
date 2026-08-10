@@ -16,6 +16,7 @@ for conf in \
   admin.tosuthien.net.conf \
   app.tosuthien.net.conf \
   demo.tosuthien.net.conf \
+  tosuthien.com.conf \
   tosuthien.net.conf
 do
   sudo cp "$NGINX_SRC/$conf" "$NGINX_DST/"

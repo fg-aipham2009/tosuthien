@@ -11,8 +11,11 @@
   "dependencies": {
     "howler": "^2.2.4",
     "next": "16.3.0",
+    "page-flip": "^2.0.7",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-pageflip": "^2.0.3",
+    "react-pdf": "^10.4.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

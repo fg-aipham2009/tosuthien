@@ -5,10 +5,19 @@ import { PdfModule } from '../pdf/pdf.module';
 import { CentersModule } from '../centers/centers.module';
 import { MediaModule } from '../media/media.module';
 import { PostsModule } from '../posts/posts.module';
+import { TeachersModule } from '../teachers/teachers.module';
+import { ClassAnnouncementsModule } from '../class-announcements/class-announcements.module';
 import { PublicUrlService } from '../common/public-url.service';
 
 @Module({
-  imports: [PdfModule, CentersModule, MediaModule, PostsModule],
+  imports: [
+    PdfModule,
+    CentersModule,
+    MediaModule,
+    PostsModule,
+    TeachersModule,
+    ClassAnnouncementsModule,
+  ],
   controllers: [UploadController],
   providers: [UploadService, PublicUrlService],
 })

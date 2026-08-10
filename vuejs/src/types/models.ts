@@ -277,3 +277,103 @@ export interface PaginatedPosts {
   limit: number;
   totalPages: number;
 }
+
+/** Giảng sư / giáo thọ */
+export interface Teacher {
+  id: string;
+  slug: string;
+  rank: string | null;
+  name: string;
+  photoUrl: string | null;
+  bio: string | null;
+  sortOrder: number;
+  isPublished: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TeacherFormData {
+  name: string;
+  slug?: string;
+  rank?: string;
+  bio?: string;
+  sortOrder?: number;
+  isPublished?: boolean;
+}
+
+/** 3 lớp học cố định */
+export interface DharmaClass {
+  id: string;
+  code: string;
+  name: string;
+  shortName: string | null;
+  weekday: number | null;
+  timeText: string | null;
+  zoomMeetingId: string | null;
+  zoomPass: string | null;
+  zoomUrl: string | null;
+  defaultTeacherId: string | null;
+  sortOrder: number;
+  isPublished: boolean;
+  defaultTeacher?: Teacher | null;
+}
+
+export interface DharmaClassFormData {
+  name?: string;
+  shortName?: string;
+  weekday?: number | null;
+  timeText?: string;
+  zoomMeetingId?: string;
+  zoomPass?: string;
+  zoomUrl?: string;
+  defaultTeacherId?: string | null;
+  sortOrder?: number;
+  isPublished?: boolean;
+}
+
+/** Thông báo khóa học / poster */
+export interface ClassAnnouncement {
+  id: string;
+  classId: string;
+  teacherId: string | null;
+  templeName: string;
+  templeAddress: string | null;
+  topicTitle: string;
+  formatNote: string | null;
+  teacherNameText: string | null;
+  teacherPhotoUrl: string | null;
+  sessionDate: string | null;
+  lunarDateText: string | null;
+  timeText: string | null;
+  zoomMeetingId: string | null;
+  zoomPass: string | null;
+  zoomUrl: string | null;
+  resourcesNote: string | null;
+  backgroundKey: string;
+  isPublished: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+  dharmaClass?: DharmaClass;
+  teacher?: Teacher | null;
+}
+
+export interface ClassAnnouncementFormData {
+  classId: string;
+  teacherId?: string | null;
+  templeName?: string;
+  templeAddress?: string;
+  topicTitle: string;
+  formatNote?: string;
+  teacherNameText?: string;
+  sessionDate?: string | null;
+  lunarDateText?: string;
+  timeText?: string;
+  zoomMeetingId?: string;
+  zoomPass?: string;
+  zoomUrl?: string;
+  resourcesNote?: string;
+  backgroundKey?: string;
+  sortOrder?: number;
+  isPublished?: boolean;
+}

@@ -6,7 +6,7 @@ export const metadata = buildMetadata({
   title: "Kinh Sách",
   path: "/kinh-sach",
   description:
-    "Thư viện kinh sách Tổ Sư Thiền — đọc chữ, PDF gốc, và kệ sách 3D.",
+    "Thư viện kinh sách Tổ Sư Thiền — kệ FlipHTML5, đọc chữ và PDF gốc.",
 });
 
 export default function KinhSachPage() {

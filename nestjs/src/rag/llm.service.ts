@@ -218,8 +218,8 @@ export class LlmService {
   }
 
   /**
-   * Yields text deltas. Tries primary provider first, then CHAT_FALLBACK_PROVIDER
-   * (e.g. flare → nexus) if the primary fails or returns an empty stream.
+   * Yields text deltas. Tries primary then CHAT_FALLBACK_PROVIDER list
+   * (comma-separated, e.g. flare → nexus,hhtech) on failure / empty stream.
    */
   async *answerStream(
     question: string,

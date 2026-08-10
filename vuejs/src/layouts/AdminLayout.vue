@@ -13,6 +13,8 @@ const activeMenu = computed(() => {
   if (route.path.startsWith('/books')) return '/books';
   if (route.path.startsWith('/youtube')) return '/youtube';
   if (route.path.startsWith('/posts')) return '/posts';
+  if (route.path.startsWith('/teachers')) return '/teachers';
+  if (route.path.startsWith('/class-announcements')) return '/class-announcements';
   if (route.path.startsWith('/admins')) return '/admins';
   return route.path;
 });
@@ -60,6 +62,14 @@ function logout() {
         <el-menu-item index="/posts">
           <el-icon><Document /></el-icon>
           <span>Tin tức</span>
+        </el-menu-item>
+        <el-menu-item index="/teachers">
+          <el-icon><Avatar /></el-icon>
+          <span>Giảng sư</span>
+        </el-menu-item>
+        <el-menu-item index="/class-announcements">
+          <el-icon><Notebook /></el-icon>
+          <span>Thông báo khóa học</span>
         </el-menu-item>
         <el-menu-item index="/admins">
           <el-icon><User /></el-icon>

@@ -7,11 +7,14 @@ import { SiteFooter } from "../components/SiteFooter";
 import { SiteHeader } from "../components/SiteHeader";
 import {
   DEFAULT_OG_IMAGE,
+  HOME_SEO_TITLE,
   PWA_APP_NAME,
   SITE_DESCRIPTION,
   SITE_NAME,
   SITE_URL,
   SITE_KEYWORDS,
+  SCHEMA_ALTERNATE_NAMES,
+  SEO_PRIMARY_KEYWORD,
   YOAST_ROBOTS,
   absoluteUrl,
 } from "../lib/seo";
@@ -26,8 +29,8 @@ const body = Be_Vietnam_Pro({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `Trang Chủ - ${SITE_NAME}`,
-    template: `%s - ${SITE_NAME}`,
+    default: HOME_SEO_TITLE,
+    template: `${SEO_PRIMARY_KEYWORD} | %s`,
   },
   description: SITE_DESCRIPTION,
   keywords: SITE_KEYWORDS,
@@ -60,13 +63,13 @@ export const metadata: Metadata = {
     locale: "vi_VN",
     url: SITE_URL,
     siteName: SITE_NAME,
-    title: `Trang Chủ - ${SITE_NAME}`,
+    title: HOME_SEO_TITLE,
     description: SITE_DESCRIPTION,
     images: [DEFAULT_OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
-    title: `Trang Chủ - ${SITE_NAME}`,
+    title: HOME_SEO_TITLE,
     description: SITE_DESCRIPTION,
     images: [DEFAULT_OG_IMAGE.url],
   },
@@ -86,6 +89,7 @@ const siteGraph = {
       "@id": `${SITE_URL}/#website`,
       url: SITE_URL,
       name: SITE_NAME,
+      alternateName: [...SCHEMA_ALTERNATE_NAMES],
       description: SITE_DESCRIPTION,
       publisher: { "@id": `${SITE_URL}/#organization` },
       inLanguage: "vi",
@@ -94,6 +98,7 @@ const siteGraph = {
       "@type": "Organization",
       "@id": `${SITE_URL}/#organization`,
       name: SITE_NAME,
+      alternateName: [...SCHEMA_ALTERNATE_NAMES],
       url: SITE_URL,
       logo: {
         "@type": "ImageObject",

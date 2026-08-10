@@ -4,9 +4,8 @@ import { buildMetadata } from "../../lib/seo";
 
 export const metadata = buildMetadata({
   title: "Thư Viện",
-  path: "/hoi-dap",
   description:
-    "Hỏi đáp kinh sách Tổ Sư Thiền, nghe pháp âm MP3, đọc kinh sách bản chữ và PDF gốc.",
+    "Thư viện Tông Phong Tổ Sư Thiền — hỏi đáp kinh sách, pháp âm MP3, kinh sách online trên tosuthien.com.",
 });
 
 export default function ThuVienLayout({

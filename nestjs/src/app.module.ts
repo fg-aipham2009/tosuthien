@@ -14,6 +14,9 @@ import { FilesModule } from './files/files.module';
 import { TextBooksModule } from './text-books/text-books.module';
 import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
+import { TeachersModule } from './teachers/teachers.module';
+import { DharmaClassesModule } from './dharma-classes/dharma-classes.module';
+import { ClassAnnouncementsModule } from './class-announcements/class-announcements.module';
 
 @Module({
   imports: [
@@ -45,6 +48,9 @@ import { AppController } from './app.controller';
     UploadModule,
     FilesModule,
     TextBooksModule,
+    TeachersModule,
+    DharmaClassesModule,
+    ClassAnnouncementsModule,
   ],
   controllers: [AppController],
 })

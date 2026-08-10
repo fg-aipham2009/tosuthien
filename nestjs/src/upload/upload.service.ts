@@ -8,6 +8,8 @@ import { PdfService } from '../pdf/pdf.service';
 import { CentersService } from '../centers/centers.service';
 import { MediaService } from '../media/media.service';
 import { PostsService } from '../posts/posts.service';
+import { TeachersService } from '../teachers/teachers.service';
+import { ClassAnnouncementsService } from '../class-announcements/class-announcements.service';
 
 const IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 const MP3_EXT = new Set(['.mp3']);
@@ -33,6 +35,8 @@ export class UploadService {
     private readonly centersService: CentersService,
     private readonly mediaService: MediaService,
     private readonly postsService: PostsService,
+    private readonly teachersService: TeachersService,
+    private readonly classAnnouncementsService: ClassAnnouncementsService,
   ) {
     this.dataRoot = path.resolve(
       this.config.get<string>('DATA_ROOT') || path.join(process.cwd(), '..', 'data'),
@@ -178,6 +182,36 @@ export class UploadService {
       });
     }
     return this.postsService.addContentImages(id, images);
+  }
+
+  async uploadTeacherPhoto(id: string, file: Express.Multer.File) {
+    this.assertImage(file);
+    const pngBuffer = await this.toPngBuffer(file);
+    const { url } = this.saveBuffer(
+      MEDIA_DIRS.images,
+      pngBuffer,
+      path.join('teachers', id, 'photo.png'),
+    );
+    return this.teachersService.setPhoto(id, url);
+  }
+
+  async clearTeacherPhoto(id: string) {
+    return this.teachersService.setPhoto(id, null);
+  }
+
+  async uploadAnnouncementTeacherPhoto(id: string, file: Express.Multer.File) {
+    this.assertImage(file);
+    const pngBuffer = await this.toPngBuffer(file);
+    const { url } = this.saveBuffer(
+      MEDIA_DIRS.images,
+      pngBuffer,
+      path.join('announcements', id, 'teacher.png'),
+    );
+    return this.classAnnouncementsService.setTeacherPhoto(id, url);
+  }
+
+  async clearAnnouncementTeacherPhoto(id: string) {
+    return this.classAnnouncementsService.setTeacherPhoto(id, null);
   }
 
   private async saveMp3(file: Express.Multer.File, body: Mp3UploadBody) {

@@ -64,26 +64,22 @@ export class AiConfigService {
     const endpoints: ChatEndpoint[] = [primary];
 
     const fallbackRaw = (
-      this.config.get<string>('CHAT_FALLBACK_PROVIDER') || ''
+      this.config.get<string>('CHAT_FALLBACK_PROVIDER') ||
+      this.config.get<string>('CHAT_FALLBACK_PROVIDERS') ||
+      ''
     )
       .toLowerCase()
       .trim();
-    if (
-      fallbackRaw &&
-      fallbackRaw !== primary.provider &&
-      this.isChatProvider(fallbackRaw)
-    ) {
+    const seen = new Set<ChatProvider>([primary.provider]);
+    for (const part of fallbackRaw.split(/[,+|]/).map((s) => s.trim())) {
+      if (!part || !this.isChatProvider(part) || seen.has(part)) continue;
       try {
         endpoints.push(
-          this.resolveEndpoint(
-            fallbackRaw,
-            defaultModel,
-            shopKey,
-            shopBase,
-          ),
+          this.resolveEndpoint(part, defaultModel, shopKey, shopBase),
         );
+        seen.add(part);
       } catch {
-        // Missing fallback credentials — keep primary only.
+        // Missing fallback credentials — skip.
       }
     }
 
@@ -125,7 +121,7 @@ export class AiConfigService {
     if (provider === 'hhtech') {
       const apiKey = this.config.get<string>('HHTECH_API_KEY') ?? '';
       const baseUrl = (
-        this.config.get<string>('HHTECH_BASE_URL') || 'https://hhtechapi.com/v1'
+        this.config.get<string>('HHTECH_BASE_URL') || 'https://hhtechapi.net/v1'
       ).replace(/\/$/, '');
       const model =
         this.config.get<string>('HHTECH_CHAT_MODEL') ||
@@ -143,7 +139,7 @@ export class AiConfigService {
       const apiKey = this.config.get<string>('NEXUS_API_KEY') ?? '';
       const baseUrl = (
         this.config.get<string>('NEXUS_BASE_URL') ||
-        'https://api.nexusmmo.store/api/v1'
+        'https://api.nexusmmo.store/v1'
       ).replace(/\/$/, '');
       const model =
         this.config.get<string>('NEXUS_CHAT_MODEL') ||
@@ -170,7 +166,7 @@ export class AiConfigService {
       const model =
         this.config.get<string>('FLARE_CHAT_MODEL') ||
         this.config.get<string>('NINEFLARE_CHAT_MODEL') ||
-        defaultModel;
+        'pro/claude-opus-4-8';
       if (!apiKey) {
         throw new ServiceUnavailableException(
           'CHAT_PROVIDER=flare nhưng thiếu FLARE_API_KEY trong .env',

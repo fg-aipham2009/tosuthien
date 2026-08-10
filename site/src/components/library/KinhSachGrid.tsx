@@ -7,7 +7,7 @@ import { fetchPdfs, fetchTextBooks } from "../../lib/library/api";
 import type { BookPdf, TextBook } from "../../lib/library/types";
 import { LoadingBlock } from "../ui/Spinner";
 
-type Mode = "text" | "pdf" | "shelf";
+type Mode = "shelf" | "text" | "pdf";
 
 const FLIP_SHELF_SRC =
   process.env.NEXT_PUBLIC_FLIPHTML5_SHELF_URL?.trim() ||
@@ -15,13 +15,13 @@ const FLIP_SHELF_SRC =
 
 function modeFromQuery(raw: string | null): Mode {
   if (raw === "pdf") return "pdf";
-  if (raw === "shelf") return "shelf";
-  return "text";
+  if (raw === "text") return "text";
+  return "shelf";
 }
 
 function hrefForMode(mode: Mode): string {
   if (mode === "pdf") return "/kinh-sach?mode=pdf";
-  if (mode === "shelf") return "/kinh-sach?mode=shelf";
+  if (mode === "text") return "/kinh-sach?mode=text";
   return "/kinh-sach";
 }
 
@@ -47,44 +47,43 @@ export function KinhSachGrid() {
 
   const [pdfs, setPdfs] = useState<BookPdf[]>([]);
   const [texts, setTexts] = useState<TextBook[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  /** Giữ iframe sau lần mở đầu — tránh flash / tải lại mỗi lần đổi tab. */
-  const [shelfMounted, setShelfMounted] = useState(
-    () => modeFromQuery(searchParams.get("mode")) === "shelf",
-  );
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState("");
+  const [listLoaded, setListLoaded] = useState(false);
 
   useEffect(() => {
     if (touched.current) return;
     setMode(modeFromQuery(searchParams.get("mode")));
   }, [searchParams]);
 
+  /** Only fetch book lists when leaving the FlipHTML5 shelf. */
   useEffect(() => {
+    if (mode === "shelf" || listLoaded) return;
     let cancelled = false;
-    setLoading(true);
-    setError("");
+    setListLoading(true);
+    setListError("");
     Promise.all([fetchPdfs(), fetchTextBooks()])
       .then(([p, t]) => {
         if (cancelled) return;
         setPdfs(p);
         setTexts(t);
+        setListLoaded(true);
       })
       .catch((e) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Không tải được kinh sách");
+        setListError(e instanceof Error ? e.message : "Không tải được kinh sách");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setListLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mode, listLoaded]);
 
   function go(next: Mode) {
     touched.current = true;
     setMode(next);
-    if (next === "shelf") setShelfMounted(true);
     if (typeof window !== "undefined") {
       window.history.replaceState(window.history.state, "", hrefForMode(next));
     }
@@ -92,11 +91,11 @@ export function KinhSachGrid() {
 
   const items = mode === "pdf" ? pdfs : texts;
   const subtitle =
-    mode === "pdf"
-      ? "PDF gốc — giữ đúng trang sách in, phóng to / tìm chữ."
-      : mode === "shelf"
-        ? "Kệ sách 3D (FlipHTML5) — lật sách như trên bản cũ; chỉ tải khi mở tab này."
-        : "Đọc chữ — từng trang rõ ràng, chỉnh cỡ chữ, mở nhanh.";
+    mode === "shelf"
+      ? "Kệ sách FlipHTML5 — chọn sách và lật trang ngay, nhẹ và dễ dùng."
+      : mode === "pdf"
+        ? "PDF gốc trên máy chủ — phóng to, tìm chữ, mở tab mới."
+        : "Đọc chữ — từng trang rõ, chỉnh cỡ chữ.";
 
   return (
     <div>
@@ -114,10 +113,19 @@ export function KinhSachGrid() {
         </div>
 
         <div
-          className="inline-grid min-w-[min(100%,280px)] grid-cols-3 gap-1 rounded-full bg-black/25 p-1"
+          className="inline-grid min-w-[min(100%,300px)] grid-cols-3 gap-1 rounded-full bg-black/25 p-1"
           role="tablist"
           aria-label="Chế độ đọc"
         >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "shelf"}
+            className={tabClass(mode === "shelf")}
+            onClick={() => go("shelf")}
+          >
+            FlipHTML5
+          </button>
           <button
             type="button"
             role="tab"
@@ -136,123 +144,110 @@ export function KinhSachGrid() {
           >
             Bản gốc
           </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "shelf"}
-            className={tabClass(mode === "shelf")}
-            onClick={() => go("shelf")}
-          >
-            Kệ 3D
-          </button>
         </div>
       </header>
 
-      <div
-        className={mode === "shelf" ? "block" : "hidden"}
-        aria-hidden={mode !== "shelf"}
-      >
+      {mode === "shelf" ? (
         <div className="overflow-hidden rounded-[12px] border border-line bg-paper-warm">
-          {shelfMounted ? (
-            <iframe
-              title="Kệ sách FlipHTML5"
-              src={FLIP_SHELF_SRC}
-              className="h-[min(80vh,900px)] w-full border-0"
-              allowFullScreen
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          ) : null}
+          <iframe
+            title="Kệ sách FlipHTML5"
+            src={FLIP_SHELF_SRC}
+            className="h-[min(85vh,960px)] w-full border-0"
+            allowFullScreen
+            loading="eager"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
           <p className="px-4 py-3 text-center text-sm text-muted">
-            Kệ 3D từ FlipHTML5. Ảnh bìa nét / đọc nhanh — dùng{" "}
-            <button
-              type="button"
-              className="font-semibold text-primary underline-offset-2 hover:underline"
-              onClick={() => go("pdf")}
-            >
-              Bản gốc
-            </button>{" "}
-            hoặc{" "}
+            Đọc nhanh trên kệ 3D. Cần tìm chữ / đọc dở trên máy chủ — dùng{" "}
             <button
               type="button"
               className="font-semibold text-primary underline-offset-2 hover:underline"
               onClick={() => go("text")}
             >
               Đọc chữ
+            </button>{" "}
+            hoặc{" "}
+            <button
+              type="button"
+              className="font-semibold text-primary underline-offset-2 hover:underline"
+              onClick={() => go("pdf")}
+            >
+              Bản gốc
             </button>
             .
           </p>
         </div>
-      </div>
+      ) : (
+        <div>
+          {!listLoading && !listError ? (
+            <div className="mb-4 flex items-center justify-between text-sm text-muted">
+              <span>
+                {items.length} sách · {mode === "text" ? "Đọc chữ" : "Bản gốc PDF"}
+              </span>
+            </div>
+          ) : null}
 
-      <div className={mode === "shelf" ? "hidden" : "block"}>
-        {!loading && !error ? (
-          <div className="mb-4 flex items-center justify-between text-sm text-muted">
-            <span>
-              {items.length} sách · {mode === "text" ? "Đọc chữ" : "Bản gốc PDF"}
-            </span>
-          </div>
-        ) : null}
-
-        {loading ? (
-          <LoadingBlock label="Đang tải danh sách kinh sách…" />
-        ) : error ? (
-          <p className="py-12 text-center text-alert">{error}</p>
-        ) : !items.length ? (
-          <p className="py-12 text-center text-muted">Chưa có sách.</p>
-        ) : (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
-            {items.map((b, i) => (
-              <li key={b.id}>
-                <Link
-                  href={
-                    mode === "pdf"
-                      ? `/kinh-sach/pdf/${b.id}`
-                      : `/kinh-sach/chu/${b.id}`
-                  }
-                  className="group flex h-full flex-col gap-2.5"
-                >
-                  <div
-                    className="relative aspect-[3/4.2] overflow-hidden rounded-[12px] bg-paper-warm shadow-md shadow-primary/15 transition duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:shadow-primary/25"
-                    style={b.coverImageUrl ? undefined : coverStyle(i)}
+          {listLoading ? (
+            <LoadingBlock label="Đang tải danh sách kinh sách…" />
+          ) : listError ? (
+            <p className="py-12 text-center text-alert">{listError}</p>
+          ) : !items.length ? (
+            <p className="py-12 text-center text-muted">Chưa có sách.</p>
+          ) : (
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+              {items.map((b, i) => (
+                <li key={b.id}>
+                  <Link
+                    href={
+                      mode === "pdf"
+                        ? `/kinh-sach/pdf/${b.id}`
+                        : `/kinh-sach/chu/${b.id}`
+                    }
+                    className="group flex h-full flex-col gap-2.5"
                   >
-                    {b.coverImageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={b.coverImageUrl}
-                        alt={b.title}
-                        className="absolute inset-0 size-full rounded-none object-contain"
-                        decoding="async"
-                        loading={i < 8 ? "eager" : "lazy"}
-                      />
-                    ) : null}
-                    <span className="absolute top-2.5 left-2.5 z-[1] rounded-md bg-black/40 px-1.5 py-0.5 text-[0.68rem] font-bold tracking-wide text-white backdrop-blur-sm">
-                      {mode === "pdf" ? "PDF" : "Aa"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-0.5 px-0.5">
-                    <strong className="line-clamp-2 text-[0.9rem] leading-snug font-bold text-ink">
-                      {b.title}
-                    </strong>
-                    {b.lastPage ? (
-                      <span className="text-[0.78rem] font-semibold text-primary">
-                        Đọc dở · tr.{b.lastPage}
+                    <div
+                      className="relative aspect-[3/4.2] overflow-hidden rounded-[12px] bg-paper-warm shadow-md shadow-primary/15 transition duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:shadow-primary/25"
+                      style={b.coverImageUrl ? undefined : coverStyle(i)}
+                    >
+                      {b.coverImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={b.coverImageUrl}
+                          alt={b.title}
+                          className="absolute inset-0 size-full rounded-none object-contain"
+                          decoding="async"
+                          loading={i < 8 ? "eager" : "lazy"}
+                        />
+                      ) : null}
+                      <span className="absolute top-2.5 left-2.5 z-[1] rounded-md bg-black/40 px-1.5 py-0.5 text-[0.68rem] font-bold tracking-wide text-white backdrop-blur-sm">
+                        {mode === "pdf" ? "PDF" : "Aa"}
                       </span>
-                    ) : (
-                      <span className="text-[0.78rem] text-muted">
-                        {b.pageCount
-                          ? `${b.pageCount} trang`
-                          : mode === "pdf"
-                            ? "PDF gốc"
-                            : "Đọc chữ"}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                    </div>
+                    <div className="flex flex-col gap-0.5 px-0.5">
+                      <strong className="line-clamp-2 text-[0.9rem] leading-snug font-bold text-ink">
+                        {b.title}
+                      </strong>
+                      {b.lastPage ? (
+                        <span className="text-[0.78rem] font-semibold text-primary">
+                          Đọc dở · tr.{b.lastPage}
+                        </span>
+                      ) : (
+                        <span className="text-[0.78rem] text-muted">
+                          {b.pageCount
+                            ? `${b.pageCount} trang`
+                            : mode === "pdf"
+                              ? "PDF gốc"
+                              : "Đọc chữ"}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

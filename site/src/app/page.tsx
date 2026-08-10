@@ -6,16 +6,17 @@ import { Reveal } from "../components/motion/Reveal";
 import { SectionTitle } from "../components/SectionTitle";
 import { THOI_THO_AU } from "../content/gioi-thieu";
 import { fetchCenters } from "../lib/api";
+import { fetchDharmaClasses } from "../lib/classAnnouncements";
 import { REGION_ORDER, groupByRegion } from "../lib/centers";
 import {
-  SITE_NAME,
+  HOME_SEO_TITLE,
   SITE_URL,
   absoluteUrl,
   buildMetadata,
 } from "../lib/seo";
 
 export const metadata = buildMetadata({
-  title: `Trang Chủ - ${SITE_NAME}`,
+  title: HOME_SEO_TITLE,
   absoluteTitle: true,
   path: "/",
   type: "website",
@@ -67,23 +68,6 @@ const SLIDES: Slide[] = [
   },
 ];
 
-const ZOOM_ROOMS = [
-  {
-    href: "https://zoom.us/j/8196000378?pwd=akZVV3p4YmVHSytlcTdQY2wvdTd3QT09",
-    lines: [
-      "Lớp Thiền căn bản tối thứ 7 và lớp chuyên đề Thiền căn bản tối thứ 2 hằng tuần từ 19h00-20h00. Kính mời quý vị bấm vào hình trên là vào lớp học hoặc",
-      "Cách 2: ID: 8196000378; pass: phatphap",
-    ],
-  },
-  {
-    href: "https://us02web.zoom.us/j/2258212697?pwd=ckp4bVZNbHhnaWFLb0R1cFNhVEk1UT09",
-    lines: [
-      "Lớp học Chuyên đề Tổ Sư Thiền tối thứ năm từ 19h00-20h00. Quý vị tham gia lớp học bấm vào hình trên này là vào lớp học hoặc",
-      "Cách 2: ID: 2258212697; pass: thamthien",
-    ],
-  },
-];
-
 const REGION_HEADINGS: Record<string, string> = {
   NAM: "Miền Nam",
   TRUNG: "Miền Trung",
@@ -91,12 +75,34 @@ const REGION_HEADINGS: Record<string, string> = {
   NUOC_NGOAI: "Ngoài Nước",
 };
 
+const FALLBACK_ZOOM = [
+  {
+    href: "https://zoom.us/j/8196000378?pwd=akZVV3p4YmVHSytlcTdQY2wvdTd3QT09",
+    lines: [
+      "Lớp Thiền căn bản tối thứ 7 và lớp chuyên đề Thiền căn bản tối thứ 2 hằng tuần từ 19h00-20h00.",
+      "Cách 2: ID: 8196000378; pass: phatphap",
+    ],
+  },
+  {
+    href: "https://us02web.zoom.us/j/2258212697?pwd=ckp4bVZNbHhnaWFLb0R1cFNhVEk1UT09",
+    lines: [
+      "Lớp học Chuyên đề Tổ Sư Thiền tối thứ năm từ 19h00-20h00.",
+      "Cách 2: ID: 2258212697; pass: thamthien",
+    ],
+  },
+];
+
 export default async function HomePage() {
   let centers: Awaited<ReturnType<typeof fetchCenters>> = [];
+  let classes: Awaited<ReturnType<typeof fetchDharmaClasses>> = [];
   try {
-    centers = await fetchCenters();
+    [centers, classes] = await Promise.all([
+      fetchCenters(),
+      fetchDharmaClasses(),
+    ]);
   } catch {
     centers = [];
+    classes = [];
   }
   const groups = groupByRegion(centers);
 
@@ -107,7 +113,7 @@ export default async function HomePage() {
         "@type": "WebPage",
         "@id": `${SITE_URL}/`,
         url: SITE_URL,
-        name: `Trang Chủ - ${SITE_NAME}`,
+        name: HOME_SEO_TITLE,
         isPartOf: { "@id": `${SITE_URL}/#website` },
         about: { "@id": `${SITE_URL}/#organization` },
         primaryImageOfPage: { "@id": `${SITE_URL}/#primaryimage` },
@@ -178,26 +184,63 @@ export default async function HomePage() {
           <SectionTitle tone="danger">Link vào phòng học trực tuyến</SectionTitle>
         </Reveal>
         <div className="mx-auto mt-8 grid max-w-[1080px] gap-8 px-4 md:grid-cols-2">
-          {ZOOM_ROOMS.map((room, i) => (
-            <Reveal key={room.href} delay={i * 90}>
-              <a href={room.href} target="_blank" rel="noreferrer" className="group block overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/wp/zoom.jpg"
-                  alt="Phòng học trực tuyến"
-                  className="w-full rounded-none transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-                />
-              </a>
-              {room.lines.map((line) => (
-                <p
-                  key={line.slice(0, 20)}
-                  className="mt-4 text-center font-bold text-black"
-                >
-                  {line}
-                </p>
+          {classes.length > 0
+            ? classes.map((klass, i) => {
+                const href =
+                  klass.zoomUrl ||
+                  (klass.zoomMeetingId
+                    ? `https://zoom.us/j/${klass.zoomMeetingId}`
+                    : "#");
+                return (
+                  <Reveal key={klass.id} delay={i * 90}>
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group block overflow-hidden"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="/wp/zoom.jpg"
+                        alt={klass.shortName || klass.name}
+                        className="w-full rounded-none transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+                      />
+                    </a>
+                    <p className="mt-4 text-center font-bold text-black">
+                      {klass.name}. {klass.timeText || ""}
+                    </p>
+                    <p className="mt-2 text-center font-bold text-black">
+                      Zoom ID: {klass.zoomMeetingId || "—"}
+                      {klass.zoomPass ? `; pass: ${klass.zoomPass}` : ""}
+                    </p>
+                  </Reveal>
+                );
+              })
+            : FALLBACK_ZOOM.map((room, i) => (
+                <Reveal key={room.href} delay={i * 90}>
+                  <a
+                    href={room.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group block overflow-hidden"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/wp/zoom.jpg"
+                      alt="Phòng học trực tuyến"
+                      className="w-full rounded-none transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+                    />
+                  </a>
+                  {room.lines.map((line) => (
+                    <p
+                      key={line.slice(0, 20)}
+                      className="mt-4 text-center font-bold text-black"
+                    >
+                      {line}
+                    </p>
+                  ))}
+                </Reveal>
               ))}
-            </Reveal>
-          ))}
         </div>
       </section>
 

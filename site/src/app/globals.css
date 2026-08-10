@@ -242,3 +242,24 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* PDF flipbook (StPageFlip) */
+.pdf-flip-page,
+.pdf-flip-page canvas {
+  display: block !important;
+  max-width: 100% !important;
+  height: auto !important;
+}
+.stf__parent,
+.stf__wrapper,
+.stf__block {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+.stf__item {
+  background: #faf6ef !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+.flip-page .react-pdf__Page {
+  max-height: 100%;
+}

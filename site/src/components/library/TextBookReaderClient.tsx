@@ -198,7 +198,7 @@ export function TextBookReaderClient({ id }: Props) {
     <div className="-mx-[15px] flex min-h-full w-[calc(100%+30px)] flex-col sm:-mx-4 sm:w-[calc(100%+2rem)] lg:-mx-6 lg:w-[calc(100%+3rem)]">
       <div className="flex flex-wrap items-center gap-3 border-b border-black/10 bg-white px-4 py-3 sm:px-6 lg:px-8">
         <Link
-          href="/kinh-sach"
+          href="/kinh-sach?mode=text"
           className="text-sm font-semibold text-primary hover:underline"
         >
           ← Đọc chữ

@@ -377,3 +377,86 @@ model AdminUser {
 
   @@map("admin_users")
 }
+
+/// Giảng sư / giáo thọ (admin CRUD + ảnh).
+model Teacher {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique
+  /// HT | TT | ĐĐ | NS | SC
+  rank        String?
+  name        String
+  photoUrl    String?  @map("photo_url")
+  bio         String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  defaultClasses DharmaClass[]        @relation("ClassDefaultTeacher")
+  announcements  ClassAnnouncement[]
+
+  @@index([sortOrder], map: "idx_teachers_sort")
+  @@index([isPublished], map: "idx_teachers_published")
+  @@map("teachers")
+}
+
+/// 3 lớp học cố định (thứ 5 / thứ 2 / thứ 7) + Zoom.
+model DharmaClass {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// CLASS_THU_5 | CLASS_THU_2 | CLASS_THU_7
+  code             String   @unique
+  name             String
+  shortName        String?  @map("short_name")
+  /// 0=CN … 6=Thứ 7
+  weekday          Int?
+  timeText         String?  @map("time_text")
+  zoomMeetingId    String?  @map("zoom_meeting_id")
+  zoomPass         String?  @map("zoom_pass")
+  zoomUrl          String?  @map("zoom_url")
+  defaultTeacherId String?  @map("default_teacher_id") @db.Uuid
+  sortOrder        Int      @default(0) @map("sort_order")
+  isPublished      Boolean  @default(true) @map("is_published")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  defaultTeacher Teacher?            @relation("ClassDefaultTeacher", fields: [defaultTeacherId], references: [id], onDelete: SetNull)
+  announcements  ClassAnnouncement[]
+
+  @@index([sortOrder], map: "idx_dharma_classes_sort")
+  @@map("dharma_classes")
+}
+
+/// Thông báo khóa học / poster lớp (Loại 1) — nền chung, đổi chữ + ảnh giảng sư.
+model ClassAnnouncement {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classId         String    @map("class_id") @db.Uuid
+  teacherId       String?   @map("teacher_id") @db.Uuid
+  templeName      String    @default("TRƯỜNG HẠ CHÙA PHẬT ĐÀ") @map("temple_name")
+  templeAddress   String?   @map("temple_address")
+  /// Đề tài lớn trên poster, vd. THIỀN CĂN BẢN 156
+  topicTitle      String    @map("topic_title")
+  /// Dòng phụ: Học trực tiếp và Trực tuyến…
+  formatNote      String?   @map("format_note")
+  teacherNameText String?   @map("teacher_name_text")
+  teacherPhotoUrl String?   @map("teacher_photo_url")
+  sessionDate     DateTime? @map("session_date") @db.Date
+  lunarDateText   String?   @map("lunar_date_text")
+  timeText        String?   @map("time_text")
+  zoomMeetingId   String?   @map("zoom_meeting_id")
+  zoomPass        String?   @map("zoom_pass")
+  zoomUrl         String?   @map("zoom_url")
+  resourcesNote   String?   @map("resources_note")
+  /// Shared poster background key (default = poster-bg.png)
+  backgroundKey   String    @default("default") @map("background_key")
+  isPublished     Boolean   @default(true) @map("is_published")
+  sortOrder       Int       @default(0) @map("sort_order")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  dharmaClass DharmaClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher     Teacher?    @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+
+  @@index([classId, sessionDate(sort: Desc)], map: "idx_class_announcements_class_date")
+  @@index([isPublished, sessionDate(sort: Desc)], map: "idx_class_announcements_published")
+  @@map("class_announcements")
+}

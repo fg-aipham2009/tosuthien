@@ -8,6 +8,8 @@ import { SITE_NAME, SITE_URL, buildMetadata } from "../../lib/seo";
 export const metadata = buildMetadata({
   title: "Liên Hệ",
   path: "/lien-he",
+  description:
+    "Liên hệ Tổ Sư Thiền — tòa soạn, văn phòng và mạng xã hội Tông Phong (tosuthien.com).",
   type: "article",
   image: "/wp/header-right.png",
   imageWidth: 512,

@@ -9,6 +9,22 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${apiOrigin}/api/:path*` }];
   },
+  /** Giữ thứ hạng khi chuyển từ WordPress sang Next — URL cũ 301 sang trang mới. */
+  async redirects() {
+    return [
+      { source: "/thong-bao", destination: "/tin-tuc", permanent: true },
+      { source: "/thong-bao/:path*", destination: "/tin-tuc", permanent: true },
+      {
+        source: "/:year(\\d{4})/:month(\\d{2})/:day(\\d{2})/:slug*",
+        destination: "/tin-tuc/:slug*",
+        permanent: true,
+      },
+      { source: "/category/:path*", destination: "/tin-tuc", permanent: true },
+      { source: "/tag/:path*", destination: "/tin-tuc", permanent: true },
+      { source: "/feed", destination: "/tin-tuc", permanent: true },
+      { source: "/feed/:path*", destination: "/tin-tuc", permanent: true },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "api.tosuthien.net" },

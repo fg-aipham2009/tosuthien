@@ -137,4 +137,32 @@ export class UploadController {
   ) {
     return this.service.uploadPostImages(id, files);
   }
+
+  @Post('teachers/:id/photo')
+  @UseInterceptors(FileInterceptor('file', UPLOAD_OPTS))
+  uploadTeacherPhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.service.uploadTeacherPhoto(id, file);
+  }
+
+  @Delete('teachers/:id/photo')
+  clearTeacherPhoto(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.clearTeacherPhoto(id);
+  }
+
+  @Post('class-announcements/:id/teacher-photo')
+  @UseInterceptors(FileInterceptor('file', UPLOAD_OPTS))
+  uploadAnnouncementTeacherPhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.service.uploadAnnouncementTeacherPhoto(id, file);
+  }
+
+  @Delete('class-announcements/:id/teacher-photo')
+  clearAnnouncementTeacherPhoto(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.clearAnnouncementTeacherPhoto(id);
+  }
 }

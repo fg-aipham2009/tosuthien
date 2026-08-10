@@ -40,9 +40,14 @@ export async function generateMetadata({ searchParams }: Props) {
     : "Lưu trữ Danh Sách Thiền Đường";
   const path = region ? `/thien-duong?region=${region}` : "/thien-duong";
 
+  const regionDesc = region
+    ? `Danh sách thiền đường ${REGION_LABELS[region]} thuộc Tông Phong Tổ Sư Thiền (tosuthien.com).`
+    : "Danh sách thiền đường Tông Phong Tổ Sư Thiền trên toàn quốc và ngoài nước — tosuthien.com.";
+
   return buildMetadata({
     title,
     path,
+    description: regionDesc,
     type: "article",
     image: "/wp/header-right.png",
     imageWidth: 512,

@@ -72,6 +72,18 @@ const router = createRouter({
           meta: { title: 'Sửa tin tức' },
         },
         {
+          path: 'teachers',
+          name: 'teachers',
+          component: () => import('@/views/TeachersView.vue'),
+          meta: { title: 'Giảng sư' },
+        },
+        {
+          path: 'class-announcements',
+          name: 'class-announcements',
+          component: () => import('@/views/ClassAnnouncementsView.vue'),
+          meta: { title: 'Thông báo khóa học' },
+        },
+        {
           path: 'admins',
           name: 'admins',
           component: () => import('@/views/AdminUsersView.vue'),

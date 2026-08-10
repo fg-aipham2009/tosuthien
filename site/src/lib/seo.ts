@@ -1,25 +1,40 @@
 import type { Metadata } from "next";
 
-/** Domain công khai — mặc định giống bản gốc WP. */
+/** Public site origin (matches legacy WordPress). */
 export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || "https://tosuthien.com"
 ).replace(/\/$/, "");
 
 export const SITE_NAME = "Tổ Sư Thiền";
 
-/** Tên hiển thị khi cài PWA (phân biệt .com vs .net). */
+/** Primary SEO keyword — lead titles and descriptions when possible. */
+export const SEO_PRIMARY_KEYWORD = SITE_NAME;
+
+/** Domain / Latin brand variant for search and JSON-LD. */
+export const SEO_DOMAIN_KEYWORD = "tosuthien";
+
+export const SEO_DOMAIN_LABEL = "tosuthien.com";
+
+/** PWA install name. */
 export const PWA_APP_NAME =
-  process.env.NEXT_PUBLIC_PWA_APP_NAME?.trim() || "tosuthien.com";
-/** Mô tả site (chuẩn SEO tiếng Việt). */
+  process.env.NEXT_PUBLIC_PWA_APP_NAME?.trim() || SITE_NAME;
+
+/** Site-wide meta description — brand and official domain first. */
 export const SITE_DESCRIPTION =
-  "Tông Phong Tổ Sư Thiền Việt Nam — tin tức, thiền đường, hỏi đáp kinh sách, pháp âm MP3.";
+  "Tổ Sư Thiền — trang chính thức tosuthien.com, Tông Phong Thiền Việt Nam. Tin tức Phật giáo, thiền đường, Hòa thượng Thích Duy Lực, hỏi đáp kinh sách, pháp âm MP3, kinh sách online.";
 
 export const SITE_KEYWORDS = [
   "Tổ Sư Thiền",
+  "Tổ Sư Thiền Việt Nam",
   "Tông Phong Tổ Sư Thiền",
+  "Tông Phong Thiền Việt Nam",
+  "Tổ Sư Thiền online",
+  "trang chính thức Tổ Sư Thiền",
+  "tosuthien",
+  "tosuthien.com",
+  "Thích Duy Lực",
   "Thiền",
   "Phật pháp",
-  "Thích Duy Lực",
   "Thiền đường",
   "Kinh sách",
   "Pháp âm",
@@ -30,10 +45,37 @@ export const DEFAULT_OG_IMAGE = {
   url: `${SITE_URL}/wp/header-right.png`,
   width: 512,
   height: 512,
-  alt: SITE_NAME,
+  alt: `${SEO_PRIMARY_KEYWORD} — ${SEO_DOMAIN_LABEL}`,
 };
 
-/** robots giống Yoast SEO trên tosuthien.com */
+const BRAND_LEAD_RE = /^(Tổ Sư Thiền|tosuthien)/i;
+
+/** Standard title: «Tổ Sư Thiền | …» (brand first). */
+export function formatBrandTitle(pagePart: string): string {
+  const part = pagePart.trim();
+  if (!part) return SEO_PRIMARY_KEYWORD;
+  if (part.startsWith(SEO_PRIMARY_KEYWORD)) return part;
+  return `${SEO_PRIMARY_KEYWORD} | ${part}`;
+}
+
+/** Prefix descriptions with the primary keyword when missing at the start. */
+export function formatBrandDescription(
+  description?: string | null,
+  max = 160,
+): string {
+  const clean = description?.replace(/\s+/g, " ").trim();
+  if (!clean) return SITE_DESCRIPTION;
+  if (BRAND_LEAD_RE.test(clean)) return clean.length <= max ? clean : `${clean.slice(0, max - 1).trim()}…`;
+  const prefixed = `${SEO_PRIMARY_KEYWORD} — ${clean}`;
+  if (prefixed.length <= max) return prefixed;
+  return `${SEO_PRIMARY_KEYWORD} — ${clean.slice(0, max - SEO_PRIMARY_KEYWORD.length - 4).trim()}…`;
+}
+
+export const HOME_SEO_TITLE = formatBrandTitle(
+  "Tông Phong Thiền Việt Nam — tosuthien.com",
+);
+
+/** robots.txt parity with legacy Yoast on tosuthien.com */
 export const YOAST_ROBOTS: NonNullable<Metadata["robots"]> = {
   index: true,
   follow: true,
@@ -44,7 +86,7 @@ export const YOAST_ROBOTS: NonNullable<Metadata["robots"]> = {
 
 type BuildOpts = {
   title: string;
-  /** Nếu true: title đã gồm " - Tổ Sư Thiền", không dùng template. */
+  /** Full HTML title already including «Tổ Sư Thiền | …». */
   absoluteTitle?: boolean;
   description?: string | null;
   path?: string;
@@ -57,7 +99,7 @@ type BuildOpts = {
   modifiedTime?: string | null;
 };
 
-/** Metadata chuẩn Yoast: title, canonical, og:locale vi_VN, twitter large image. */
+/** Yoast-style metadata: title, canonical, og:locale vi_VN, Twitter large image. */
 export function buildMetadata({
   title,
   absoluteTitle = false,
@@ -73,24 +115,22 @@ export function buildMetadata({
 }: BuildOpts): Metadata {
   const url = `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
   const pageTitle = absoluteTitle
-    ? title
-    : title.includes(SITE_NAME)
+    ? title.includes(SEO_PRIMARY_KEYWORD)
       ? title
-      : `${title} - ${SITE_NAME}`;
-  const desc = description?.trim() || SITE_DESCRIPTION;
+      : formatBrandTitle(title)
+    : formatBrandTitle(title);
+  const desc = formatBrandDescription(description);
   const ogImage = image
     ? {
         url: image.startsWith("http") ? image : `${SITE_URL}${image}`,
         width: imageWidth,
         height: imageHeight,
-        alt: title,
+        alt: formatBrandTitle(title),
       }
     : DEFAULT_OG_IMAGE;
 
   return {
-    title: absoluteTitle || title.includes(SITE_NAME)
-      ? { absolute: pageTitle }
-      : title,
+    title: { absolute: pageTitle },
     description: desc,
     keywords: SITE_KEYWORDS,
     alternates: { canonical: url },
@@ -121,15 +161,22 @@ export function buildMetadata({
   };
 }
 
-/** Cắt mô tả OG ~ Yoast (~155 ký tự). */
+/** Trim text for Open Graph (~155 chars), keeping brand prefix when possible. */
 export function excerptForOg(text?: string | null, max = 155): string | undefined {
   if (!text) return undefined;
   const clean = text.replace(/\s+/g, " ").trim();
   if (!clean) return undefined;
-  if (clean.length <= max) return clean;
-  return `${clean.slice(0, max - 1).trim()}…`;
+  return formatBrandDescription(clean, max);
 }
 
 export function absoluteUrl(path = "/"): string {
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+/** JSON-LD alternate names for WebSite / Organization. */
+export const SCHEMA_ALTERNATE_NAMES = [
+  "Tông Phong Tổ Sư Thiền",
+  "Tông Phong Thiền Việt Nam",
+  SEO_DOMAIN_KEYWORD,
+  SEO_DOMAIN_LABEL,
+] as const;

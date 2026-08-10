@@ -19,7 +19,8 @@ export const metadata = buildMetadata({
   title: "Lưu trữ Tin Tức",
   path: "/tin-tuc",
   type: "article",
-  description: "Tin tức và thông báo Tông Phong Tổ Sư Thiền.",
+  description:
+    "Tin tức và thông báo Tông Phong Tổ Sư Thiền — tosuthien.com.",
   image: "/wp/header-right.png",
   imageWidth: 512,
   imageHeight: 512,

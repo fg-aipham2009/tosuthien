@@ -437,3 +437,147 @@ export class CreatePostCategoryDto {
 }
 
 export class UpdatePostCategoryDto extends PartialType(CreatePostCategoryDto) {}
+
+/** Giảng sư */
+export class CreateTeacherDto {
+  @IsString()
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  slug?: string;
+
+  @IsOptional()
+  @IsString()
+  rank?: string;
+
+  @IsOptional()
+  @IsString()
+  bio?: string;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublished?: boolean;
+}
+
+export class UpdateTeacherDto extends PartialType(CreateTeacherDto) {}
+
+/** Lớp học (3 lớp cố định — admin chỉnh Zoom / tên) */
+export class UpdateDharmaClassDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  shortName?: string;
+
+  @IsOptional()
+  @IsInt()
+  weekday?: number;
+
+  @IsOptional()
+  @IsString()
+  timeText?: string;
+
+  @IsOptional()
+  @IsString()
+  zoomMeetingId?: string;
+
+  @IsOptional()
+  @IsString()
+  zoomPass?: string;
+
+  @IsOptional()
+  @IsString()
+  zoomUrl?: string;
+
+  @IsOptional()
+  @IsUUID()
+  defaultTeacherId?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublished?: boolean;
+}
+
+/** Thông báo khóa học / poster */
+export class CreateClassAnnouncementDto {
+  @IsUUID()
+  classId!: string;
+
+  @IsOptional()
+  @IsUUID()
+  teacherId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  templeName?: string;
+
+  @IsOptional()
+  @IsString()
+  templeAddress?: string;
+
+  @IsString()
+  topicTitle!: string;
+
+  @IsOptional()
+  @IsString()
+  formatNote?: string;
+
+  @IsOptional()
+  @IsString()
+  teacherNameText?: string;
+
+  @IsOptional()
+  @IsString()
+  sessionDate?: string;
+
+  @IsOptional()
+  @IsString()
+  lunarDateText?: string;
+
+  @IsOptional()
+  @IsString()
+  timeText?: string;
+
+  @IsOptional()
+  @IsString()
+  zoomMeetingId?: string;
+
+  @IsOptional()
+  @IsString()
+  zoomPass?: string;
+
+  @IsOptional()
+  @IsString()
+  zoomUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  resourcesNote?: string;
+
+  @IsOptional()
+  @IsString()
+  backgroundKey?: string;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublished?: boolean;
+}
+
+export class UpdateClassAnnouncementDto extends PartialType(
+  CreateClassAnnouncementDto,
+) {}
