@@ -2,10 +2,10 @@ import { HoiDapPanel } from "../../components/library/HoiDapPanel";
 import { buildMetadata } from "../../lib/seo";
 
 export const metadata = buildMetadata({
-  title: "Hỏi Đáp — Thư viện Hòa thượng Thích Duy Lực",
+  title: "Hỏi Đáp Tổ Sư Thiền",
   path: "/hoi-dap",
   description:
-    "Hỏi đáp Tổ Sư Thiền theo kinh sách và ngữ lục Hòa thượng Thích Duy Lực — thư viện tosuthien.com.",
+    "Hỏi đáp Tổ Sư Thiền — giải đáp thực hành tham thoại đầu, giúp hành giả vững bước trên đường tu tập theo tông chỉ.",
 });
 
 export default function HoiDapPage() {

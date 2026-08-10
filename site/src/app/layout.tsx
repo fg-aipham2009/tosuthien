@@ -51,18 +51,19 @@ export const metadata: Metadata = {
   formatDetection: { telephone: true, email: true, address: true },
   robots: YOAST_ROBOTS,
   icons: {
+    // Google Search requires a square icon >= 48x48 (PNG preferred).
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/wp/favicon-16.png", sizes: "16x16", type: "image/png" },
-      { url: "/wp/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-48.png", sizes: "48x48", type: "image/png" },
+      { url: "/favicon-96.png", sizes: "96x96", type: "image/png" },
+      { url: "/favicon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/wp/favicon-48.png", sizes: "48x48", type: "image/png" },
       { url: "/wp/favicon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/wp/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon.ico", sizes: "48x48" },
     ],
-    shortcut: ["/favicon.ico", "/wp/favicon-32.png"],
+    shortcut: ["/favicon-48.png"],
     apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180" },
-      { url: "/wp/apple-touch-icon.png", sizes: "180x180" },
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
     other: [{ rel: "msapplication-TileImage", url: "/wp/tile-270.png" }],
   },
@@ -114,8 +115,8 @@ const siteGraph = {
       logo: {
         "@type": "ImageObject",
         "@id": `${SITE_URL}/#/schema/logo/image/`,
-        url: absoluteUrl("/wp/header-right.png"),
-        contentUrl: absoluteUrl("/wp/header-right.png"),
+        url: absoluteUrl("/icon-512.png"),
+        contentUrl: absoluteUrl("/icon-512.png"),
         width: 512,
         height: 512,
         caption: SITE_NAME,

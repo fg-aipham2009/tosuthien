@@ -9,7 +9,7 @@ export const metadata = buildMetadata({
   title: "Liên Hệ",
   path: "/lien-he",
   description:
-    "Liên hệ Tổ Sư Thiền (tosuthien.com) — tòa soạn, văn phòng và kênh truyền thông Tông Phong Thiền Việt Nam.",
+    "Liên hệ Tổ Sư Thiền (tosuthien.com) — hỗ trợ hành giả tu tập, tòa soạn và kênh truyền thông Tông Phong Thiền Việt Nam.",
   type: "article",
   image: "/wp/header-right.png",
   imageWidth: 512,

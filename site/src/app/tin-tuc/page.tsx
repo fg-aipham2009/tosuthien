@@ -25,7 +25,7 @@ export const metadata = buildMetadata({
   path: "/tin-tuc",
   type: "article",
   description:
-    "Tin tức Tổ Sư Thiền — thông báo khóa học, thiền đường và hoạt động Tông Phong trên tosuthien.com.",
+    "Tin tức Tổ Sư Thiền — thông báo lớp học tham thiền, thiền thất và sinh hoạt hành giả Tông Phong trên tosuthien.com.",
   image: "/wp/header-right.png",
   imageWidth: 512,
   imageHeight: 512,

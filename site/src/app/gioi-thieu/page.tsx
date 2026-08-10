@@ -19,14 +19,16 @@ import {
   SITE_URL,
   absoluteUrl,
   buildMetadata,
-  excerptForOg,
 } from "../../lib/seo";
+
+const GIOI_THIEU_DESCRIPTION =
+  "Tổ Sư Thiền — giới thiệu tông chỉ tham thoại đầu và tiểu sử Hòa thượng Thích Duy Lực, hướng hành giả tu tập theo Tông Phong Thiền Việt Nam.";
 
 export const metadata = buildMetadata({
   title: "Giới Thiệu",
   path: "/gioi-thieu",
   type: "article",
-  description: excerptForOg(INTRO),
+  description: GIOI_THIEU_DESCRIPTION,
   image: "/wp/to-su.jpg",
   imageWidth: 510,
   imageHeight: 765,
@@ -78,7 +80,7 @@ export default async function GioiThieuPage() {
         },
         image: { "@id": `${SITE_URL}/gioi-thieu#primaryimage` },
         thumbnailUrl: absoluteUrl("/wp/to-su.jpg"),
-        description: excerptForOg(INTRO),
+        description: GIOI_THIEU_DESCRIPTION,
         inLanguage: "vi",
         breadcrumb: { "@id": `${SITE_URL}/gioi-thieu#breadcrumb` },
       },

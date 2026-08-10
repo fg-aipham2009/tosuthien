@@ -4,10 +4,10 @@ import type { MediaCategory } from "../../../lib/library/types";
 import { buildMetadata } from "../../../lib/seo";
 
 export const metadata = buildMetadata({
-  title: "Pháp Âm — Thư viện Hòa thượng Thích Duy Lực",
+  title: "Pháp Âm Tổ Sư Thiền",
   path: "/phap-am",
   description:
-    "Pháp âm MP3 Tổ Sư Thiền — khai thị và pháp thoại trong thư viện Hòa thượng Thích Duy Lực (tosuthien.com).",
+    "Pháp âm Tổ Sư Thiền — khai thị tham thoại đầu và pháp thoại MP3 hướng hành giả tu tập theo Hòa thượng Thích Duy Lực.",
 });
 
 async function loadCategories(): Promise<MediaCategory[]> {

@@ -10,6 +10,7 @@ import { fetchZoomRooms } from "../lib/classAnnouncements";
 import { REGION_ORDER, groupByRegion } from "../lib/centers";
 import {
   HOME_SEO_TITLE,
+  SITE_DESCRIPTION,
   SITE_URL,
   absoluteUrl,
   buildMetadata,
@@ -18,6 +19,7 @@ import {
 export const metadata = buildMetadata({
   title: HOME_SEO_TITLE,
   absoluteTitle: true,
+  description: SITE_DESCRIPTION,
   path: "/",
   type: "website",
   image: "/wp/header-right.png",
@@ -148,6 +150,7 @@ export default async function HomePage() {
         "@id": `${SITE_URL}/`,
         url: SITE_URL,
         name: HOME_SEO_TITLE,
+        description: SITE_DESCRIPTION,
         isPartOf: { "@id": `${SITE_URL}/#website` },
         about: { "@id": `${SITE_URL}/#organization` },
         primaryImageOfPage: { "@id": `${SITE_URL}/#primaryimage` },
