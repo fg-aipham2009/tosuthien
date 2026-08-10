@@ -52,14 +52,18 @@ export const metadata: Metadata = {
   robots: YOAST_ROBOTS,
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "any" },
       { url: "/wp/favicon-16.png", sizes: "16x16", type: "image/png" },
       { url: "/wp/favicon-32.png", sizes: "32x32", type: "image/png" },
       { url: "/wp/favicon-48.png", sizes: "48x48", type: "image/png" },
       { url: "/wp/favicon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/wp/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: ["/wp/favicon-32.png"],
-    apple: [{ url: "/wp/apple-touch-icon.png", sizes: "180x180" }],
+    shortcut: ["/favicon.ico", "/wp/favicon-32.png"],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180" },
+      { url: "/wp/apple-touch-icon.png", sizes: "180x180" },
+    ],
     other: [{ rel: "msapplication-TileImage", url: "/wp/tile-270.png" }],
   },
   openGraph: {
