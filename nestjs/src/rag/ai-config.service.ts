@@ -126,6 +126,27 @@ export class AiConfigService {
     return trimmed || defaultModel;
   }
 
+  /**
+   * Old nexusmmo.store host returns 410 permanently.
+   * Always force the current api.nexusmmo.store /v1 endpoint.
+   */
+  private normalizeNexusBaseUrl(raw: string): string {
+    const cleaned = raw.trim().replace(/\/$/, '');
+    if (!cleaned) return 'https://api.nexusmmo.store/v1';
+    try {
+      const u = new URL(cleaned);
+      if (
+        u.hostname === 'nexusmmo.store' ||
+        u.hostname === 'www.nexusmmo.store'
+      ) {
+        return 'https://api.nexusmmo.store/v1';
+      }
+    } catch {
+      return 'https://api.nexusmmo.store/v1';
+    }
+    return cleaned;
+  }
+
   private resolveEndpoint(
     provider: ChatProvider,
     defaultModel: string,
@@ -149,10 +170,10 @@ export class AiConfigService {
 
     if (provider === 'nexus') {
       const apiKey = this.config.get<string>('NEXUS_API_KEY') ?? '';
-      const baseUrl = (
+      const baseUrl = this.normalizeNexusBaseUrl(
         this.config.get<string>('NEXUS_BASE_URL') ||
-        'https://api.nexusmmo.store/v1'
-      ).replace(/\/$/, '');
+          'https://api.nexusmmo.store/v1',
+      );
       if (!apiKey) {
         throw new ServiceUnavailableException(
           'CHAT_PROVIDER=nexus nhưng thiếu NEXUS_API_KEY trong .env',

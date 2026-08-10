@@ -66,7 +66,16 @@ services:
       UV_THREADPOOL_SIZE: ${UV_THREADPOOL_SIZE:-4}
       # host.docker.internal → embed_server.py on the Mac host (port 7997)
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL_DOCKER:-http://host.docker.internal:7997/v1}
+      # Pin chat providers so a stale shell env / old image cannot revive dead Nexus host.
       CHAT_PROVIDER: ${CHAT_PROVIDER:-flare}
+      CHAT_MODEL: ${CHAT_MODEL:-claude-opus-5}
+      CHAT_FALLBACK_PROVIDER: ${CHAT_FALLBACK_PROVIDER:-hhtech,nexus}
+      FLARE_BASE_URL: ${FLARE_BASE_URL:-https://9flare.com/api/v1}
+      FLARE_CHAT_MODEL: ${FLARE_CHAT_MODEL:-pro/claude-opus-5-medium}
+      HHTECH_BASE_URL: ${HHTECH_BASE_URL:-https://hhtechapi.com/v1}
+      HHTECH_CHAT_MODEL: ${HHTECH_CHAT_MODEL:-claude-opus-5}
+      NEXUS_BASE_URL: ${NEXUS_BASE_URL:-https://api.nexusmmo.store/v1}
+      NEXUS_CHAT_MODEL: ${NEXUS_CHAT_MODEL:-claude-opus-5}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:

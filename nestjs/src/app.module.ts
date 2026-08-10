@@ -23,6 +23,8 @@ import { ZoomRoomsModule } from './zoom-rooms/zoom-rooms.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      // Production (Docker): use container env only — never a stale mounted/baked .env.
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
       envFilePath: [path.join(__dirname, '../../.env'), '.env'],
     }),
     PrismaModule,
