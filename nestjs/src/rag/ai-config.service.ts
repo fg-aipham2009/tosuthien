@@ -112,12 +112,28 @@ export class AiConfigService {
     );
   }
 
+  /** Prefer provider-specific CHAT model, then shared CHAT_MODEL. */
+  private modelFor(provider: ChatProvider, defaultModel: string): string {
+    const specific =
+      provider === 'flare'
+        ? this.config.get<string>('FLARE_CHAT_MODEL')
+        : provider === 'hhtech'
+          ? this.config.get<string>('HHTECH_CHAT_MODEL')
+          : provider === 'nexus'
+            ? this.config.get<string>('NEXUS_CHAT_MODEL')
+            : this.config.get<string>('SHOPAIKEY_CHAT_MODEL');
+    const trimmed = specific?.trim();
+    return trimmed || defaultModel;
+  }
+
   private resolveEndpoint(
     provider: ChatProvider,
     defaultModel: string,
     shopKey: string,
     shopBase: string,
   ): ChatEndpoint {
+    const model = this.modelFor(provider, defaultModel);
+
     if (provider === 'hhtech') {
       const apiKey = this.config.get<string>('HHTECH_API_KEY') ?? '';
       const baseUrl = (
@@ -128,7 +144,7 @@ export class AiConfigService {
           'CHAT_PROVIDER=hhtech nhưng thiếu HHTECH_API_KEY trong .env',
         );
       }
-      return { provider, apiKey, baseUrl, model: defaultModel };
+      return { provider, apiKey, baseUrl, model };
     }
 
     if (provider === 'nexus') {
@@ -142,7 +158,7 @@ export class AiConfigService {
           'CHAT_PROVIDER=nexus nhưng thiếu NEXUS_API_KEY trong .env',
         );
       }
-      return { provider, apiKey, baseUrl, model: defaultModel };
+      return { provider, apiKey, baseUrl, model };
     }
 
     if (provider === 'flare') {
@@ -160,7 +176,7 @@ export class AiConfigService {
           'CHAT_PROVIDER=flare nhưng thiếu FLARE_API_KEY trong .env',
         );
       }
-      return { provider, apiKey, baseUrl, model: defaultModel };
+      return { provider, apiKey, baseUrl, model };
     }
 
     if (!shopKey) {
@@ -172,7 +188,7 @@ export class AiConfigService {
       provider: 'shopaikey',
       apiKey: shopKey,
       baseUrl: shopBase,
-      model: defaultModel,
+      model,
     };
   }
 }

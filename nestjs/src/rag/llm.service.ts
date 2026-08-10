@@ -219,7 +219,7 @@ export class LlmService {
 
   /**
    * Yields text deltas. Tries primary then CHAT_FALLBACK_PROVIDER list
-   * (comma-separated, e.g. flare → nexus,hhtech) on failure / empty stream.
+   * (comma-separated, e.g. flare → hhtech,nexus) on failure / empty stream.
    */
   async *answerStream(
     question: string,
