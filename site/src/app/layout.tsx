@@ -76,6 +76,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: SITE_URL,
   },
+  verification: {
+    google: "BdPemL7FyMbeOt8Rudrs7X8LqRZwZ-_rFPpY_qpxJaU",
+  },
   other: {
     "msapplication-TileImage": "/wp/tile-270.png",
   },
