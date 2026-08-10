@@ -42,10 +42,10 @@ import {
 } from './rag-answer-style';
 
 /** Cap LLM context — room for many long neighbor windows. */
-const MAX_CONTEXT_CHARS = 50_000;
+const MAX_CONTEXT_CHARS = 100_000;
 /** Soft cap for citation quote — prefer whole paragraphs under this size. */
 const QUOTE_MAX_CHARS = 8_000;
-const MAX_DISPLAY_CITATIONS = 24;
+const MAX_DISPLAY_CITATIONS = 48;
 const SENTENCE_ENDINGS = /[.!?;:…]/;
 const PARAGRAPH_SPLIT = /\n{2,}|(?=\[Trang\s+\d+\])/;
 /** Reciprocal Rank Fusion constant — dịu ảnh hưởng thứ hạng thấp (chuẩn ~60) */
@@ -755,7 +755,17 @@ export class ChatService {
           .filter((e): e is string => !!e && e.length > 0)
           .sort((a, b) => b.length - a.length)[0] || primary.excerpt;
 
-      const pages = parsePrintedPagesFromText(excerpt ?? '');
+      const pageSet = new Set<number>();
+      for (const c of group) {
+        if (c.pageNum != null) pageSet.add(c.pageNum);
+        if (c.pageStart != null) pageSet.add(c.pageStart);
+        if (c.pageEnd != null) pageSet.add(c.pageEnd);
+        for (const p of c.pages || []) pageSet.add(p);
+      }
+      for (const p of parsePrintedPagesFromText(excerpt ?? '')) {
+        pageSet.add(p);
+      }
+      const pages = [...pageSet].sort((a, b) => a - b);
       const pageStart = pages[0] ?? primary.pageStart ?? primary.pageNum ?? null;
       const pageEnd =
         pages[pages.length - 1] ?? primary.pageEnd ?? primary.pageNum ?? null;
@@ -810,7 +820,7 @@ export class ChatService {
       const key = (c.sourceFile || c.title || 'unknown').toLowerCase();
       // Cap raw rows per book before merge (neighbor pages / answer refs).
       const n = sourceCount.get(key) ?? 0;
-      if (n >= 8) return;
+      if (n >= 16) return;
       sourceCount.set(key, n + 1);
       out.push(c);
     };
@@ -1451,13 +1461,13 @@ export class ChatService {
     if (style === 'kinh_long') {
       const kinh = hits.filter((h) => isKinhSource(h.title, h.sourceFile));
       const pool = kinh.length ? kinh : hits;
-      return pool.slice(0, Math.min(12, pool.length));
+      return pool.slice(0, Math.min(24, pool.length));
     }
 
     if (style === 'brief') {
       const strong = hits.filter((h) => relevanceOf(h) >= MIN_RELEVANCE_SCORE + 1);
       const pool = strong.length ? strong : hits;
-      return pool.slice(0, Math.min(10, pool.length));
+      return pool.slice(0, Math.min(20, pool.length));
     }
 
     // mixed: keep several kinh blocks + a few strong ngu luc blocks
@@ -1465,8 +1475,8 @@ export class ChatService {
     const nguLuc = hits
       .filter((h) => !isKinhSource(h.title, h.sourceFile))
       .filter((h) => relevanceOf(h) >= MIN_RELEVANCE_SCORE + 1)
-      .slice(0, 5);
-    return [...kinh.slice(0, 11), ...nguLuc];
+      .slice(0, 10);
+    return [...kinh.slice(0, 22), ...nguLuc];
   }
 
   /**

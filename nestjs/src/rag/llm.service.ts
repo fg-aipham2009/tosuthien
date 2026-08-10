@@ -40,15 +40,15 @@ Câu trả lời gồm ĐÚNG 2 PHẦN:
 PHẦN 1 — NGUYÊN VĂN (answer chính) — RẤT DÀI, ĐỦ ĐẦU–ĐUÔI, KHÔNG CẮT, KHÔNG CHẾ
 ════════════════════════════════════
 - Đây là câu trả lời chính và phải DÀI: lấy đoạn NGUYÊN VĂN RẤT DÀI, ĐỦ MẠCH — mở đầu cảnh/ý + cốt lõi trả lời + phần kết / đoạn tiếp liên quan (không bỏ giữa chừng).
-- Mục tiêu độ dài: mỗi khối trích thường 8–25 câu (hoặc cả chuỗi HỎI–ĐÁP / cả phân đoạn) nếu block còn đủ chữ. CẤM trả lời kiểu 1–3 câu ngắn khi ngữ cảnh còn dài hơn.
+- Mục tiêu độ dài: mỗi khối trích thường 16–50 câu (hoặc cả chuỗi HỎI–ĐÁP / cả phân đoạn) nếu block còn đủ chữ. CẤM trả lời kiểu 1–3 câu ngắn khi ngữ cảnh còn dài hơn.
 - CHỈ được COPY nguyên văn trong NGOẶC KÉP "…" từ block ngữ cảnh.
 - TUYỆT ĐỐI: không chế thêm chữ, không paraphrase, không tóm tắt, không rút ngắn, không cắt giữa câu / giữa ĐÁP / giữa đoạn chuyện.
 - CẤM bắt đầu trích giữa câu hoặc giữa đoạn đang nối trang (vd. không mở bằng "nên canh ba…" nếu ngữ cảnh còn phần trước trên [Trang] liền kề). Hãy lùi về đầu đoạn/đầu cảnh có sẵn trong block rồi copy liền mạch đến hết ý.
 - Lấy CÀNG DÀI CÀNG TỐT khi đoạn vẫn cùng trả lời câu hỏi: cả đoạn, cả chuỗi HỎI–ĐÁP, cả cụm liên tục qua nhiều [Trang N] nếu cùng một phân đoạn. Ưu tiên copy gần hết nội dung liên quan trong block hơn là chọn vài câu đẹp.
 - Mỗi khối trích kèm ngay dưới: — (Tên kinh, tr.X) — trang chính = [Trang N] chứa câu then chốt của đoạn. Nếu copy liền nhiều trang, tách thành nhiều khối "…" + — (…, tr.X) theo từng trang, vẫn giữ thứ tự đầu→đuôi.
 - Nhãn — (Tên kinh, tr.X) phải khớp dòng "Trích dẫn: …" trong block ngữ cảnh (cùng tên sách + trang có trong block).
-- Khi câu hỏi chỉ một kinh: ưu tiên 4–6 khối RẤT DÀI từ đúng kinh đó trước (nối trang nếu cần); có thể thêm 2–3 nguồn phụ dài nếu làm rõ thêm.
-- Khi ngữ cảnh đủ nhiều sách và câu hỏi không khóa một kinh: trích 5–8 nguồn khác nhau, mỗi nguồn một đoạn DÀI đủ ý (không chỉ vài câu).
+- Khi câu hỏi chỉ một kinh: ưu tiên 8–12 khối RẤT DÀI từ đúng kinh đó trước (nối trang nếu cần); có thể thêm 4–6 nguồn phụ dài nếu làm rõ thêm.
+- Khi ngữ cảnh đủ nhiều sách và câu hỏi không khóa một kinh: trích 10–16 nguồn khác nhau, mỗi nguồn một đoạn DÀI đủ ý (không chỉ vài câu).
 - CẤM "Nguồn 1/2", CẤM bullet / lời AI trong phần này.
 - Không khớp: chỉ một câu — "Trong tư liệu hiện có chưa thấy nội dung này." rồi DỪNG.
 
@@ -58,7 +58,7 @@ PHẦN 2 — AI DIỄN GIẢI (aiInterpretation) — SAU phần 1
 - Bắt đầu đúng một dòng: ${AI_INTERPRETATION_MARKER}
 - NỀN CHÍNH (bắt buộc): câu hỏi của người dùng + nội dung các đoạn nguyên văn vừa đưa ở phần 1.
 - PHỤ (được phép để phong phú hơn): kiến thức nền / ngữ cảnh Thiền–Phật học rộng hơn (hiểu biết tổng quát của mô hình, tài liệu tham khảo chung). Chỉ dùng phần phụ để làm rõ / nối mạch / so sánh nhẹ — KHÔNG được mâu thuẫn với phần 1, KHÔNG được ghi như thể đó là lời kinh trong phần 1.
-- Giọng văn nói tự nhiên, 5–10 câu, dễ hiểu, giải đủ ý câu hỏi (không cụt).
+- Giọng văn nói tự nhiên, 10–20 câu, dễ hiểu, giải đủ ý câu hỏi (không cụt).
 - Tiếng Việt: LUÔN có khoảng trắng giữa các tiếng/từ (vd. "dính chữ", "tham thiền") — CẤM dính chữ kiểu "dínhchữ", "thamthiền".
 - CẤM mở đầu máy móc: "dựa vào đoạn trích", "theo các đoạn trên", "Đây là diễn giải của AI", "theo câu hỏi và…".
 - CẤM viết "Nguồn N". CẤM đưa bất kỳ câu nào của phần 2 vào phần 1.
@@ -83,15 +83,15 @@ Ví dụ SAI:
 function buildKinhLongRules(): string {
   return `
 Chế độ KINH (PHẦN 1 ưu tiên dài tối đa):
-- Phần 1: nguyên văn RẤT DÀI, đủ đầu–đuôi; mỗi khối ideally cả đoạn/cảnh (8–25 câu hoặc HỎI–ĐÁP đầy đủ). Nếu hỏi đúng một kinh → 4–6 khối dài từ kinh đó trước (nối nhiều [Trang] nếu cùng phân đoạn), rồi mới thêm nguồn phụ dài nếu cần. Không cắt, không chế, không tóm. Mỗi khối một trang tr.X.
-- Phần 2: ${AI_INTERPRETATION_MARKER} + 6–10 câu; nền = câu hỏi + phần 1; phụ = kiến thức nền nếu giúp phong phú.`;
+- Phần 1: nguyên văn RẤT DÀI, đủ đầu–đuôi; mỗi khối ideally cả đoạn/cảnh (16–50 câu hoặc HỎI–ĐÁP đầy đủ). Nếu hỏi đúng một kinh → 8–12 khối dài từ kinh đó trước (nối nhiều [Trang] nếu cùng phân đoạn), rồi mới thêm 4–6 nguồn phụ dài nếu cần. Không cắt, không chế, không tóm. Mỗi khối một trang tr.X.
+- Phần 2: ${AI_INTERPRETATION_MARKER} + 12–20 câu; nền = câu hỏi + phần 1; phụ = kiến thức nền nếu giúp phong phú.`;
 }
 
 function buildMixedRules(): string {
   return `
 Chế độ HỖN HỢP (PHẦN 1 vẫn dài):
-- Phần 1: đoạn RẤT DÀI đủ đầu–đuôi từ [KINH] (+ [NGỮ LỤC] nếu hữu ích); ưu tiên kinh được nêu trong câu hỏi; trích 4–6 nguồn khi ngữ cảnh đủ; mỗi khối dài (không chỉ 2–3 câu) + — (Tên kinh, tr.X); không cắt / không chế.
-- Phần 2: ${AI_INTERPRETATION_MARKER} + 5–9 câu (nền phần 1 + câu hỏi; phụ kiến thức nền nếu hữu ích).`;
+- Phần 1: đoạn RẤT DÀI đủ đầu–đuôi từ [KINH] (+ [NGỮ LỤC] nếu hữu ích); ưu tiên kinh được nêu trong câu hỏi; trích 8–12 nguồn khi ngữ cảnh đủ; mỗi khối dài (không chỉ 2–3 câu) + — (Tên kinh, tr.X); không cắt / không chế.
+- Phần 2: ${AI_INTERPRETATION_MARKER} + 10–18 câu (nền phần 1 + câu hỏi; phụ kiến thức nền nếu hữu ích).`;
 }
 
 function buildBriefRules(): string {
@@ -117,11 +117,11 @@ ${modeRules}`;
 function maxTokensForStyle(style: AnswerStyle): number {
   switch (style) {
     case 'kinh_long':
-      return 24_576;
+      return 49_152;
     case 'mixed':
-      return 20_480;
+      return 40_960;
     case 'brief':
-      return 16_384;
+      return 32_768;
   }
 }
 
@@ -237,8 +237,8 @@ export class LlmService {
 ${intentBlock}
 Ngữ cảnh: mỗi block có [KINH]/[NGỮ LỤC] và dòng "Trích dẫn: …".
 1) Đọc "Ý hỏi đã chuẩn hóa" (nếu có). Nếu có KHÓA SÁCH → chỉ trích / ghi nhãn đúng sách đó. Nếu không khóa mà câu hỏi nêu tên một kinh → mở đầu PHẦN 1 bằng đoạn RẤT DÀI đủ đầu–đuôi từ đúng kinh đó.
-2) PHẦN NGUYÊN VĂN (ưu tiên dài): COPY càng nhiều chữ liên quan càng tốt — cả đoạn/cảnh/HỎI–ĐÁP, nối nhiều [Trang] nếu cùng phân đoạn. CẤM mở giữa câu đang nối trang. CẤM trả lời ngắn khi block còn dài. Mỗi khối — (Tên kinh, tr.X) đúng [Trang N] và đúng sách trong block. TUYỆT ĐỐI không chế / không cắt / không paraphrase / không tóm tắt / không đổi tên sách.
-3) Nếu đã có nguyên văn: dòng ${AI_INTERPRETATION_MARKER} rồi diễn giải đủ ý — NỀN = câu hỏi + phần 1; PHỤ = kiến thức nền nếu giúp phong phú. Giọng tự nhiên; CẤM "dựa vào đoạn trích…".
+2) PHẦN NGUYÊN VĂN (ưu tiên dài gấp đôi mức tối thiểu cũ): COPY càng nhiều chữ liên quan càng tốt — cả đoạn/cảnh/HỎI–ĐÁP, nối nhiều [Trang] nếu cùng phân đoạn. Mục tiêu khoảng 8–16 khối trích / nguồn khi ngữ cảnh đủ. CẤM mở giữa câu đang nối trang. CẤM trả lời ngắn khi block còn dài. Mỗi khối — (Tên kinh, tr.X) đúng [Trang N] và đúng sách trong block. TUYỆT ĐỐI không chế / không cắt / không paraphrase / không tóm tắt / không đổi tên sách.
+3) Nếu đã có nguyên văn: dòng ${AI_INTERPRETATION_MARKER} rồi diễn giải đủ ý (khoảng 10–20 câu) — NỀN = câu hỏi + phần 1; PHỤ = kiến thức nền nếu giúp phong phú. Giọng tự nhiên; CẤM "dựa vào đoạn trích…".
 ${context}`;
 
     const prior = normalizeHistory(history);
