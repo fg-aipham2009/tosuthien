@@ -19,8 +19,12 @@ import type { PostCategory, PostFormData, PostImage, ZoomRoom } from '@/types/mo
 const route = useRoute();
 const router = useRouter();
 
-const isNew = computed(() => route.name === 'post-new');
-const postId = computed(() => (isNew.value ? null : String(route.params.id)));
+const activePostId = ref<string | null>(null);
+
+const isNew = computed(() => route.name === 'post-new' && !activePostId.value);
+const postId = computed(
+  () => activePostId.value || (route.name === 'post-new' ? null : String(route.params.id)),
+);
 
 const saving = ref(false);
 const loading = ref(false);
@@ -115,10 +119,15 @@ async function loadZoomRooms() {
 }
 
 async function loadPost() {
-  if (!postId.value) return;
+  const id =
+    route.name === 'post-new'
+      ? activePostId.value
+      : String(route.params.id || '');
+  if (!id) return;
   loading.value = true;
   try {
-    const p = await fetchPost(postId.value);
+    const p = await fetchPost(id);
+    activePostId.value = p.id;
     applyPost(p);
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : 'Không tải được dữ liệu');
@@ -143,17 +152,43 @@ function buildPayload(): PostFormData {
   };
 }
 
+/** Create draft post when uploading images on the "new" screen. */
+async function ensurePostId(): Promise<string | null> {
+  if (postId.value) return postId.value;
+  const title = form.title.trim();
+  if (!title) {
+    ElMessage.warning('Nhập tiêu đề trước khi upload ảnh');
+    return null;
+  }
+  saving.value = true;
+  try {
+    const created = await createPost(buildPayload());
+    activePostId.value = created.id;
+    applyPost(created);
+    await router.replace(`/posts/${created.id}`);
+    ElMessage.success('Đã tạo bài — tiếp tục upload ảnh');
+    return created.id;
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Không tạo được bài');
+    return null;
+  } finally {
+    saving.value = false;
+  }
+}
+
 async function save() {
   const valid = await formRef.value?.validate().catch(() => false);
   if (!valid) return;
 
   saving.value = true;
   try {
-    if (isNew.value) {
+    if (!postId.value) {
       const created = await createPost(buildPayload());
+      activePostId.value = created.id;
+      applyPost(created);
       ElMessage.success('Đã tạo bài viết');
-      router.replace(`/posts/${created.id}`);
-    } else if (postId.value) {
+      await router.replace(`/posts/${created.id}`);
+    } else {
       const updated = await updatePost(postId.value, buildPayload());
       applyPost(updated);
       ElMessage.success('Đã lưu');
@@ -166,10 +201,12 @@ async function save() {
 }
 
 async function onCoverUpload(file: UploadRawFile) {
-  if (!postId.value || !assertImage(file)) return false;
+  if (!assertImage(file)) return false;
+  const id = await ensurePostId();
+  if (!id) return false;
   uploadingCover.value = true;
   try {
-    const updated = await uploadPostCover(postId.value, file);
+    const updated = await uploadPostCover(id, file);
     coverImageUrl.value = updated.coverImageUrl;
     images.value = updated.images ?? images.value;
     ElMessage.success('Đã cập nhật ảnh bìa');
@@ -196,10 +233,12 @@ async function onClearCover() {
 }
 
 async function onImagesUpload(file: UploadRawFile) {
-  if (!postId.value || !assertImage(file)) return false;
+  if (!assertImage(file)) return false;
+  const id = await ensurePostId();
+  if (!id) return false;
   uploadingImages.value = true;
   try {
-    const updated = await uploadPostImages(postId.value, [file]);
+    const updated = await uploadPostImages(id, [file]);
     images.value = updated.images ?? [];
     ElMessage.success('Đã thêm ảnh');
   } catch (e) {
@@ -229,11 +268,23 @@ function goBack() {
 }
 
 onMounted(async () => {
+  activePostId.value =
+    route.name === 'post-new' ? null : String(route.params.id || '') || null;
   await Promise.all([loadCategories(), loadZoomRooms()]);
   await loadPost();
 });
 
-watch(() => route.params.id, loadPost);
+watch(
+  () => route.params.id,
+  async () => {
+    if (route.name === 'post-new') {
+      activePostId.value = null;
+      return;
+    }
+    activePostId.value = String(route.params.id || '') || null;
+    await loadPost();
+  },
+);
 </script>
 
 <template>
@@ -330,71 +381,69 @@ watch(() => route.params.id, loadPost);
         </el-form-item>
       </el-form>
 
-      <template v-if="!isNew && postId">
-        <div class="form-section-title">Ảnh bìa (danh sách tin)</div>
-        <p class="hint">JPG / PNG / WEBP / GIF · tối đa 15MB</p>
-        <div class="main-row">
+      <div class="form-section-title">Ảnh bìa (danh sách tin)</div>
+      <p class="hint">
+        JPG / PNG / WEBP / GIF · tối đa 15MB. Có thể upload ngay khi tạo bài (cần có tiêu đề).
+      </p>
+      <div class="main-row">
+        <el-image
+          v-if="coverImageUrl"
+          :src="coverImageUrl"
+          fit="cover"
+          class="main-preview"
+          :preview-src-list="[coverImageUrl]"
+        />
+        <div v-else class="main-preview empty">Chưa có ảnh bìa</div>
+        <div class="main-actions">
+          <el-upload
+            :show-file-list="false"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            :disabled="uploadingCover || saving"
+            :before-upload="onCoverUpload"
+          >
+            <el-button type="primary" :loading="uploadingCover || saving">
+              {{ coverImageUrl ? 'Đổi ảnh bìa' : 'Upload ảnh bìa' }}
+            </el-button>
+          </el-upload>
+          <el-button
+            v-if="coverImageUrl && postId"
+            type="danger"
+            plain
+            @click="onClearCover"
+          >
+            Xóa ảnh bìa
+          </el-button>
+        </div>
+      </div>
+
+      <div class="form-section-title">Ảnh phía dưới</div>
+      <p class="hint">Ảnh hiển thị dưới 4 ô thông tin trên trang tin — upload được ngay khi tạo.</p>
+      <el-upload
+        :show-file-list="false"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        multiple
+        :disabled="uploadingImages || saving"
+        :before-upload="onImagesUpload"
+      >
+        <el-button type="primary" plain :loading="uploadingImages || saving">
+          Thêm ảnh
+        </el-button>
+      </el-upload>
+
+      <div v-if="contentImages.length" class="gallery-grid">
+        <div v-for="img in contentImages" :key="img.id" class="gallery-item">
           <el-image
-            v-if="coverImageUrl"
-            :src="coverImageUrl"
+            :src="img.url"
             fit="cover"
-            class="main-preview"
-            :preview-src-list="[coverImageUrl]"
+            :preview-src-list="contentImages.map((i) => i.url)"
           />
-          <div v-else class="main-preview empty">Chưa có ảnh bìa</div>
-          <div class="main-actions">
-            <el-upload
-              :show-file-list="false"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              :disabled="uploadingCover"
-              :before-upload="onCoverUpload"
-            >
-              <el-button type="primary" :loading="uploadingCover">
-                {{ coverImageUrl ? 'Đổi ảnh bìa' : 'Upload ảnh bìa' }}
-              </el-button>
-            </el-upload>
-            <el-button v-if="coverImageUrl" type="danger" plain @click="onClearCover">
-              Xóa ảnh bìa
+          <div class="actions">
+            <el-button size="small" link type="danger" @click="onDeleteImage(img)">
+              Xóa
             </el-button>
           </div>
         </div>
-
-        <div class="form-section-title">Ảnh phía dưới</div>
-        <p class="hint">Ảnh hiển thị dưới 4 ô thông tin trên trang tin</p>
-        <el-upload
-          :show-file-list="false"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-          multiple
-          :disabled="uploadingImages"
-          :before-upload="onImagesUpload"
-        >
-          <el-button type="primary" plain :loading="uploadingImages">Thêm ảnh</el-button>
-        </el-upload>
-
-        <div v-if="contentImages.length" class="gallery-grid">
-          <div v-for="img in contentImages" :key="img.id" class="gallery-item">
-            <el-image
-              :src="img.url"
-              fit="cover"
-              :preview-src-list="contentImages.map((i) => i.url)"
-            />
-            <div class="actions">
-              <el-button size="small" link type="danger" @click="onDeleteImage(img)">
-                Xóa
-              </el-button>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <el-alert
-        v-else
-        type="info"
-        :closable="false"
-        show-icon
-        title="Lưu tiêu đề + thông tin lớp trước, rồi upload ảnh."
-        style="margin-top: 16px"
-      />
+      </div>
     </el-card>
   </div>
 </template>

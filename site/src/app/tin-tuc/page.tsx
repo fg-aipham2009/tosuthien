@@ -27,6 +27,8 @@ export const metadata = buildMetadata({
   imageHeight: 512,
 });
 
+export const revalidate = 60;
+
 type Props = {
   searchParams: Promise<{ page?: string }>;
 };

@@ -54,7 +54,7 @@ export type PaginatedPosts = {
   totalPages: number;
 };
 
-const REVALIDATE = 300;
+const REVALIDATE = 60;
 
 export function stripHtml(html?: string | null): string {
   if (!html) return "";
