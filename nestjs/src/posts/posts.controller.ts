@@ -62,6 +62,18 @@ export class PostsController {
     return this.service.clearCoverImage(id);
   }
 
+  @Put(':id/cover-image')
+  setCoverImage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('url') url?: string,
+  ) {
+    const clean = url?.trim();
+    if (!clean) {
+      return this.service.clearCoverImage(id);
+    }
+    return this.service.setCoverImage(id, clean);
+  }
+
   @Get()
   findAll(
     @Query('all') all?: string,

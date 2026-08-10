@@ -107,6 +107,7 @@ async function onUploadPhoto(row: Teacher, opts: UploadRequestOptions) {
     const updated = await uploadTeacherPhoto(row.id, opts.file as File);
     const i = teachers.value.findIndex((t) => t.id === row.id);
     if (i >= 0) teachers.value[i] = updated;
+    if (editing.value?.id === row.id) editing.value = updated;
     ElMessage.success('Đã cập nhật ảnh giảng sư');
     opts.onSuccess?.(updated);
   } catch (e) {
@@ -121,10 +122,20 @@ async function onClearPhoto(row: Teacher) {
     const updated = await clearTeacherPhoto(row.id);
     const i = teachers.value.findIndex((t) => t.id === row.id);
     if (i >= 0) teachers.value[i] = updated;
+    if (editing.value?.id === row.id) editing.value = updated;
     ElMessage.success('Đã xóa ảnh');
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : 'Xóa ảnh lỗi');
   }
+}
+
+async function onDialogUpload(opts: UploadRequestOptions) {
+  if (!editing.value) {
+    ElMessage.warning('Lưu giảng sư trước, rồi mới upload ảnh');
+    opts.onError?.(new Error('no teacher') as never);
+    return;
+  }
+  await onUploadPhoto(editing.value, opts);
 }
 
 function displayName(row: Teacher) {
@@ -139,16 +150,24 @@ onMounted(load);
     <div class="toolbar">
       <div>
         <h3 style="margin: 0">Danh sách giảng sư</h3>
-        <p class="hint">Ảnh giảng sư dùng cho thông báo khóa học / poster.</p>
+        <p class="hint">
+          Ảnh Hòa thượng dùng làm ảnh bìa khi chọn giảng sư trong tin tức (và poster thông báo lớp).
+        </p>
       </div>
       <el-button type="primary" @click="openCreate">Thêm giảng sư</el-button>
     </div>
 
     <el-table v-loading="loading" :data="teachers" stripe border>
-      <el-table-column label="Ảnh" width="96">
+      <el-table-column label="Ảnh" width="110">
         <template #default="{ row }">
-          <el-avatar v-if="row.photoUrl" :src="row.photoUrl" :size="56" shape="circle" />
-          <el-avatar v-else :size="56">{{ row.name?.slice(0, 1) }}</el-avatar>
+          <el-image
+            v-if="row.photoUrl"
+            :src="row.photoUrl"
+            fit="cover"
+            style="width: 72px; height: 72px; border-radius: 8px"
+            :preview-src-list="[row.photoUrl]"
+          />
+          <el-avatar v-else :size="72">{{ row.name?.slice(0, 1) }}</el-avatar>
         </template>
       </el-table-column>
       <el-table-column label="Giảng sư" min-width="200">
@@ -185,10 +204,45 @@ onMounted(load);
     <el-dialog
       v-model="dialog"
       :title="editing ? 'Sửa giảng sư' : 'Thêm giảng sư'"
-      width="520px"
+      width="560px"
       destroy-on-close
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
+        <el-form-item label="Ảnh chân dung">
+          <div class="photo-block">
+            <el-image
+              v-if="editing?.photoUrl"
+              :src="editing.photoUrl"
+              fit="contain"
+              class="photo-preview"
+              :preview-src-list="[editing.photoUrl]"
+            />
+            <div v-else class="photo-preview empty">
+              {{ editing ? 'Chưa có ảnh' : 'Lưu trước rồi upload ảnh' }}
+            </div>
+            <div class="photo-actions">
+              <el-upload
+                :show-file-list="false"
+                accept="image/*"
+                :disabled="!editing"
+                :http-request="onDialogUpload"
+              >
+                <el-button type="primary" :disabled="!editing">
+                  {{ editing?.photoUrl ? 'Đổi ảnh' : 'Upload ảnh' }}
+                </el-button>
+              </el-upload>
+              <el-button
+                v-if="editing?.photoUrl"
+                @click="onClearPhoto(editing)"
+              >
+                Xóa ảnh
+              </el-button>
+            </div>
+            <p class="hint">
+              Ảnh này sẽ hiện trong form tin tức và dùng làm ảnh bìa khi chọn giảng sư.
+            </p>
+          </div>
+        </el-form-item>
         <el-form-item label="Phẩm vị" prop="rank">
           <el-select v-model="form.rank" clearable placeholder="HT / TT / …" style="width: 100%">
             <el-option label="HT" value="HT" />
@@ -238,6 +292,31 @@ onMounted(load);
 .muted {
   color: #9ca3af;
   font-size: 0.8rem;
+}
+.photo-block {
+  width: 100%;
+}
+.photo-preview {
+  width: 180px;
+  height: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+.photo-preview.empty {
+  display: grid;
+  place-items: center;
+  color: #9ca3af;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 8px;
+}
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
 }
 :deep(.el-table .el-button + .el-button) {
   margin-left: 0;

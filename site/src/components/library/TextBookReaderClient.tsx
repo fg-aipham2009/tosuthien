@@ -14,7 +14,7 @@ import {
   mergePageWindows,
 } from "../../lib/library/textBookPage";
 import type { TextBook, TextBookPage } from "../../lib/library/types";
-import { LoadingBlock } from "../ui/Spinner";
+import { DelayedLoadingBlock } from "../ui/DelayedLoading";
 
 type Props = { id: string };
 
@@ -191,7 +191,7 @@ export function TextBookReaderClient({ id }: Props) {
   }
 
   if (loading && !book) {
-    return <LoadingBlock label="Đang tải…" />;
+    return <DelayedLoadingBlock label="Đang tải…" />;
   }
 
   return (

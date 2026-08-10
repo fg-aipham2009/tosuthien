@@ -185,6 +185,9 @@ export default async function CenterDetailPage({ params }: Props) {
             <img
               src={center.mainImageUrl}
               alt={center.templeName}
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
               className="animate-ken-burns h-full w-full rounded-none object-cover"
             />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#1a0f0a]/55 via-[#1a0f0a]/10 to-transparent" />

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { fetchPdfs, fetchTextBooks } from "../../lib/library/api";
 import type { BookPdf, TextBook } from "../../lib/library/types";
-import { LoadingBlock } from "../ui/Spinner";
+import { DelayedLoadingBlock } from "../ui/DelayedLoading";
 
 type Mode = "shelf" | "text" | "pdf";
 
@@ -188,7 +188,7 @@ export function KinhSachGrid() {
           ) : null}
 
           {listLoading ? (
-            <LoadingBlock label="Đang tải danh sách kinh sách…" />
+            <DelayedLoadingBlock label="Đang tải danh sách kinh sách…" />
           ) : listError ? (
             <p className="py-12 text-center text-alert">{listError}</p>
           ) : !items.length ? (

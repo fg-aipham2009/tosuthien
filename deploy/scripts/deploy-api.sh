@@ -25,6 +25,9 @@ rsync -avz \
   "$REPO_ROOT/docker/postgres/migrations/020-posts-announcement-fields.sql" \
   "$REPO_ROOT/docker/postgres/migrations/021-dedupe-post-images.sql" \
   "$REPO_ROOT/docker/postgres/migrations/022-zoom-rooms.sql" \
+  "$REPO_ROOT/docker/postgres/migrations/023-link-posts-zoom-rooms.sql" \
+  "$REPO_ROOT/docker/postgres/migrations/024-sync-posts-zoom-display.sql" \
+  "$REPO_ROOT/docker/postgres/migrations/025-posts-soft-delete.sql" \
   "$VPS_HOST:$VPS_REPO/docker/postgres/migrations/"
 
 echo "==> docker compose up api (local build, clear API_IMAGE)"
@@ -58,7 +61,16 @@ docker compose exec -T db sh -c \
   < docker/postgres/migrations/021-dedupe-post-images.sql || true
 docker compose exec -T db sh -c \
   'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
-  < docker/postgres/migrations/022-zoom-rooms.sql
+  < docker/postgres/migrations/022-zoom-rooms.sql || true
+docker compose exec -T db sh -c \
+  'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
+  < docker/postgres/migrations/023-link-posts-zoom-rooms.sql || true
+docker compose exec -T db sh -c \
+  'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
+  < docker/postgres/migrations/024-sync-posts-zoom-display.sql || true
+docker compose exec -T db sh -c \
+  'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
+  < docker/postgres/migrations/025-posts-soft-delete.sql
 # Drop stuck "Created" / orphaned api containers from prior races.
 docker ps -aq --filter name=tosu_api --filter status=created | xargs -r docker rm -f
 docker compose up -d --build --force-recreate --remove-orphans api

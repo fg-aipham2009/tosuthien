@@ -81,6 +81,12 @@ export async function clearPostCoverImage(id: string): Promise<Post> {
   return data;
 }
 
+/** Set cover from an existing URL (e.g. teacher photo), without re-upload. */
+export async function setPostCoverUrl(id: string, url: string): Promise<Post> {
+  const { data } = await http.put<Post>(`/posts/${id}/cover-image`, { url });
+  return data;
+}
+
 export async function uploadPostImages(id: string, files: File[]): Promise<Post> {
   const form = new FormData();
   for (const f of files) form.append('files', f);

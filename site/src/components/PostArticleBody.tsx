@@ -203,6 +203,8 @@ export function PostArticleBody({
                     <img
                       src={src}
                       alt=""
+                      loading={index === 0 ? "eager" : "lazy"}
+                      decoding="async"
                       className="mx-auto max-h-[min(640px,75vh)] w-auto max-w-full rounded-[10px] object-contain transition duration-700 ease-out group-hover:scale-[1.015]"
                     />
                   </a>
@@ -212,6 +214,8 @@ export function PostArticleBody({
                     <img
                       src={src}
                       alt=""
+                      loading={index === 0 ? "eager" : "lazy"}
+                      decoding="async"
                       className="mx-auto max-h-[min(640px,75vh)] w-auto max-w-full rounded-[10px] object-contain transition duration-700 ease-out hover:scale-[1.015]"
                     />
                   </>

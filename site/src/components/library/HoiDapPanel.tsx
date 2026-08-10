@@ -3,7 +3,8 @@
 import Image from "next/image";
 import { useEffect, useRef } from "react";
 import { useHoiDapChat, useMediaWide } from "../../hooks/useHoiDapChat";
-import { LoadingBlock, Spinner } from "../ui/Spinner";
+import { DelayedLoadingBlock } from "../ui/DelayedLoading";
+import { Spinner } from "../ui/Spinner";
 import { useToast } from "../ui/ToastProvider";
 import {
   defaultFilePage,
@@ -78,7 +79,10 @@ export function HoiDapPanel() {
 
       <section className="relative flex min-w-0 flex-1 flex-col bg-[var(--c-surface)]">
         {chat.sourcesLoading ? (
-          <LoadingBlock label="Đang tải thư viện kinh sách…" className="min-h-[360px] flex-1" />
+          <DelayedLoadingBlock
+            label="Đang tải thư viện kinh sách…"
+            className="min-h-[360px] flex-1"
+          />
         ) : (
           <>
         <header className="flex shrink-0 items-center gap-2 border-b border-[var(--c-outline)] px-3 py-2.5">

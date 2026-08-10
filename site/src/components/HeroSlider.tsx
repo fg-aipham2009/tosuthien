@@ -57,6 +57,9 @@ export function HeroSlider({ slides }: { slides: Slide[] }) {
             <img
               src={slide.src}
               alt={slide.alt ?? ""}
+              loading={i === 0 ? "eager" : "lazy"}
+              decoding="async"
+              fetchPriority={i === 0 ? "high" : "auto"}
               className={`h-full w-full rounded-none object-cover transition-transform duration-[8000ms] ease-out ${
                 i === index ? "scale-105" : "scale-100"
               }`}

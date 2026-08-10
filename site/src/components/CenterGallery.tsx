@@ -51,6 +51,8 @@ export function CenterGallery({
               <img
                 src={url}
                 alt={`${templeName} — ảnh ${i + 1}`}
+                loading={i < 3 ? "eager" : "lazy"}
+                decoding="async"
                 className="h-full w-full rounded-none object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
               />
               <span className="pointer-events-none absolute inset-0 bg-primary/0 transition duration-500 group-hover:bg-primary/10" />
@@ -107,6 +109,7 @@ export function CenterGallery({
           <img
             src={urls[active]}
             alt={`${templeName} — ảnh ${active + 1}`}
+            decoding="async"
             className="max-h-[88vh] max-w-[min(1100px,94vw)] rounded-none object-contain shadow-2xl animate-zoom-in"
             onClick={(e) => e.stopPropagation()}
           />

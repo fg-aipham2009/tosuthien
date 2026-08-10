@@ -17,7 +17,7 @@ import {
   showMp3Year,
 } from "../../lib/library/mp3Download";
 import type { MediaCategory, Mp3Track } from "../../lib/library/types";
-import { LoadingBlock } from "../ui/Spinner";
+import { DelayedLoadingBlock } from "../ui/DelayedLoading";
 
 function DownloadIcon({ spinning }: { spinning?: boolean }) {
   if (spinning) {
@@ -208,7 +208,7 @@ export function PhapAmAlbumClient({ slug }: Props) {
   }
 
   if (loading) {
-    return <LoadingBlock label="Đang tải pháp âm…" />;
+    return <DelayedLoadingBlock label="Đang tải pháp âm…" />;
   }
   if (error) {
     return <p className="py-12 text-center text-alert">{error}</p>;

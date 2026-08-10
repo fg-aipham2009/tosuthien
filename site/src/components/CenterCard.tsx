@@ -24,6 +24,8 @@ export function CenterCard({
             <img
               src={center.mainImageUrl}
               alt={center.templeName}
+              loading="lazy"
+              decoding="async"
               className="h-full w-full rounded-none object-cover transition-transform duration-700 ease-out group-hover:scale-105"
             />
           ) : (
@@ -32,6 +34,8 @@ export function CenterCard({
               <img
                 src="/wp/header-right.png"
                 alt=""
+                loading="lazy"
+                decoding="async"
                 className="h-16 w-16 rounded-none object-contain opacity-30"
               />
             </div>

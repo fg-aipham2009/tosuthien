@@ -143,6 +143,8 @@ export default async function GioiThieuPage() {
           alt="Hòa thượng Thích Duy Lực"
           width={303}
           height={455}
+          loading="lazy"
+          decoding="async"
           className="w-[303px] max-w-full min-[850px]:float-left min-[850px]:mr-[21.6px] min-[850px]:inline"
         />
         <strong>{mucA.heading}</strong>

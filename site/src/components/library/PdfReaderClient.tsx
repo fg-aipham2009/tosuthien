@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { fetchPdfs, saveReadingProgress } from "../../lib/library/api";
 import type { BookPdf } from "../../lib/library/types";
-import { LoadingBlock } from "../ui/Spinner";
+import { DelayedLoadingBlock } from "../ui/DelayedLoading";
 
 const PdfFlipBook = dynamic(
   () =>
@@ -13,9 +13,7 @@ const PdfFlipBook = dynamic(
   {
     ssr: false,
     loading: () => (
-      <p className="py-20 text-center text-sm text-white/70">
-        Đang chuẩn bị lật sách…
-      </p>
+      <DelayedLoadingBlock label="Đang chuẩn bị lật sách…" />
     ),
   },
 );
@@ -64,7 +62,7 @@ export function PdfReaderClient({ id, initialPage }: Props) {
     setJump("");
   }
 
-  if (loading) return <LoadingBlock label="Đang mở PDF…" />;
+  if (loading) return <DelayedLoadingBlock label="Đang mở PDF…" />;
   if (error || !book) {
     return (
       <p className="py-12 text-center text-alert">

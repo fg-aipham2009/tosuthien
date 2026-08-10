@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { KinhSachGrid } from "../../../components/library/KinhSachGrid";
+import { DelayedLoadingBlock } from "../../../components/ui/DelayedLoading";
 import { buildMetadata } from "../../../lib/seo";
 
 export const metadata = buildMetadata({
@@ -11,7 +12,9 @@ export const metadata = buildMetadata({
 
 export default function KinhSachPage() {
   return (
-    <Suspense fallback={<p className="py-12 text-center text-muted">Đang tải…</p>}>
+    <Suspense
+      fallback={<DelayedLoadingBlock label="Đang tải kinh sách…" />}
+    >
       <KinhSachGrid />
     </Suspense>
   );

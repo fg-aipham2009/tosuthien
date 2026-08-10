@@ -12,12 +12,14 @@ import {
   updatePostCategory,
   deletePostCategory,
 } from '@/api/posts';
-import type { Post, PostCategory, PostCategoryFormData } from '@/types/models';
+import { fetchTeachers } from '@/api/teachers';
+import type { Post, PostCategory, PostCategoryFormData, Teacher } from '@/types/models';
 
 const router = useRouter();
 const loading = ref(false);
 const posts = ref<Post[]>([]);
 const categories = ref<PostCategory[]>([]);
+const teachers = ref<Teacher[]>([]);
 const savingOrderId = ref<string | null>(null);
 
 const search = ref('');
@@ -50,6 +52,37 @@ async function loadCategories() {
   } catch {
     categories.value = [];
   }
+}
+
+async function loadTeachers() {
+  try {
+    teachers.value = await fetchTeachers(true);
+  } catch {
+    teachers.value = [];
+  }
+}
+
+function teacherLabel(t: Teacher) {
+  return [t.rank, t.name].filter(Boolean).join(' ');
+}
+
+/** Same rule as public /tin-tuc list: prefer giảng sư portrait. */
+function listBannerUrl(row: Post): string | null {
+  const raw = (row.teacherText || '').trim().toLowerCase();
+  if (raw && teachers.value.length) {
+    const exact = teachers.value.find(
+      (t) => teacherLabel(t).toLowerCase() === raw,
+    );
+    if (exact?.photoUrl) return exact.photoUrl;
+    const byName = [...teachers.value]
+      .filter((t) => {
+        const name = t.name.toLowerCase();
+        return name.length >= 4 && (raw.includes(name) || name.includes(raw));
+      })
+      .sort((a, b) => b.name.length - a.name.length)[0];
+    if (byName?.photoUrl) return byName.photoUrl;
+  }
+  return row.coverImageUrl || null;
 }
 
 async function load() {
@@ -203,7 +236,7 @@ async function onDeleteCategory(cat: PostCategory) {
 }
 
 onMounted(async () => {
-  await loadCategories();
+  await Promise.all([loadCategories(), loadTeachers()]);
   await load();
 });
 </script>
@@ -265,14 +298,16 @@ onMounted(async () => {
             />
           </template>
         </el-table-column>
-        <el-table-column label="Ảnh" width="80" align="center">
+        <el-table-column label="Ảnh" width="88" align="center">
           <template #default="{ row }">
-            <el-image
-              v-if="row.coverImageUrl"
-              :src="row.coverImageUrl"
-              fit="cover"
-              style="width: 48px; height: 48px; border-radius: 6px"
-            />
+            <template v-if="listBannerUrl(row)">
+              <el-image
+                :src="listBannerUrl(row)!"
+                fit="cover"
+                style="width: 56px; height: 56px; border-radius: 8px"
+                :preview-src-list="[listBannerUrl(row)!]"
+              />
+            </template>
             <span v-else class="text-muted">—</span>
           </template>
         </el-table-column>

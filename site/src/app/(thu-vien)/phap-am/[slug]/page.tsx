@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { PhapAmAlbumClient } from "../../../../components/library/PhapAmAlbumClient";
+import { DelayedLoadingBlock } from "../../../../components/ui/DelayedLoading";
 import { API_BASE } from "../../../../lib/api";
 import type { MediaCategory } from "../../../../lib/library/types";
 import { buildMetadata } from "../../../../lib/seo";
@@ -31,7 +32,9 @@ export async function generateMetadata({ params }: Props) {
 export default async function PhapAmAlbumPage({ params }: Props) {
   const { slug } = await params;
   return (
-    <Suspense fallback={<p className="py-12 text-center text-muted">Đang tải…</p>}>
+    <Suspense
+      fallback={<DelayedLoadingBlock label="Đang tải pháp âm…" />}
+    >
       <PhapAmAlbumClient slug={slug} />
     </Suspense>
   );

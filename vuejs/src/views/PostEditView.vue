@@ -10,11 +10,13 @@ import {
   fetchPostCategories,
   uploadPostCover,
   clearPostCoverImage,
+  setPostCoverUrl,
   uploadPostImages,
   deletePostImage,
 } from '@/api/posts';
 import { fetchZoomRooms } from '@/api/zoom-rooms';
-import type { PostCategory, PostFormData, PostImage, ZoomRoom } from '@/types/models';
+import { fetchTeachers } from '@/api/teachers';
+import type { PostCategory, PostFormData, PostImage, Teacher, ZoomRoom } from '@/types/models';
 
 const route = useRoute();
 const router = useRouter();
@@ -31,6 +33,11 @@ const loading = ref(false);
 const formRef = ref<FormInstance>();
 const categories = ref<PostCategory[]>([]);
 const zoomRooms = ref<ZoomRoom[]>([]);
+const teachers = ref<Teacher[]>([]);
+const teacherId = ref<string | null>(null);
+const applyingTeacherCover = ref(false);
+/** Cover to apply after the post is first created. */
+const pendingTeacherCover = ref<string | null>(null);
 
 const form = reactive({
   title: '',
@@ -56,6 +63,26 @@ const selectedZoomHint = computed(() => {
   if (!room) return '';
   return `ID: ${room.meetingId}${room.pass ? ` · Pass: ${room.pass}` : ''}`;
 });
+
+const selectedTeacher = computed(() =>
+  teachers.value.find((t) => t.id === teacherId.value) || null,
+);
+
+function teacherLabel(t: Teacher) {
+  return [t.rank, t.name].filter(Boolean).join(' ');
+}
+
+function matchTeacherId(text: string | null | undefined): string | null {
+  const raw = (text || '').trim().toLowerCase();
+  if (!raw) return null;
+  const exact = teachers.value.find((t) => teacherLabel(t).toLowerCase() === raw);
+  if (exact) return exact.id;
+  const byName = teachers.value.find((t) => {
+    const name = t.name.toLowerCase();
+    return raw.includes(name) || name.includes(raw);
+  });
+  return byName?.id || null;
+}
 
 const IMAGE_MAX = 15 * 1024 * 1024;
 const IMAGE_OK = /\.(jpe?g|png|webp|gif)$/i;
@@ -89,6 +116,7 @@ function applyPost(p: Awaited<ReturnType<typeof fetchPost>>) {
   form.sortOrder = p.sortOrder ?? 0;
   form.topicText = p.topicText ?? '';
   form.teacherText = p.teacherText ?? '';
+  teacherId.value = matchTeacherId(p.teacherText);
   form.scheduleText = p.scheduleText ?? '';
   form.zoomRoomId =
     p.zoomRoomId ||
@@ -117,6 +145,54 @@ async function loadZoomRooms() {
     zoomRooms.value = await fetchZoomRooms(true);
   } catch {
     zoomRooms.value = [];
+  }
+}
+
+async function loadTeachers() {
+  try {
+    teachers.value = await fetchTeachers(true);
+    if (!teacherId.value && form.teacherText) {
+      teacherId.value = matchTeacherId(form.teacherText);
+    }
+  } catch {
+    teachers.value = [];
+  }
+}
+
+async function applyTeacherCover(photoUrl: string | null | undefined) {
+  if (!photoUrl?.trim()) return;
+  const id = postId.value;
+  if (!id) {
+    pendingTeacherCover.value = photoUrl.trim();
+    return;
+  }
+  applyingTeacherCover.value = true;
+  try {
+    const updated = await setPostCoverUrl(id, photoUrl.trim());
+    coverImageUrl.value = updated.coverImageUrl;
+    images.value = updated.images ?? images.value;
+    pendingTeacherCover.value = null;
+    ElMessage.success('Đã dùng ảnh giảng sư làm ảnh bìa');
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Không gắn được ảnh giảng sư');
+  } finally {
+    applyingTeacherCover.value = false;
+  }
+}
+
+async function flushPendingTeacherCover() {
+  if (!pendingTeacherCover.value || !postId.value) return;
+  await applyTeacherCover(pendingTeacherCover.value);
+}
+
+async function onTeacherChange(id: string | null) {
+  teacherId.value = id;
+  const t = teachers.value.find((x) => x.id === id);
+  form.teacherText = t ? teacherLabel(t) : '';
+  if (t?.photoUrl) {
+    await applyTeacherCover(t.photoUrl);
+  } else {
+    pendingTeacherCover.value = null;
   }
 }
 
@@ -169,6 +245,7 @@ async function ensurePostId(): Promise<string | null> {
     const created = await createPost(buildPayload());
     activePostId.value = created.id;
     applyPost(created);
+    await flushPendingTeacherCover();
     await router.replace(`/posts/${created.id}`);
     ElMessage.success('Đã tạo bài — tiếp tục upload ảnh');
     return created.id;
@@ -190,11 +267,13 @@ async function save() {
       const created = await createPost(buildPayload());
       activePostId.value = created.id;
       applyPost(created);
+      await flushPendingTeacherCover();
       ElMessage.success('Đã tạo bài viết');
       await router.replace(`/posts/${created.id}`);
     } else {
       const updated = await updatePost(postId.value, buildPayload());
       applyPost(updated);
+      await flushPendingTeacherCover();
       ElMessage.success('Đã lưu');
     }
   } catch (e) {
@@ -274,7 +353,7 @@ function goBack() {
 onMounted(async () => {
   activePostId.value =
     route.name === 'post-new' ? null : String(route.params.id || '') || null;
-  await Promise.all([loadCategories(), loadZoomRooms()]);
+  await Promise.all([loadCategories(), loadZoomRooms(), loadTeachers()]);
   await loadPost();
 });
 
@@ -356,10 +435,43 @@ watch(
           </el-col>
           <el-col :xs="24" :md="12">
             <el-form-item label="2. Giảng sư">
-              <el-input
-                v-model="form.teacherText"
-                placeholder="VD: Hoà thượng Thích Minh Hiền"
-              />
+              <el-select
+                :model-value="teacherId"
+                clearable
+                filterable
+                placeholder="Chọn giảng sư"
+                style="width: 100%"
+                :disabled="applyingTeacherCover"
+                @change="onTeacherChange"
+              >
+                <el-option
+                  v-for="t in teachers"
+                  :key="t.id"
+                  :label="teacherLabel(t)"
+                  :value="t.id"
+                >
+                  <div class="teacher-option">
+                    <el-avatar
+                      v-if="t.photoUrl"
+                      :src="t.photoUrl"
+                      :size="28"
+                      shape="circle"
+                    />
+                    <el-avatar v-else :size="28">{{ t.name.slice(0, 1) }}</el-avatar>
+                    <span>{{ teacherLabel(t) }}</span>
+                  </div>
+                </el-option>
+              </el-select>
+              <p class="hint">
+                Có ảnh giảng sư → dùng làm ảnh bìa (giống trang cũ). Chưa có ảnh → giữ ảnh mặc định / upload tay.
+              </p>
+              <div v-if="selectedTeacher?.photoUrl" class="teacher-photo-preview">
+                <el-image
+                  :src="selectedTeacher.photoUrl"
+                  fit="contain"
+                  style="width: 96px; height: 96px; border-radius: 8px"
+                />
+              </div>
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="12">
@@ -536,5 +648,15 @@ watch(
   gap: 2px;
   padding: 4px 2px;
   background: #fff;
+}
+
+.teacher-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.teacher-photo-preview {
+  margin-top: 8px;
 }
 </style>

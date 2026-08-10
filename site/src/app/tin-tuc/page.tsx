@@ -9,6 +9,10 @@ import {
   stripHtml,
 } from "../../lib/posts";
 import {
+  fetchTeachers,
+  resolveTeacherPhotoUrl,
+} from "../../lib/classAnnouncements";
+import {
   SITE_NAME,
   SITE_URL,
   buildMetadata,
@@ -38,11 +42,14 @@ const PAGE_SIZE = 12;
 export default async function TinTucPage({ searchParams }: Props) {
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page || "1", 10) || 1);
-  const data = await fetchPosts({
-    page,
-    limit: PAGE_SIZE,
-    category: "tin-tuc",
-  });
+  const [data, teachers] = await Promise.all([
+    fetchPosts({
+      page,
+      limit: PAGE_SIZE,
+      category: "tin-tuc",
+    }),
+    fetchTeachers(),
+  ]);
   const groups = groupPostsByMonth(data.items);
 
   const pageLd = {
@@ -106,7 +113,10 @@ export default async function TinTucPage({ searchParams }: Props) {
                       140,
                     );
                     const date = formatPostDate(post.publishedAt);
+                    // List banner: teacher portrait when known; else post cover / default.
+                    // Detail page keeps its own poster/gallery unchanged.
                     const coverSrc =
+                      resolveTeacherPhotoUrl(post.teacherText, teachers) ||
                       preferFullPostImageUrl(post.coverImageUrl) ||
                       "/wp/header-right.png";
                     return (
@@ -120,6 +130,9 @@ export default async function TinTucPage({ searchParams }: Props) {
                           <img
                             src={coverSrc}
                             alt={post.title}
+                            loading={i < 3 ? "eager" : "lazy"}
+                            decoding="async"
+                            fetchPriority={i === 0 ? "high" : "auto"}
                             className="aspect-[4/3] w-full rounded-none object-contain p-1 transition duration-500 ease-out group-hover:opacity-95"
                           />
                         </Link>

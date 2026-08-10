@@ -115,14 +115,23 @@ export class PostsService {
     let candidate = root;
     let n = 2;
     for (;;) {
-      const existing = await this.prisma.post.findUnique({
-        where: { slug: candidate },
+      const existing = await this.prisma.post.findFirst({
+        where: {
+          slug: candidate,
+          isDeleted: false,
+          ...(excludeId ? { NOT: { id: excludeId } } : {}),
+        },
         select: { id: true },
       });
-      if (!existing || existing.id === excludeId) return candidate;
+      if (!existing) return candidate;
       candidate = `${root}-${n}`;
       n += 1;
     }
+  }
+
+  /** Active (not soft-deleted) post filter. */
+  private notDeleted(): Prisma.PostWhereInput {
+    return { isDeleted: false };
   }
 
   private async uniqueCategorySlug(
@@ -175,7 +184,9 @@ export class PostsService {
     const limit = Math.min(100, Math.max(1, params.limit ?? 20));
     const skip = (page - 1) * limit;
 
-    const where: Prisma.PostWhereInput = {};
+    const where: Prisma.PostWhereInput = {
+      ...this.notDeleted(),
+    };
     if (!params.all) {
       where.isPublished = true;
     }
@@ -223,7 +234,7 @@ export class PostsService {
 
   async findBySlug(slug: string) {
     const post = await this.prisma.post.findFirst({
-      where: { slug, isPublished: true },
+      where: { slug, isPublished: true, isDeleted: false },
       include: postInclude,
     });
     if (!post) throw new NotFoundException('Post not found');
@@ -231,8 +242,8 @@ export class PostsService {
   }
 
   async findOne(id: string) {
-    const post = await this.prisma.post.findUnique({
-      where: { id },
+    const post = await this.prisma.post.findFirst({
+      where: { id, isDeleted: false },
       include: postInclude,
     });
     if (!post) throw new NotFoundException('Post not found');
@@ -290,7 +301,9 @@ export class PostsService {
   }
 
   async update(id: string, dto: UpdatePostDto) {
-    const existing = await this.prisma.post.findUnique({ where: { id } });
+    const existing = await this.prisma.post.findFirst({
+      where: { id, isDeleted: false },
+    });
     if (!existing) throw new NotFoundException('Post not found');
 
     const data: Prisma.PostUpdateInput = {};
@@ -366,8 +379,22 @@ export class PostsService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
-    await this.prisma.post.delete({ where: { id } });
+    const existing = await this.prisma.post.findFirst({
+      where: { id, isDeleted: false },
+      select: { id: true, slug: true },
+    });
+    if (!existing) throw new NotFoundException('Post not found');
+
+    // Soft delete — free the slug so a new post can reuse it.
+    const deletedSlug = `${existing.slug}__deleted__${Date.now()}`;
+    await this.prisma.post.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        isPublished: false,
+        slug: deletedSlug.slice(0, 180),
+      },
+    });
     return { deleted: true };
   }
 
