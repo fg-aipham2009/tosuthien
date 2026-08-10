@@ -3,9 +3,6 @@
 import Link from "next/link";
 import { PwaInstallBanner } from "./PwaInstallBanner";
 
-const PDF_DANH_SACH =
-  "https://tosuthien.com/wp-content/uploads/2026/07/1-Danh-sach-Chu-Ton-Duc-Tang-Ni-Tông-Phong.pdf";
-
 function FooterTitle({ children }: { children: React.ReactNode }) {
   return (
     <h3 className="mb-4 text-base font-bold uppercase tracking-wide text-white">
@@ -60,15 +57,13 @@ export function SiteFooter() {
             <FooterTitle>Thông tin liên quan</FooterTitle>
             <div className="space-y-3 text-base leading-relaxed">
               <p>
-                <a
-                  href={PDF_DANH_SACH}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  href="/thien-duong"
                   className="underline-offset-4 hover:text-success hover:underline"
                 >
                   Danh Sách Chư Tôn Đức trụ trì các Chùa trong Tông Phong Tổ Sư
                   Thiền
-                </a>
+                </Link>
               </p>
               <p>
                 <Link
