@@ -14,6 +14,7 @@ import {
   buildMetadata,
   excerptForOg,
 } from "../../lib/seo";
+import { preferFullPostImageUrl } from "../../lib/postContent";
 
 export const metadata = buildMetadata({
   title: "Lưu trữ Tin Tức",
@@ -73,7 +74,9 @@ export default async function TinTucPage({ searchParams }: Props) {
   return (
     <div className="py-8">
       <JsonLd data={pageLd} />
-      <SectionTitle as="h1">Tin Tức</SectionTitle>
+      <SectionTitle as="h1" variant="bold-center" size="lg">
+        Tin Tức
+      </SectionTitle>
 
       <div className="mx-auto max-w-[1080px] px-[15px]">
         {data.items.length === 0 ? (
@@ -90,7 +93,7 @@ export default async function TinTucPage({ searchParams }: Props) {
               >
                 <h2
                   id={`heading-${group.key}`}
-                  className="mb-6 border-b border-line pb-2 text-xl font-bold text-black"
+                  className="mb-6 border-b border-line pb-2 text-2xl font-bold tracking-tight text-black md:text-[1.75rem]"
                 >
                   {group.label}
                 </h2>
@@ -101,27 +104,34 @@ export default async function TinTucPage({ searchParams }: Props) {
                       140,
                     );
                     const date = formatPostDate(post.publishedAt);
+                    const coverSrc =
+                      preferFullPostImageUrl(post.coverImageUrl) ||
+                      "/wp/header-right.png";
                     return (
-                      <Reveal key={post.id} delay={(i % 3) * 60} variant="zoom">
+                      <Reveal key={post.id} delay={(i % 3) * 60}>
                       <article className="flex flex-col">
                         <Link
                           href={`/tin-tuc/${post.slug}`}
-                          className="group block overflow-hidden bg-paper-warm"
+                          className="group block overflow-hidden rounded-[10px] border border-line bg-paper-warm"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={post.coverImageUrl || "/wp/header-right.png"}
+                            src={coverSrc}
                             alt={post.title}
-                            className="aspect-[4/3] w-full rounded-none object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
+                            className="aspect-[4/3] w-full rounded-none object-contain p-1 transition duration-500 ease-out group-hover:opacity-95"
                           />
                         </Link>
                         <div className="mt-4 flex flex-1 flex-col">
                           {date ? (
-                            <time className="mb-1 text-sm text-muted">
+                            <time className="mb-1 flex items-center gap-1.5 text-sm text-muted">
+                              <svg viewBox="0 0 24 24" aria-hidden className="size-4 shrink-0 text-primary/80" fill="none">
+                                <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.75" />
+                                <path d="M8 3v4M16 3v4M3 10h18" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                              </svg>
                               {date}
                             </time>
                           ) : null}
-                          <h3 className="text-lg leading-snug font-bold text-black">
+                          <h3 className="text-xl leading-snug font-bold tracking-tight text-black md:text-[1.4rem]">
                             <Link
                               href={`/tin-tuc/${post.slug}`}
                               className="link-underline transition-colors hover:text-primary"

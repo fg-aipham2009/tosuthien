@@ -32,6 +32,14 @@ export type Post = {
   isPinned: boolean;
   sortOrder: number;
   isPublished: boolean;
+  topicText?: string | null;
+  teacherText?: string | null;
+  scheduleText?: string | null;
+  zoomMeetingId?: string | null;
+  zoomPass?: string | null;
+  zoomUrl?: string | null;
+  zoomRoomId?: string | null;
+  description?: string | null;
   createdAt: string;
   updatedAt?: string;
   categories: PostCategory[];

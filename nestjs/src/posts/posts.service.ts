@@ -53,6 +53,60 @@ export class PostsService {
     return date;
   }
 
+  /** Prefer explicit URL; otherwise build from meeting id + pass. */
+  private resolveZoomUrl(
+    zoomUrl?: string | null,
+    meetingId?: string | null,
+    pass?: string | null,
+  ): string | null {
+    const explicit = zoomUrl?.trim();
+    if (explicit) return explicit;
+    const id = meetingId?.replace(/\s/g, '').trim();
+    if (!id) return null;
+    const pwd = pass?.trim();
+    return pwd
+      ? `https://zoom.us/j/${id}?pwd=${encodeURIComponent(pwd)}`
+      : `https://zoom.us/j/${id}`;
+  }
+
+  /** When zoomRoomId is set, copy meeting/pass/url from that room. */
+  private async resolveZoomFromDto(dto: {
+    zoomRoomId?: string | null;
+    zoomMeetingId?: string;
+    zoomPass?: string;
+    zoomUrl?: string;
+  }) {
+    if (dto.zoomRoomId === null) {
+      return {
+        zoomRoomId: null as string | null,
+        zoomMeetingId: null as string | null,
+        zoomPass: null as string | null,
+        zoomUrl: null as string | null,
+      };
+    }
+    if (dto.zoomRoomId) {
+      const room = await this.prisma.zoomRoom.findUnique({
+        where: { id: dto.zoomRoomId },
+      });
+      if (!room) throw new BadRequestException('Zoom room not found');
+      return {
+        zoomRoomId: room.id,
+        zoomMeetingId: room.meetingId,
+        zoomPass: room.pass,
+        zoomUrl: this.resolveZoomUrl(room.url, room.meetingId, room.pass),
+      };
+    }
+    return {
+      zoomMeetingId: dto.zoomMeetingId,
+      zoomPass: dto.zoomPass,
+      zoomUrl: this.resolveZoomUrl(
+        dto.zoomUrl,
+        dto.zoomMeetingId,
+        dto.zoomPass,
+      ),
+    };
+  }
+
   private async uniqueSlug(
     base: string,
     excludeId?: string,
@@ -192,6 +246,8 @@ export class PostsService {
 
     if (categoryIds.length) await this.assertCategoryIds(categoryIds);
 
+    const zoom = await this.resolveZoomFromDto(dto);
+
     const post = await this.prisma.post.create({
       data: {
         title: dto.title,
@@ -207,6 +263,16 @@ export class PostsService {
         isPinned: dto.isPinned ?? false,
         sortOrder: dto.sortOrder ?? 0,
         isPublished: dto.isPublished ?? true,
+        topicText: dto.topicText,
+        teacherText: dto.teacherText,
+        scheduleText: dto.scheduleText,
+        zoomMeetingId: zoom.zoomMeetingId,
+        zoomPass: zoom.zoomPass,
+        zoomUrl: zoom.zoomUrl,
+        ...(zoom.zoomRoomId !== undefined
+          ? { zoomRoomId: zoom.zoomRoomId }
+          : {}),
+        description: dto.description,
         ...(categoryIds.length
           ? {
               categories: {
@@ -238,6 +304,44 @@ export class PostsService {
     if (dto.isPinned !== undefined) data.isPinned = dto.isPinned;
     if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
     if (dto.isPublished !== undefined) data.isPublished = dto.isPublished;
+    if (dto.topicText !== undefined) data.topicText = dto.topicText;
+    if (dto.teacherText !== undefined) data.teacherText = dto.teacherText;
+    if (dto.scheduleText !== undefined) data.scheduleText = dto.scheduleText;
+    if (dto.description !== undefined) data.description = dto.description;
+
+    if (
+      dto.zoomRoomId !== undefined ||
+      dto.zoomMeetingId !== undefined ||
+      dto.zoomPass !== undefined ||
+      dto.zoomUrl !== undefined
+    ) {
+      const zoom = await this.resolveZoomFromDto({
+        zoomRoomId: dto.zoomRoomId,
+        zoomMeetingId:
+          dto.zoomMeetingId !== undefined
+            ? dto.zoomMeetingId
+            : existing.zoomMeetingId || undefined,
+        zoomPass:
+          dto.zoomPass !== undefined
+            ? dto.zoomPass
+            : existing.zoomPass || undefined,
+        zoomUrl:
+          dto.zoomUrl !== undefined
+            ? dto.zoomUrl
+            : existing.zoomUrl || undefined,
+      });
+      if (zoom.zoomRoomId !== undefined) {
+        data.zoomRoom =
+          zoom.zoomRoomId === null
+            ? { disconnect: true }
+            : { connect: { id: zoom.zoomRoomId } };
+      }
+      if (zoom.zoomMeetingId !== undefined) {
+        data.zoomMeetingId = zoom.zoomMeetingId;
+      }
+      if (zoom.zoomPass !== undefined) data.zoomPass = zoom.zoomPass;
+      if (zoom.zoomUrl !== undefined) data.zoomUrl = zoom.zoomUrl;
+    }
 
     if (dto.publishedAt !== undefined) {
       data.publishedAt = this.parsePublishedAt(dto.publishedAt) ?? null;

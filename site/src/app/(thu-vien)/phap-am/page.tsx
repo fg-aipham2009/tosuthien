@@ -25,7 +25,7 @@ export default async function PhapAmPage() {
   const cats = await loadCategories();
 
   return (
-    <div>
+    <div className="min-h-[min(50vh,560px)]">
       <p className="mb-6 text-center text-base text-muted">
         Chọn album để nghe pháp âm trên trình duyệt.
       </p>
@@ -39,11 +39,11 @@ export default async function PhapAmPage() {
                 href={`/phap-am/${c.slug}`}
                 className="flex h-full flex-col justify-start rounded-[10px] border border-line bg-white px-3 py-2.5 transition hover:border-primary hover:shadow-sm"
               >
-                <strong className="text-[0.98rem] leading-snug font-bold break-words whitespace-normal text-black">
+                <strong className="text-base leading-snug font-bold break-words whitespace-normal text-black">
                   {c.name}
                 </strong>
                 {c.description ? (
-                  <span className="mt-1 text-xs leading-snug break-words whitespace-normal text-muted">
+                  <span className="mt-1 text-sm leading-snug break-words whitespace-normal text-muted">
                     {c.description}
                   </span>
                 ) : null}

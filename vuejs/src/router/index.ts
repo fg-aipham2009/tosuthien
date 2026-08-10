@@ -72,6 +72,12 @@ const router = createRouter({
           meta: { title: 'Sửa tin tức' },
         },
         {
+          path: 'zooms',
+          name: 'zooms',
+          component: () => import('@/views/ZoomsView.vue'),
+          meta: { title: 'Phòng Zoom' },
+        },
+        {
           path: 'teachers',
           name: 'teachers',
           component: () => import('@/views/TeachersView.vue'),

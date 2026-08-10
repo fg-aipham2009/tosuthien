@@ -415,6 +415,38 @@ export class CreatePostDto {
   @IsOptional()
   @IsBoolean()
   isPublished?: boolean;
+
+  @IsOptional()
+  @IsString()
+  topicText?: string;
+
+  @IsOptional()
+  @IsString()
+  teacherText?: string;
+
+  @IsOptional()
+  @IsString()
+  scheduleText?: string;
+
+  @IsOptional()
+  @IsString()
+  zoomMeetingId?: string;
+
+  @IsOptional()
+  @IsString()
+  zoomPass?: string;
+
+  @IsOptional()
+  @IsString()
+  zoomUrl?: string;
+
+  @IsOptional()
+  @IsUUID()
+  zoomRoomId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
 }
 
 export class UpdatePostDto extends PartialType(CreatePostDto) {}
@@ -581,3 +613,33 @@ export class CreateClassAnnouncementDto {
 export class UpdateClassAnnouncementDto extends PartialType(
   CreateClassAnnouncementDto,
 ) {}
+
+export class CreateZoomRoomDto {
+  @IsString()
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @IsString()
+  meetingId!: string;
+
+  @IsOptional()
+  @IsString()
+  pass?: string;
+
+  @IsOptional()
+  @IsString()
+  url?: string;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublished?: boolean;
+}
+
+export class UpdateZoomRoomDto extends PartialType(CreateZoomRoomDto) {}

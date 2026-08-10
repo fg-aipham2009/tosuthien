@@ -58,7 +58,7 @@ export class AiConfigService {
       this.config.get<string>('CHAT_PROVIDER') || 'shopaikey'
     ).toLowerCase() as ChatProvider;
     const defaultModel =
-      this.config.get<string>('CHAT_MODEL') || 'claude-sonnet-4-6';
+      this.config.get<string>('CHAT_MODEL') || 'claude-opus-5';
 
     const primary = this.resolveEndpoint(provider, defaultModel, shopKey, shopBase);
     const endpoints: ChatEndpoint[] = [primary];
@@ -123,16 +123,12 @@ export class AiConfigService {
       const baseUrl = (
         this.config.get<string>('HHTECH_BASE_URL') || 'https://hhtechapi.net/v1'
       ).replace(/\/$/, '');
-      const model =
-        this.config.get<string>('HHTECH_CHAT_MODEL') ||
-        this.config.get<string>('ANTHROPIC_MODEL') ||
-        defaultModel;
       if (!apiKey) {
         throw new ServiceUnavailableException(
           'CHAT_PROVIDER=hhtech nhưng thiếu HHTECH_API_KEY trong .env',
         );
       }
-      return { provider, apiKey, baseUrl, model };
+      return { provider, apiKey, baseUrl, model: defaultModel };
     }
 
     if (provider === 'nexus') {
@@ -141,16 +137,12 @@ export class AiConfigService {
         this.config.get<string>('NEXUS_BASE_URL') ||
         'https://api.nexusmmo.store/v1'
       ).replace(/\/$/, '');
-      const model =
-        this.config.get<string>('NEXUS_CHAT_MODEL') ||
-        this.config.get<string>('ANTHROPIC_MODEL') ||
-        defaultModel;
       if (!apiKey) {
         throw new ServiceUnavailableException(
           'CHAT_PROVIDER=nexus nhưng thiếu NEXUS_API_KEY trong .env',
         );
       }
-      return { provider, apiKey, baseUrl, model };
+      return { provider, apiKey, baseUrl, model: defaultModel };
     }
 
     if (provider === 'flare') {
@@ -163,16 +155,12 @@ export class AiConfigService {
         this.config.get<string>('NINEFLARE_BASE_URL') ||
         'https://9flare.com/api/v1'
       ).replace(/\/$/, '');
-      const model =
-        this.config.get<string>('FLARE_CHAT_MODEL') ||
-        this.config.get<string>('NINEFLARE_CHAT_MODEL') ||
-        'pro/claude-opus-4-8';
       if (!apiKey) {
         throw new ServiceUnavailableException(
           'CHAT_PROVIDER=flare nhưng thiếu FLARE_API_KEY trong .env',
         );
       }
-      return { provider, apiKey, baseUrl, model };
+      return { provider, apiKey, baseUrl, model: defaultModel };
     }
 
     if (!shopKey) {

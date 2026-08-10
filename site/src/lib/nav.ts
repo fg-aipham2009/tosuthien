@@ -14,14 +14,6 @@ export const MAIN_NAV: NavItem[] = [
     label: "Youtube",
     href: "https://www.youtube.com/c/TôngPhongTổSưThiền",
     external: true,
-    children: [
-      {
-        label: "Youtube Tông Phong",
-        href: "https://www.youtube.com/c/TôngPhongTổSưThiền",
-        external: true,
-      },
-      { label: "Ban Giáo Thọ", href: "/ban-giao-tho" },
-    ],
   },
   {
     label: "TikTok",

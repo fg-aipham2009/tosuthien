@@ -5,11 +5,6 @@ import { TextBooksService } from './text-books.service';
 export class TextBooksController {
   constructor(private readonly service: TextBooksService) {}
 
-  @Get('labels')
-  labels() {
-    return this.service.labels();
-  }
-
   @Get()
   findAll(@Query('device_id') deviceId?: string) {
     return this.service.findAll(deviceId);

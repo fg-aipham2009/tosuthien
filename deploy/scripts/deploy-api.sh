@@ -20,6 +20,11 @@ rsync -avz \
   "$REPO_ROOT/docker/postgres/migrations/013-posts-news-gallery.sql" \
   "$REPO_ROOT/docker/postgres/migrations/014-centers-display-order.sql" \
   "$REPO_ROOT/docker/postgres/migrations/015-admin-users.sql" \
+  "$REPO_ROOT/docker/postgres/migrations/018-teachers-classes-announcements.sql" \
+  "$REPO_ROOT/docker/postgres/migrations/019-post-images-full-url.sql" \
+  "$REPO_ROOT/docker/postgres/migrations/020-posts-announcement-fields.sql" \
+  "$REPO_ROOT/docker/postgres/migrations/021-dedupe-post-images.sql" \
+  "$REPO_ROOT/docker/postgres/migrations/022-zoom-rooms.sql" \
   "$VPS_HOST:$VPS_REPO/docker/postgres/migrations/"
 
 echo "==> docker compose up api (local build, clear API_IMAGE)"
@@ -38,7 +43,22 @@ docker compose exec -T db sh -c \
   < docker/postgres/migrations/014-centers-display-order.sql || true
 docker compose exec -T db sh -c \
   'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
-  < docker/postgres/migrations/015-admin-users.sql
+  < docker/postgres/migrations/015-admin-users.sql || true
+docker compose exec -T db sh -c \
+  'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
+  < docker/postgres/migrations/018-teachers-classes-announcements.sql || true
+docker compose exec -T db sh -c \
+  'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
+  < docker/postgres/migrations/019-post-images-full-url.sql || true
+docker compose exec -T db sh -c \
+  'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
+  < docker/postgres/migrations/020-posts-announcement-fields.sql || true
+docker compose exec -T db sh -c \
+  'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
+  < docker/postgres/migrations/021-dedupe-post-images.sql || true
+docker compose exec -T db sh -c \
+  'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' \
+  < docker/postgres/migrations/022-zoom-rooms.sql
 # Drop stuck "Created" / orphaned api containers from prior races.
 docker ps -aq --filter name=tosu_api --filter status=created | xargs -r docker rm -f
 docker compose up -d --build --force-recreate --remove-orphans api

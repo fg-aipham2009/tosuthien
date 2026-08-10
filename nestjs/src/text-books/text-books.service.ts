@@ -84,14 +84,6 @@ export class TextBooksService {
     return path.join(this.bookDir(id), 'pages', `${String(page).padStart(4, '0')}.txt`);
   }
 
-  labels() {
-    const catalog = this.readCatalog();
-    return {
-      banGoc: catalog.labelBanGoc || 'Bản gốc',
-      docChu: catalog.labelDocChu || 'Đọc chữ',
-    };
-  }
-
   async findAll(deviceId?: string): Promise<TextBookSummary[]> {
     const catalog = this.readCatalog();
     const ready = catalog.books.filter((b) => b.status === 'ready');

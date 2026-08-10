@@ -259,7 +259,7 @@ model PostCategory {
   @@map("post_categories")
 }
 
-/// Tin tức / bài viết trang web (clone WP category tin-tuc).
+/// News posts (tin tức) for the public site.
 model Post {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   wpSourceId      Int?      @unique @map("wp_source_id")
@@ -273,20 +273,51 @@ model Post {
   authorName      String?   @map("author_name")
   seoTitle        String?   @map("seo_title")
   seoDescription  String?   @map("seo_description")
-  /// Ngày hiển thị công khai (sắp xếp list tin). Null = dùng createdAt.
+  /// Public display date (list sort). Null = use createdAt.
   publishedAt     DateTime? @map("published_at") @db.Timestamptz(6)
   isPinned        Boolean   @default(false) @map("is_pinned")
   sortOrder       Int       @default(0) @map("sort_order")
   isPublished     Boolean   @default(true) @map("is_published")
+  /// Structured class-notice fields (admin form; preferred over legacy HTML content).
+  topicText       String?   @map("topic_text")
+  teacherText     String?   @map("teacher_text")
+  scheduleText    String?   @map("schedule_text")
+  zoomMeetingId   String?   @map("zoom_meeting_id")
+  zoomPass        String?   @map("zoom_pass")
+  zoomUrl         String?   @map("zoom_url")
+  zoomRoomId      String?   @map("zoom_room_id") @db.Uuid
+  /// Optional prose below the poster.
+  description     String?
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   categories PostCategoryLink[]
   images     PostImage[]
+  zoomRoom   ZoomRoom? @relation(fields: [zoomRoomId], references: [id], onDelete: SetNull)
 
   @@index([isPublished, publishedAt(sort: Desc)], map: "idx_posts_published_at")
   @@index([isPinned, sortOrder], map: "idx_posts_pinned_sort")
+  @@index([zoomRoomId], map: "idx_posts_zoom_room")
   @@map("posts")
+}
+
+/// Shared Zoom rooms (dropdown for tin tức admin).
+model ZoomRoom {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String   @unique
+  name        String
+  meetingId   String   @map("meeting_id")
+  pass        String?
+  url         String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  posts Post[]
+
+  @@index([sortOrder], map: "idx_zoom_rooms_sort")
+  @@map("zoom_rooms")
 }
 
 /// Quan hệ nhiều-nhiều vì một bài WordPress có thể thuộc nhiều danh mục.

@@ -174,12 +174,17 @@ def import_post(
     excerpt = clean_rendered(post.get("excerpt"))
     media = featured_media(post)
     featured_url = (media or {}).get("source_url")
+    if featured_url:
+        featured_url = re.sub(
+            r"-\d+x\d+(\.(?:jpe?g|png|webp|gif))", r"\1", featured_url, flags=re.I
+        )
 
     source_urls: list[str] = []
     if featured_url:
         source_urls.append(featured_url)
     for source in UPLOAD_URL_RE.findall(content + "\n" + excerpt):
         source = html.unescape(source).rstrip(".")
+        source = re.sub(r"-\d+x\d+(\.(?:jpe?g|png|webp|gif))", r"\1", source, flags=re.I)
         if source not in source_urls:
             source_urls.append(source)
 

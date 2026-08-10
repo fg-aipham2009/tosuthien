@@ -13,6 +13,7 @@ const activeMenu = computed(() => {
   if (route.path.startsWith('/books')) return '/books';
   if (route.path.startsWith('/youtube')) return '/youtube';
   if (route.path.startsWith('/posts')) return '/posts';
+  if (route.path.startsWith('/zooms')) return '/zooms';
   if (route.path.startsWith('/teachers')) return '/teachers';
   if (route.path.startsWith('/class-announcements')) return '/class-announcements';
   if (route.path.startsWith('/admins')) return '/admins';
@@ -62,6 +63,10 @@ function logout() {
         <el-menu-item index="/posts">
           <el-icon><Document /></el-icon>
           <span>Tin tức</span>
+        </el-menu-item>
+        <el-menu-item index="/zooms">
+          <el-icon><Monitor /></el-icon>
+          <span>Phòng Zoom</span>
         </el-menu-item>
         <el-menu-item index="/teachers">
           <el-icon><Avatar /></el-icon>

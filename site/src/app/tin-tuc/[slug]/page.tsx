@@ -14,6 +14,11 @@ import {
   buildMetadata,
   excerptForOg,
 } from "../../../lib/seo";
+import { PostArticleBody } from "../../../components/PostArticleBody";
+import {
+  buildPostDisplayData,
+  preferFullPostImageUrl,
+} from "../../../lib/postContent";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -45,7 +50,7 @@ export async function generateMetadata({ params }: Props) {
     description,
     path: `/tin-tuc/${post.slug}`,
     type: "article",
-    image: post.coverImageUrl,
+    image: preferFullPostImageUrl(post.coverImageUrl),
     publishedTime: post.publishedAt || post.createdAt,
     modifiedTime: post.updatedAt || post.publishedAt || post.createdAt,
   });
@@ -75,7 +80,9 @@ export default async function TinTucDetailPage({ params }: Props) {
         author: post.authorName
           ? { "@type": "Person", name: post.authorName }
           : { "@type": "Organization", name: SITE_NAME },
-        image: post.coverImageUrl ? [post.coverImageUrl] : undefined,
+        image: post.coverImageUrl
+          ? [preferFullPostImageUrl(post.coverImageUrl)!]
+          : undefined,
         mainEntityOfPage: pageUrl,
         isPartOf: { "@id": `${SITE_URL}/#website` },
         inLanguage: "vi",
@@ -102,6 +109,9 @@ export default async function TinTucDetailPage({ params }: Props) {
     ],
   };
 
+  const display = buildPostDisplayData(post);
+  const cover = preferFullPostImageUrl(post.coverImageUrl);
+
   return (
     <article className="mx-auto w-full max-w-[1080px] px-[15px] py-8 text-base text-black animate-fade-up">
       <JsonLd data={pageLd} />
@@ -124,38 +134,16 @@ export default async function TinTucDetailPage({ params }: Props) {
         </p>
       ) : null}
 
-      <h1 className="mb-3 text-center text-[1.7rem] leading-[1.3] font-bold text-black">
+      <h1 className="mb-6 text-center text-[2.05rem] leading-[1.25] font-bold tracking-tight text-primary md:text-[2.45rem]">
         {post.title}
       </h1>
 
-      {(date || post.authorName) && (
-        <p className="mb-8 text-center text-sm uppercase text-muted">
-          {date ? (
-            <>
-              Đăng vào{" "}
-              <time dateTime={post.publishedAt || undefined}>{date}</time>
-            </>
-          ) : null}
-          {date && post.authorName ? " " : null}
-          {post.authorName ? <>bởi {post.authorName}</> : null}
-        </p>
-      )}
-
-      {post.content ? (
-        <div
-          className="post-content [&_h1]:mb-[20.8px] [&_h1]:text-base [&_h1]:leading-[1.6] [&_h1]:font-normal [&_img]:mx-auto [&_img]:my-4 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-[10px] [&_p]:mb-[20.8px] [&_a]:text-primary [&_a]:underline"
-          dangerouslySetInnerHTML={{ __html: post.content }}
-        />
-      ) : post.coverImageUrl ? (
-        <figure className="mb-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={post.coverImageUrl}
-            alt={post.title}
-            className="mx-auto max-h-[520px] w-auto max-w-full rounded-[10px] object-contain"
-          />
-        </figure>
-      ) : null}
+      <PostArticleBody
+        display={display}
+        coverFallback={cover}
+        publishedLabel={date ? `Đăng ${date}` : undefined}
+        authorName={post.authorName}
+      />
 
       <p className="mt-10 border-t border-line pt-6 text-center">
         <Link href="/tin-tuc" className="font-semibold text-primary hover:underline">

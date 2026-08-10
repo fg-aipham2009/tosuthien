@@ -98,7 +98,7 @@ export function KinhSachGrid() {
         : "Đọc chữ — từng trang rõ, chỉnh cỡ chữ.";
 
   return (
-    <div>
+    <div className="min-h-[min(50vh,560px)]">
       <header className="mb-5 flex flex-wrap items-end justify-between gap-4 rounded-[12px] bg-gradient-to-br from-primary-deep via-primary to-secondary px-5 py-5 text-white shadow-lg shadow-primary/20 sm:px-7 lg:mb-6 lg:px-8 lg:py-6">
         <div className="max-w-xl">
           <p className="mb-1 text-[0.72rem] font-semibold tracking-[0.1em] uppercase opacity-75">
@@ -107,7 +107,7 @@ export function KinhSachGrid() {
           <h2 className="font-serif text-3xl font-bold tracking-tight lg:text-4xl">
             Kinh sách
           </h2>
-          <p className="mt-2 text-[0.95rem] leading-relaxed opacity-90">
+          <p className="mt-2 text-[1.02rem] leading-relaxed opacity-90 sm:text-base">
             {subtitle}
           </p>
         </div>
@@ -152,7 +152,7 @@ export function KinhSachGrid() {
           <iframe
             title="Kệ sách FlipHTML5"
             src={FLIP_SHELF_SRC}
-            className="h-[min(85vh,960px)] w-full border-0"
+            className="min-h-[min(72vh,640px)] h-[min(88vh,960px)] w-full border-0 sm:min-h-[560px]"
             allowFullScreen
             loading="eager"
             referrerPolicy="no-referrer-when-downgrade"
@@ -224,15 +224,15 @@ export function KinhSachGrid() {
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5 px-0.5">
-                      <strong className="line-clamp-2 text-[0.9rem] leading-snug font-bold text-ink">
+                      <strong className="line-clamp-2 text-sm leading-snug font-bold text-ink sm:text-base">
                         {b.title}
                       </strong>
                       {b.lastPage ? (
-                        <span className="text-[0.78rem] font-semibold text-primary">
+                        <span className="text-sm font-semibold text-primary">
                           Đọc dở · tr.{b.lastPage}
                         </span>
                       ) : (
-                        <span className="text-[0.78rem] text-muted">
+                        <span className="text-sm text-muted">
                           {b.pageCount
                             ? `${b.pageCount} trang`
                             : mode === "pdf"

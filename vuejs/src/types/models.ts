@@ -242,6 +242,14 @@ export interface Post {
   isPinned: boolean;
   sortOrder: number;
   isPublished: boolean;
+  topicText?: string | null;
+  teacherText?: string | null;
+  scheduleText?: string | null;
+  zoomMeetingId?: string | null;
+  zoomPass?: string | null;
+  zoomUrl?: string | null;
+  zoomRoomId?: string | null;
+  description?: string | null;
   createdAt: string;
   updatedAt?: string;
   categories: PostCategory[];
@@ -259,6 +267,37 @@ export interface PostFormData {
   seoTitle?: string;
   seoDescription?: string;
   isPinned?: boolean;
+  sortOrder?: number;
+  isPublished?: boolean;
+  topicText?: string;
+  teacherText?: string;
+  scheduleText?: string;
+  zoomMeetingId?: string;
+  zoomPass?: string;
+  zoomUrl?: string;
+  zoomRoomId?: string | null;
+  description?: string;
+}
+
+export interface ZoomRoom {
+  id: string;
+  code: string;
+  name: string;
+  meetingId: string;
+  pass: string | null;
+  url: string | null;
+  sortOrder: number;
+  isPublished: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ZoomRoomFormData {
+  name: string;
+  code?: string;
+  meetingId: string;
+  pass?: string;
+  url?: string;
   sortOrder?: number;
   isPublished?: boolean;
 }

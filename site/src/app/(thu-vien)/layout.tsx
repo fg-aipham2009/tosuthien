@@ -18,7 +18,9 @@ export default function ThuVienLayout({
       <SectionTitle as="h1">Thư Viện</SectionTitle>
       <div className="mx-auto max-w-[1200px] px-[15px] sm:px-5">
         <LibrarySubNav />
-        {children}
+        <div className="min-h-[min(56vh,680px)] sm:min-h-[min(52vh,720px)]">
+          {children}
+        </div>
       </div>
     </div>
   );

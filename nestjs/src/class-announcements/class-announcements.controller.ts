@@ -52,9 +52,4 @@ export class ClassAnnouncementsController {
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.remove(id);
   }
-
-  @Delete(':id/teacher-photo')
-  clearTeacherPhoto(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.setTeacherPhoto(id, null);
-  }
 }

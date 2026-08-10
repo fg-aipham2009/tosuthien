@@ -169,12 +169,14 @@ export default async function HomePage() {
                 <p key={p.slice(0, 24)}>{p}</p>
               ))}
             </div>
-            <Link
-              href="/gioi-thieu"
-              className="hover-lift mt-8 inline-flex items-center gap-2 rounded-[11px] bg-success px-6 py-3 text-sm font-bold uppercase tracking-wide text-ink transition hover:brightness-95"
-            >
-              Xem thêm <span className="text-xs">▾</span>
-            </Link>
+            <div className="mt-8 flex justify-center lg:justify-start">
+              <Link
+                href="/gioi-thieu"
+                className="hover-lift inline-flex items-center gap-2 rounded-[11px] bg-success px-6 py-3 text-sm font-bold uppercase tracking-wide text-ink transition hover:brightness-95"
+              >
+                Xem thêm <span className="text-xs">▾</span>
+              </Link>
+            </div>
           </Reveal>
         </div>
       </section>

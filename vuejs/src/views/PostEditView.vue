@@ -13,7 +13,8 @@ import {
   uploadPostImages,
   deletePostImage,
 } from '@/api/posts';
-import type { PostCategory, PostFormData, PostImage } from '@/types/models';
+import { fetchZoomRooms } from '@/api/zoom-rooms';
+import type { PostCategory, PostFormData, PostImage, ZoomRoom } from '@/types/models';
 
 const route = useRoute();
 const router = useRouter();
@@ -25,20 +26,18 @@ const saving = ref(false);
 const loading = ref(false);
 const formRef = ref<FormInstance>();
 const categories = ref<PostCategory[]>([]);
+const zoomRooms = ref<ZoomRoom[]>([]);
 
 const form = reactive({
   title: '',
-  slug: '',
   categoryIds: [] as string[],
-  excerpt: '',
-  content: '',
-  authorName: '',
   publishedAt: null as string | null,
-  seoTitle: '',
-  seoDescription: '',
-  isPinned: false,
-  sortOrder: 0,
   isPublished: true,
+  topicText: '',
+  teacherText: '',
+  scheduleText: '',
+  zoomRoomId: null as string | null,
+  description: '',
 });
 
 const coverImageUrl = ref<string | null>(null);
@@ -46,6 +45,12 @@ const images = ref<PostImage[]>([]);
 const contentImages = computed(() => images.value.filter((image) => image.role !== 'cover'));
 const uploadingCover = ref(false);
 const uploadingImages = ref(false);
+
+const selectedZoomHint = computed(() => {
+  const room = zoomRooms.value.find((z) => z.id === form.zoomRoomId);
+  if (!room) return '';
+  return `ID: ${room.meetingId}${room.pass ? ` · Pass: ${room.pass}` : ''}`;
+});
 
 const IMAGE_MAX = 15 * 1024 * 1024;
 const IMAGE_OK = /\.(jpe?g|png|webp|gif)$/i;
@@ -66,19 +71,26 @@ function assertImage(file: File) {
   return true;
 }
 
+function defaultTinTucCategoryIds(): string[] {
+  const tinTuc = categories.value.find((c) => c.slug === 'tin-tuc');
+  return tinTuc ? [tinTuc.id] : [];
+}
+
 function applyPost(p: Awaited<ReturnType<typeof fetchPost>>) {
   form.title = p.title ?? '';
-  form.slug = p.slug ?? '';
   form.categoryIds = (p.categories ?? []).map((c) => c.id);
-  form.excerpt = p.excerpt ?? '';
-  form.content = p.content ?? '';
-  form.authorName = p.authorName ?? '';
   form.publishedAt = p.publishedAt ? p.publishedAt.slice(0, 19) : null;
-  form.seoTitle = p.seoTitle ?? '';
-  form.seoDescription = p.seoDescription ?? '';
-  form.isPinned = p.isPinned ?? false;
-  form.sortOrder = p.sortOrder ?? 0;
   form.isPublished = p.isPublished ?? true;
+  form.topicText = p.topicText ?? '';
+  form.teacherText = p.teacherText ?? '';
+  form.scheduleText = p.scheduleText ?? '';
+  form.zoomRoomId =
+    p.zoomRoomId ||
+    zoomRooms.value.find(
+      (z) => z.meetingId === (p.zoomMeetingId || '').replace(/\s/g, ''),
+    )?.id ||
+    null;
+  form.description = p.description ?? '';
   coverImageUrl.value = p.coverImageUrl;
   images.value = p.images ?? [];
 }
@@ -86,8 +98,19 @@ function applyPost(p: Awaited<ReturnType<typeof fetchPost>>) {
 async function loadCategories() {
   try {
     categories.value = await fetchPostCategories();
+    if (isNew.value && form.categoryIds.length === 0) {
+      form.categoryIds = defaultTinTucCategoryIds();
+    }
   } catch {
     categories.value = [];
+  }
+}
+
+async function loadZoomRooms() {
+  try {
+    zoomRooms.value = await fetchZoomRooms(true);
+  } catch {
+    zoomRooms.value = [];
   }
 }
 
@@ -107,17 +130,16 @@ async function loadPost() {
 function buildPayload(): PostFormData {
   return {
     title: form.title.trim(),
-    slug: form.slug.trim() || undefined,
-    categoryIds: form.categoryIds,
-    excerpt: form.excerpt.trim() || undefined,
-    content: form.content.trim() || undefined,
-    authorName: form.authorName.trim() || undefined,
+    categoryIds: form.categoryIds.length
+      ? form.categoryIds
+      : defaultTinTucCategoryIds(),
     publishedAt: form.publishedAt || null,
-    seoTitle: form.seoTitle.trim() || undefined,
-    seoDescription: form.seoDescription.trim() || undefined,
-    isPinned: form.isPinned,
-    sortOrder: form.sortOrder,
     isPublished: form.isPublished,
+    topicText: form.topicText.trim(),
+    teacherText: form.teacherText.trim(),
+    scheduleText: form.scheduleText.trim(),
+    zoomRoomId: form.zoomRoomId,
+    description: form.description.trim(),
   };
 }
 
@@ -202,31 +224,12 @@ async function onDeleteImage(img: PostImage) {
   }
 }
 
-async function copyUrl(url: string) {
-  try {
-    await navigator.clipboard.writeText(url);
-    ElMessage.success('Đã copy URL');
-  } catch {
-    ElMessage.warning('Không copy được URL');
-  }
-}
-
-function insertImageIntoContent(url: string) {
-  const tag = `<img src="${url}" alt="" />`;
-  if (form.content.trim()) {
-    form.content = `${form.content.trim()}\n${tag}`;
-  } else {
-    form.content = tag;
-  }
-  ElMessage.success('Đã chèn ảnh vào nội dung');
-}
-
 function goBack() {
   router.push('/posts');
 }
 
 onMounted(async () => {
-  await loadCategories();
+  await Promise.all([loadCategories(), loadZoomRooms()]);
   await loadPost();
 });
 
@@ -245,84 +248,23 @@ watch(() => route.params.id, loadPost);
 
     <el-card shadow="never">
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-        <el-row :gutter="20">
-          <el-col :xs="24" :md="16">
-            <el-form-item label="Tiêu đề" prop="title">
-              <el-input v-model="form.title" placeholder="Tiêu đề bài viết" />
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :md="8">
-            <el-form-item label="Slug (URL)">
-              <el-input v-model="form.slug" placeholder="Tự tạo nếu để trống" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-form-item label="Danh mục">
-          <el-select
-            v-model="form.categoryIds"
-            multiple
-            clearable
-            filterable
-            placeholder="Chọn danh mục"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="c in categories"
-              :key="c.id"
-              :label="c.name"
-              :value="c.id"
-            />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="Tóm tắt">
-          <el-input v-model="form.excerpt" type="textarea" :rows="3" />
-        </el-form-item>
-
-        <el-form-item label="Nội dung (HTML)">
+        <el-form-item label="Tiêu đề" prop="title">
           <el-input
-            v-model="form.content"
-            type="textarea"
-            :rows="16"
-            class="content-html"
-            placeholder="Nội dung HTML..."
+            v-model="form.title"
+            placeholder="VD: Thông báo lớp học chuyên đề …"
           />
         </el-form-item>
 
-        <el-row :gutter="20">
-          <el-col :xs="24" :md="8">
-            <el-form-item label="Tác giả">
-              <el-input v-model="form.authorName" />
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :md="8">
+        <el-row :gutter="16">
+          <el-col :xs="24" :md="12">
             <el-form-item label="Ngày đăng">
               <el-date-picker
                 v-model="form.publishedAt"
                 type="datetime"
                 value-format="YYYY-MM-DDTHH:mm:ss"
-                placeholder="Chọn ngày giờ"
+                placeholder="Để trống = giờ hiện tại"
                 style="width: 100%"
               />
-            </el-form-item>
-          </el-col>
-          <el-col :xs="12" :md="4">
-            <el-form-item label="Thứ tự">
-              <el-input-number v-model="form.sortOrder" :min="0" style="width: 100%" />
-            </el-form-item>
-          </el-col>
-          <el-col :xs="12" :md="4">
-            <el-form-item label="Ghim">
-              <el-switch v-model="form.isPinned" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :xs="24" :md="12">
-            <el-form-item label="SEO title">
-              <el-input v-model="form.seoTitle" />
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="12">
@@ -332,14 +274,65 @@ watch(() => route.params.id, loadPost);
           </el-col>
         </el-row>
 
-        <el-form-item label="SEO description">
-          <el-input v-model="form.seoDescription" type="textarea" :rows="2" />
+        <div class="form-section-title">Thông tin lớp học</div>
+        <el-row :gutter="16">
+          <el-col :xs="24" :md="12">
+            <el-form-item label="1. Đề tài">
+              <el-input v-model="form.topicText" placeholder="VD: Duy Lực Ngữ Lục 44" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :md="12">
+            <el-form-item label="2. Giảng sư">
+              <el-input
+                v-model="form.teacherText"
+                placeholder="VD: Hoà thượng Thích Minh Hiền"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :md="12">
+            <el-form-item label="3. Thời gian">
+              <el-input
+                v-model="form.scheduleText"
+                type="textarea"
+                :rows="3"
+                placeholder="Lịch học / ngày giờ"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :md="12">
+            <el-form-item label="4. Zoom">
+              <el-select
+                v-model="form.zoomRoomId"
+                clearable
+                filterable
+                placeholder="Chọn phòng Zoom"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="z in zoomRooms"
+                  :key="z.id"
+                  :label="`${z.name} — ID ${z.meetingId}`"
+                  :value="z.id"
+                />
+              </el-select>
+              <p v-if="selectedZoomHint" class="hint zoom-hint">{{ selectedZoomHint }}</p>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="Mô tả thêm (tuỳ chọn)">
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="3"
+            placeholder="Có thể để trống"
+          />
         </el-form-item>
       </el-form>
 
       <template v-if="!isNew && postId">
-        <div class="form-section-title">Ảnh bìa</div>
-        <p class="hint">JPG / PNG / WEBP / GIF · tối đa 15MB. Lưu bài trước rồi mới upload.</p>
+        <div class="form-section-title">Ảnh bìa (danh sách tin)</div>
+        <p class="hint">JPG / PNG / WEBP / GIF · tối đa 15MB</p>
         <div class="main-row">
           <el-image
             v-if="coverImageUrl"
@@ -366,8 +359,8 @@ watch(() => route.params.id, loadPost);
           </div>
         </div>
 
-        <div class="form-section-title">Ảnh nội dung</div>
-        <p class="hint">Upload nhiều ảnh rồi chèn / copy URL vào HTML nội dung.</p>
+        <div class="form-section-title">Ảnh phía dưới</div>
+        <p class="hint">Ảnh hiển thị dưới 4 ô thông tin trên trang tin</p>
         <el-upload
           :show-file-list="false"
           accept="image/jpeg,image/png,image/webp,image/gif"
@@ -386,11 +379,9 @@ watch(() => route.params.id, loadPost);
               :preview-src-list="contentImages.map((i) => i.url)"
             />
             <div class="actions">
-              <el-button size="small" link type="primary" @click="insertImageIntoContent(img.url)">
-                Chèn
+              <el-button size="small" link type="danger" @click="onDeleteImage(img)">
+                Xóa
               </el-button>
-              <el-button size="small" link @click="copyUrl(img.url)">URL</el-button>
-              <el-button size="small" link type="danger" @click="onDeleteImage(img)">Xóa</el-button>
             </div>
           </div>
         </div>
@@ -401,7 +392,7 @@ watch(() => route.params.id, loadPost);
         type="info"
         :closable="false"
         show-icon
-        title="Lưu thông tin cơ bản trước, sau đó upload ảnh bìa và ảnh nội dung."
+        title="Lưu tiêu đề + thông tin lớp trước, rồi upload ảnh."
         style="margin-top: 16px"
       />
     </el-card>
@@ -413,6 +404,10 @@ watch(() => route.params.id, loadPost);
   margin: 0 0 12px;
   color: #6b7280;
   font-size: 0.85rem;
+}
+
+.zoom-hint {
+  margin: 8px 0 0;
 }
 
 .main-row {
@@ -470,11 +465,5 @@ watch(() => route.params.id, loadPost);
   gap: 2px;
   padding: 4px 2px;
   background: #fff;
-}
-
-.content-html :deep(textarea) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  font-size: 0.9rem;
-  line-height: 1.45;
 }
 </style>

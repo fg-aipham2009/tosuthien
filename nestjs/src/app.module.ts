@@ -17,6 +17,7 @@ import { AppController } from './app.controller';
 import { TeachersModule } from './teachers/teachers.module';
 import { DharmaClassesModule } from './dharma-classes/dharma-classes.module';
 import { ClassAnnouncementsModule } from './class-announcements/class-announcements.module';
+import { ZoomRoomsModule } from './zoom-rooms/zoom-rooms.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ClassAnnouncementsModule } from './class-announcements/class-announceme
     TeachersModule,
     DharmaClassesModule,
     ClassAnnouncementsModule,
+    ZoomRoomsModule,
   ],
   controllers: [AppController],
 })

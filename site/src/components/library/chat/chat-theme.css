@@ -17,6 +17,7 @@
   --c-error-bg: #ffdad6;
   --c-error: #93000a;
   --c-col: min(48rem, 100%);
+  font-size: 1.0625rem;
   color: var(--c-on);
   background: var(--c-surface);
 }

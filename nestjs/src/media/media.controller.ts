@@ -17,9 +17,6 @@ import type { Response } from 'express';
 import { ZipArchive } from 'archiver';
 import { MediaService } from './media.service';
 import {
-  CreateMediaCategoryDto,
-  UpdateMediaCategoryDto,
-  CreateMp3Dto,
   UpdateMp3Dto,
   CreateYoutubeDto,
   UpdateYoutubeDto,
@@ -33,21 +30,6 @@ export class MediaCategoriesController {
   @Get()
   findAll() {
     return this.service.findCategories();
-  }
-
-  @Post()
-  create(@Body() dto: CreateMediaCategoryDto) {
-    return this.service.createCategory(dto);
-  }
-
-  @Put(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateMediaCategoryDto) {
-    return this.service.updateCategory(id, dto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.removeCategory(id);
   }
 }
 
@@ -68,11 +50,6 @@ export class Mp3Controller {
       folder,
       all === 'true',
     );
-  }
-
-  @Post()
-  create(@Body() dto: CreateMp3Dto) {
-    return this.service.createMp3(dto);
   }
 
   @Put(':id')

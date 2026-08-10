@@ -57,10 +57,6 @@ export class UploadService {
     });
   }
 
-  async uploadMp3(file: Express.Multer.File, body: Mp3UploadBody) {
-    return this.saveMp3(file, body);
-  }
-
   async uploadMp3Batch(files: Express.Multer.File[], body: Mp3UploadBody) {
     this.requireFiles(files);
     const tracks = [];

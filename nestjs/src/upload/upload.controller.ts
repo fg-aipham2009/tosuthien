@@ -35,20 +35,6 @@ export class UploadController {
     return this.service.uploadPdf(file, title);
   }
 
-  @Post('mp3')
-  @UseInterceptors(FileInterceptor('file', UPLOAD_OPTS))
-  uploadMp3(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: { categoryId: string; title?: string; year: string; folderPath: string },
-  ) {
-    return this.service.uploadMp3(file, {
-      categoryId: body.categoryId,
-      title: body.title,
-      year: parseInt(body.year, 10),
-      folderPath: body.folderPath,
-    });
-  }
-
   @Post('mp3/batch')
   @UseInterceptors(FilesInterceptor('files', 100, UPLOAD_OPTS))
   uploadMp3Batch(

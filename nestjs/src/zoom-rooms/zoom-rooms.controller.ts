@@ -9,12 +9,12 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import { TeachersService } from './teachers.service';
-import { CreateTeacherDto, UpdateTeacherDto } from '../dto';
+import { ZoomRoomsService } from './zoom-rooms.service';
+import { CreateZoomRoomDto, UpdateZoomRoomDto } from '../dto';
 
-@Controller('teachers')
-export class TeachersController {
-  constructor(private readonly service: TeachersService) {}
+@Controller('zoom-rooms')
+export class ZoomRoomsController {
+  constructor(private readonly service: ZoomRoomsService) {}
 
   @Get()
   findAll(@Query('all') all?: string) {
@@ -27,14 +27,14 @@ export class TeachersController {
   }
 
   @Post()
-  create(@Body() dto: CreateTeacherDto) {
+  create(@Body() dto: CreateZoomRoomDto) {
     return this.service.create(dto);
   }
 
   @Put(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateTeacherDto,
+    @Body() dto: UpdateZoomRoomDto,
   ) {
     return this.service.update(id, dto);
   }

@@ -23,7 +23,7 @@ export function LibrarySubNav({
       className={
         compact
           ? "flex flex-wrap justify-end gap-1.5"
-          : "mb-8 flex flex-wrap justify-center gap-2"
+            : "mb-8 flex flex-wrap justify-center gap-2 text-base"
       }
       aria-label="Thư viện"
     >
