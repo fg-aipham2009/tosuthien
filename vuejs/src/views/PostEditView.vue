@@ -37,6 +37,7 @@ const form = reactive({
   categoryIds: [] as string[],
   publishedAt: null as string | null,
   isPublished: true,
+  sortOrder: 0,
   topicText: '',
   teacherText: '',
   scheduleText: '',
@@ -85,6 +86,7 @@ function applyPost(p: Awaited<ReturnType<typeof fetchPost>>) {
   form.categoryIds = (p.categories ?? []).map((c) => c.id);
   form.publishedAt = p.publishedAt ? p.publishedAt.slice(0, 19) : null;
   form.isPublished = p.isPublished ?? true;
+  form.sortOrder = p.sortOrder ?? 0;
   form.topicText = p.topicText ?? '';
   form.teacherText = p.teacherText ?? '';
   form.scheduleText = p.scheduleText ?? '';
@@ -142,8 +144,10 @@ function buildPayload(): PostFormData {
     categoryIds: form.categoryIds.length
       ? form.categoryIds
       : defaultTinTucCategoryIds(),
-    publishedAt: form.publishedAt || null,
+    // Auto timestamp — no UI for createdAt/publishedAt
+    publishedAt: form.publishedAt || new Date().toISOString().slice(0, 19),
     isPublished: form.isPublished,
+    sortOrder: form.sortOrder ?? 0,
     topicText: form.topicText.trim(),
     teacherText: form.teacherText.trim(),
     scheduleText: form.scheduleText.trim(),
@@ -308,17 +312,35 @@ watch(
 
         <el-row :gutter="16">
           <el-col :xs="24" :md="12">
-            <el-form-item label="Ngày đăng">
-              <el-date-picker
-                v-model="form.publishedAt"
-                type="datetime"
-                value-format="YYYY-MM-DDTHH:mm:ss"
-                placeholder="Để trống = giờ hiện tại"
+            <el-form-item label="Danh mục">
+              <el-select
+                v-model="form.categoryIds"
+                multiple
+                filterable
+                placeholder="Chọn danh mục"
                 style="width: 100%"
-              />
+              >
+                <el-option
+                  v-for="c in categories"
+                  :key="c.id"
+                  :label="c.name"
+                  :value="c.id"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
-          <el-col :xs="24" :md="12">
+          <el-col :xs="24" :md="6">
+            <el-form-item label="Thứ tự hiển thị">
+              <el-input-number
+                v-model="form.sortOrder"
+                :min="0"
+                controls-position="right"
+                style="width: 100%"
+              />
+              <p class="hint">Số nhỏ hơn lên trước; trùng thì theo ngày tạo mới hơn.</p>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :md="6">
             <el-form-item label="Công khai">
               <el-switch v-model="form.isPublished" />
             </el-form-item>

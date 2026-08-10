@@ -6,6 +6,7 @@ import type { FormInstance, FormRules } from 'element-plus';
 import {
   fetchPosts,
   deletePost,
+  updatePost,
   fetchPostCategories,
   createPostCategory,
   updatePostCategory,
@@ -17,6 +18,7 @@ const router = useRouter();
 const loading = ref(false);
 const posts = ref<Post[]>([]);
 const categories = ref<PostCategory[]>([]);
+const savingOrderId = ref<string | null>(null);
 
 const search = ref('');
 const filterCategory = ref('');
@@ -97,11 +99,20 @@ function categoryNames(row: Post) {
   return (row.categories ?? []).map((c) => c.name).join(', ') || '—';
 }
 
-function formatDate(value: string | null) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString('vi-VN');
+async function onSortOrderChange(row: Post, value: number | undefined) {
+  const next = Number(value ?? 0);
+  if (row.sortOrder === next) return;
+  savingOrderId.value = row.id;
+  try {
+    await updatePost(row.id, { sortOrder: next });
+    await load();
+    ElMessage.success('Đã cập nhật thứ tự');
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Không lưu được thứ tự');
+    await load();
+  } finally {
+    savingOrderId.value = null;
+  }
 }
 
 async function onDelete(row: Post) {
@@ -241,6 +252,19 @@ onMounted(async () => {
       </div>
 
       <el-table v-loading="loading" :data="posts" stripe empty-text="Chưa có tin tức">
+        <el-table-column label="Thứ tự" width="130" align="center">
+          <template #default="{ row }">
+            <el-input-number
+              :model-value="row.sortOrder"
+              :min="0"
+              :disabled="savingOrderId === row.id"
+              controls-position="right"
+              size="small"
+              style="width: 110px"
+              @change="(v: number | undefined) => onSortOrderChange(row, v)"
+            />
+          </template>
+        </el-table-column>
         <el-table-column label="Ảnh" width="80" align="center">
           <template #default="{ row }">
             <el-image
@@ -258,22 +282,11 @@ onMounted(async () => {
             {{ categoryNames(row) }}
           </template>
         </el-table-column>
-        <el-table-column label="Ngày đăng" width="160">
-          <template #default="{ row }">
-            {{ formatDate(row.publishedAt) }}
-          </template>
-        </el-table-column>
         <el-table-column label="Hiển thị" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="row.isPublished ? 'success' : 'info'" size="small">
               {{ row.isPublished ? 'Công khai' : 'Ẩn' }}
             </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="Ghim" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag v-if="row.isPinned" type="warning" size="small">Ghim</el-tag>
-            <span v-else class="text-muted">—</span>
           </template>
         </el-table-column>
         <el-table-column label="Thao tác" width="160" fixed="right">

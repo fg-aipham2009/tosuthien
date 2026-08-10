@@ -90,9 +90,24 @@ export type PostTimeGroup = {
 };
 
 function postSortInstant(post: Post): Date | null {
-  const raw = post.publishedAt || post.createdAt;
+  const raw = post.createdAt || post.publishedAt || null;
+  if (!raw) return null;
   const d = new Date(raw);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Display order first (asc), then create time (desc). */
+export function comparePostsByDisplayOrder(a: Post, b: Post): number {
+  const orderA = a.sortOrder ?? 0;
+  const orderB = b.sortOrder ?? 0;
+  if (orderA !== orderB) return orderA - orderB;
+  const ta = postSortInstant(a)?.getTime() ?? 0;
+  const tb = postSortInstant(b)?.getTime() ?? 0;
+  return tb - ta;
+}
+
+export function sortPostsByDisplayOrder(posts: Post[]): Post[] {
+  return [...posts].sort(comparePostsByDisplayOrder);
 }
 
 function monthGroupKey(d: Date): string {
@@ -110,7 +125,7 @@ export function formatMonthGroupLabel(key: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-/** Nhóm bài đã sort theo thời gian — mỗi nhóm một tháng (mới → cũ). */
+/** Group posts in list order (API: sortOrder → createdAt) into consecutive month sections. */
 export function groupPostsByMonth(posts: Post[]): PostTimeGroup[] {
   const groups: PostTimeGroup[] = [];
   for (const post of posts) {

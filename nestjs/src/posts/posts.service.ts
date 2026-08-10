@@ -204,7 +204,7 @@ export class PostsService {
         where,
         include: postInclude,
         orderBy: [
-          { publishedAt: { sort: 'desc', nulls: 'last' } },
+          { sortOrder: 'asc' },
           { createdAt: 'desc' },
         ],
         skip,
@@ -241,7 +241,9 @@ export class PostsService {
 
   async create(dto: CreatePostDto) {
     const slug = await this.uniqueSlug(dto.slug || dto.title);
-    const publishedAt = this.parsePublishedAt(dto.publishedAt);
+    const publishedAt =
+      this.parsePublishedAt(dto.publishedAt) ??
+      (dto.publishedAt === undefined ? new Date() : null);
     const categoryIds = dto.categoryIds ?? [];
 
     if (categoryIds.length) await this.assertCategoryIds(categoryIds);
