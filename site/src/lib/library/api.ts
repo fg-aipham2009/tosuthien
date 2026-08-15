@@ -12,7 +12,14 @@ import type {
 } from "./types";
 
 async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, init);
+  const method = (init?.method || "GET").toUpperCase();
+  const cacheOpts =
+    method === "GET" && typeof window === "undefined"
+      ? { next: { revalidate: 60 } }
+      : method === "GET"
+        ? { cache: "no-store" as const }
+        : {};
+  const res = await fetch(`${API_BASE}${path}`, { ...init, ...cacheOpts });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(text || `HTTP ${res.status}`);

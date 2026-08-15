@@ -80,7 +80,8 @@ export function PostArticleBody({
           ? [coverFallback]
           : [];
   const { topic, teacher, schedule, zoom } = display.sections;
-  const hasSections = Boolean(topic || teacher || schedule || zoom);
+  const isClassNotice = Boolean(teacher || schedule);
+  const hasClassCards = Boolean(topic || teacher || schedule || zoom);
 
   return (
     <div className="mx-auto max-w-[860px] space-y-8">
@@ -105,7 +106,7 @@ export function PostArticleBody({
         </Reveal>
       ) : null}
 
-      {hasSections ? (
+      {isClassNotice && hasClassCards ? (
         <section aria-label="Thông tin lớp học">
           <Reveal delay={40} variant="fade">
             <p className="mb-4 text-center text-xs font-bold uppercase tracking-[0.18em] text-primary">
@@ -185,55 +186,127 @@ export function PostArticleBody({
         </section>
       ) : null}
 
-      {posters.length ? (
-        <div className="space-y-4">
-          {posters.map((src, index) => (
-            <Reveal key={`${src}-${index}`} delay={320 + index * 40} variant="zoom">
-              <figure className="post-poster overflow-hidden rounded-[14px] border border-line bg-paper-warm p-2 shadow-sm">
-                {zoom ? (
-                  <a
-                    href={zoom.joinUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="group block"
-                    aria-label="Vào phòng Zoom"
-                    title="Bấm ảnh để vào Zoom"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt=""
-                      loading={index === 0 ? "eager" : "lazy"}
-                      decoding="async"
-                      className="mx-auto max-h-[min(640px,75vh)] w-auto max-w-full rounded-[10px] object-contain transition duration-700 ease-out group-hover:scale-[1.015]"
-                    />
-                  </a>
-                ) : (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt=""
-                      loading={index === 0 ? "eager" : "lazy"}
-                      decoding="async"
-                      className="mx-auto max-h-[min(640px,75vh)] w-auto max-w-full rounded-[10px] object-contain transition duration-700 ease-out hover:scale-[1.015]"
-                    />
-                  </>
-                )}
-              </figure>
-            </Reveal>
-          ))}
-        </div>
-      ) : null}
+      {!isClassNotice ? (
+        <>
+          {topic ? (
+            <SectionCard step="1" label="Đề tài" Icon={BookOpenText} delay={80}>
+              <p className="font-semibold text-primary">{topic}</p>
+            </SectionCard>
+          ) : null}
 
-      {display.proseHtml ? (
-        <Reveal delay={380} variant="fade">
-          <div
-            className="post-content [&_a]:text-primary [&_a]:underline"
-            dangerouslySetInnerHTML={{ __html: display.proseHtml }}
-          />
-        </Reveal>
-      ) : null}
+          {display.proseHtml ? (
+            <Reveal delay={140} variant="fade">
+              <div
+                className="post-content [&_a]:text-primary [&_a]:underline"
+                dangerouslySetInnerHTML={{ __html: display.proseHtml }}
+              />
+            </Reveal>
+          ) : null}
+
+          {zoom ? (
+            <SectionCard
+              step="3"
+              label="Phòng Zoom"
+              Icon={Video}
+              accent
+              delay={200}
+            >
+              <p>
+                ID:{" "}
+                <span className="font-mono font-semibold tracking-wide">
+                  {zoom.meetingId}
+                </span>
+                {zoom.pass ? (
+                  <>
+                    {" "}
+                    · Pass: <span className="font-semibold">{zoom.pass}</span>
+                  </>
+                ) : null}
+              </p>
+              <Link
+                href={zoom.joinUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="hover-lift mt-4 inline-flex items-center gap-2 rounded-[11px] bg-primary px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-md shadow-primary/20 transition hover:brightness-110"
+              >
+                <Video className="size-4" strokeWidth={2} />
+                Vào phòng Zoom
+              </Link>
+            </SectionCard>
+          ) : null}
+
+          {posters.length ? (
+            <div className="space-y-4">
+              {posters.map((src, index) => (
+                <Reveal key={`${src}-${index}`} delay={260 + index * 40} variant="zoom">
+                  <figure className="post-poster overflow-hidden rounded-[14px] border border-line bg-paper-warm p-2 shadow-sm">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={src}
+                      alt=""
+                      loading={index === 0 ? "eager" : "lazy"}
+                      decoding="async"
+                      className="mx-auto max-h-[min(640px,75vh)] w-auto max-w-full rounded-[10px] object-contain"
+                    />
+                  </figure>
+                </Reveal>
+              ))}
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <>
+          {posters.length ? (
+            <div className="space-y-4">
+              {posters.map((src, index) => (
+                <Reveal key={`${src}-${index}`} delay={320 + index * 40} variant="zoom">
+                  <figure className="post-poster overflow-hidden rounded-[14px] border border-line bg-paper-warm p-2 shadow-sm">
+                    {zoom ? (
+                      <a
+                        href={zoom.joinUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group block"
+                        aria-label="Vào phòng Zoom"
+                        title="Bấm ảnh để vào Zoom"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={src}
+                          alt=""
+                          loading={index === 0 ? "eager" : "lazy"}
+                          decoding="async"
+                          className="mx-auto max-h-[min(640px,75vh)] w-auto max-w-full rounded-[10px] object-contain transition duration-700 ease-out group-hover:scale-[1.015]"
+                        />
+                      </a>
+                    ) : (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={src}
+                          alt=""
+                          loading={index === 0 ? "eager" : "lazy"}
+                          decoding="async"
+                          className="mx-auto max-h-[min(640px,75vh)] w-auto max-w-full rounded-[10px] object-contain transition duration-700 ease-out hover:scale-[1.015]"
+                        />
+                      </>
+                    )}
+                  </figure>
+                </Reveal>
+              ))}
+            </div>
+          ) : null}
+
+          {display.proseHtml ? (
+            <Reveal delay={380} variant="fade">
+              <div
+                className="post-content [&_a]:text-primary [&_a]:underline"
+                dangerouslySetInnerHTML={{ __html: display.proseHtml }}
+              />
+            </Reveal>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

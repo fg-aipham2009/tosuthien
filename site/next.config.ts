@@ -1,15 +1,25 @@
 import type { NextConfig } from "next";
 
-const apiOrigin = (
+const LOOPBACK_API = "http://127.0.0.1:8000";
+
+const publicApi = (
   process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.tosuthien.net"
 ).replace(/\/$/, "");
 
+/** Next rewrite fallback — production on VPS always hits Nest via loopback. */
+const rewriteApiOrigin = (
+  process.env.API_INTERNAL_BASE_URL ||
+  (process.env.NODE_ENV === "production" ? LOOPBACK_API : publicApi)
+).replace(/\/$/, "");
+
 const nextConfig: NextConfig = {
-  /** Browser gọi /api/* → Nest (RAG chat dùng CHAT_PROVIDER=flare / 9flare như portal). */
+  /** If a request reaches Next /api (not nginx), proxy to localhost Nest. */
   async rewrites() {
-    return [{ source: "/api/:path*", destination: `${apiOrigin}/api/:path*` }];
+    return [
+      { source: "/api/:path*", destination: `${rewriteApiOrigin}/api/:path*` },
+      { source: "/files/:path*", destination: `${rewriteApiOrigin}/files/:path*` },
+    ];
   },
-  /** Giữ thứ hạng khi chuyển từ WordPress sang Next — URL cũ 301 sang trang mới. */
   async redirects() {
     return [
       { source: "/thong-bao", destination: "/tin-tuc", permanent: true },

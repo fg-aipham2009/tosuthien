@@ -72,25 +72,39 @@ export class MediaService {
         ...(year && { year }),
         ...(normalizedFolder && { folderPath: normalizedFolder }),
       },
-      include: { category: true },
+      select: {
+        id: true,
+        title: true,
+        year: true,
+        recordedAt: true,
+        location: true,
+        folderPath: true,
+        filename: true,
+        publicUrl: true,
+        durationSec: true,
+        categoryId: true,
+        sortOrder: true,
+        isPublished: true,
+        createdAt: true,
+        category: { select: { id: true, name: true, slug: true } },
+      },
       orderBy: [{ year: 'desc' }, { sortOrder: 'asc' }, { title: 'asc' }],
     });
   }
 
-  /** Distinct folder paths for lazy album browsing (no track payloads). */
+  /** Distinct folder paths without loading track payloads. */
   async findMp3FolderPaths(
     categorySlug?: string,
     year?: number,
     includeUnpublished = false,
   ): Promise<string[]> {
-    const rows = await this.prisma.mp3Track.findMany({
+    const rows = await this.prisma.mp3Track.groupBy({
+      by: ['folderPath'],
       where: {
         ...(includeUnpublished ? {} : { isPublished: true }),
         ...(categorySlug && { category: { slug: categorySlug } }),
         ...(year && { year }),
       },
-      distinct: ['folderPath'],
-      select: { folderPath: true },
       orderBy: { folderPath: 'asc' },
     });
     return rows.map((r) => r.folderPath);
@@ -136,14 +150,13 @@ export class MediaService {
       ? (folderPath.endsWith('/') ? folderPath : `${folderPath}/`)
       : undefined;
 
-    const rows = await this.prisma.mp3Track.findMany({
+    const rows = await this.prisma.mp3Track.groupBy({
+      by: ['year'],
       where: {
         ...(includeUnpublished ? {} : { isPublished: true }),
         ...(categorySlug && { category: { slug: categorySlug } }),
         ...(normalizedFolder && { folderPath: normalizedFolder }),
       },
-      distinct: ['year'],
-      select: { year: true },
       orderBy: { year: 'desc' },
     });
     return rows.map((r) => r.year);

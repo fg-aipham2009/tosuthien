@@ -1,21 +1,56 @@
 import type { Center, CenterRegion } from "./types";
 
+const LOOPBACK_API = "http://127.0.0.1:8000";
+
 const publicApi = (
   process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.tosuthien.net"
 ).replace(/\/$/, "");
 
-/** SSR/build on VPS: gọi API nội bộ, tránh lỗi TLS khi nginx đang sửa. */
-export const API_ORIGIN =
-  typeof window === "undefined" && process.env.API_INTERNAL_BASE_URL
-    ? process.env.API_INTERNAL_BASE_URL.replace(/\/$/, "")
-    : publicApi;
+/**
+ * Origin used only for server→Nest fetches on the VPS.
+ * Never expose this in user-facing HTML (browsers cannot open VPS loopback).
+ */
+function serverFetchOrigin(): string {
+  const fromEnv = process.env.API_INTERNAL_BASE_URL?.replace(/\/$/, "");
+  if (fromEnv) return fromEnv;
+  if (process.env.NODE_ENV === "production") return LOOPBACK_API;
+  return publicApi;
+}
 
 /**
- * Client: `/api` (Next rewrite → Nest). Server: API_ORIGIN + /api.
- * Hỏi đáp AI: POST /rag/chat/stream — LLM trên Nest (CHAT_PROVIDER=flare → 9flare).
+ * User-facing origin for /files links.
+ * Empty = same-origin (nginx proxies /files → Nest localhost).
+ */
+export const API_ORIGIN = "";
+
+/**
+ * Client: `/api` (nginx → 127.0.0.1:8000).
+ * Server: `http://127.0.0.1:8000/api`
  */
 export const API_BASE =
-  typeof window !== "undefined" ? "/api" : `${API_ORIGIN}/api`;
+  typeof window !== "undefined" ? "/api" : `${serverFetchOrigin()}/api`;
+
+/** Rewrite absolute api.tosuthien.net media URLs to same-origin paths. */
+export function toSameOriginMediaUrl(url: string): string {
+  if (!url) return url;
+  try {
+    const base =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://tosuthien.com";
+    const u = new URL(url, base);
+    if (
+      u.hostname === "api.tosuthien.net" ||
+      u.hostname === "127.0.0.1" ||
+      u.hostname === "localhost"
+    ) {
+      return `${u.pathname}${u.search}${u.hash}`;
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
 
 export async function fetchCenters(region?: CenterRegion | ""): Promise<Center[]> {
   const qs = region ? `?region=${encodeURIComponent(region)}` : "";

@@ -49,100 +49,77 @@ const filteredTracks = computed(() => {
   return tracks.value.filter((t) => t.title.toLowerCase().includes(s))
 })
 
-async function loadYears() {
-  years.value = await listYears({
-    category: slug.value,
-    folder: activeFolder.value ?? undefined,
-  })
-  if (selectedYear.value != null && !years.value.includes(selectedYear.value)) {
-    selectedYear.value = null
-  }
-}
-
-async function loadFolderList() {
-  folderPaths.value = await listFolders({
-    category: slug.value,
-    year: selectedYear.value ?? undefined,
-  })
-}
-
-async function loadFolderTracks() {
-  const folder = activeFolder.value
-  if (!folder) {
-    tracks.value = []
-    return
-  }
-  tracks.value = await listTracks({
-    category: slug.value,
-    folder,
-    year: selectedYear.value ?? undefined,
-  })
-}
-
 /** True when this album has only one folder — skip the extra folder click. */
 const isSingleFolderAlbum = computed(() => folderPaths.value.length === 1)
 
+let loadAbort: AbortController | null = null
+
 async function load() {
-  loading.value = true
+  loadAbort?.abort()
+  const ac = new AbortController()
+  loadAbort = ac
+  const signal = ac.signal
+  const firstLoad = !cat.value
+  if (firstLoad) loading.value = true
   error.value = ''
   try {
-    const cats = await listCategories()
+    const folder = activeFolder.value
+    const [cats, yearList, folders, folderTracks] = await Promise.all([
+      listCategories(signal),
+      listYears({
+        category: slug.value,
+        folder: folder ?? undefined,
+        signal,
+      }),
+      listFolders({
+        category: slug.value,
+        year: selectedYear.value ?? undefined,
+        signal,
+      }),
+      folder
+        ? listTracks({
+            category: slug.value,
+            folder,
+            year: selectedYear.value ?? undefined,
+            signal,
+          })
+        : Promise.resolve([] as Mp3Track[]),
+    ])
+    if (signal.aborted) return
     cat.value = cats.find((c) => c.slug === slug.value) ?? null
-    await loadYears()
-    await loadFolderList()
+    years.value = yearList
+    folderPaths.value = folders
 
-    // Khai Thị Tịnh Độ style: category ≡ one folder → open tracks directly.
-    if (!activeFolder.value && folderPaths.value.length === 1) {
+    if (!folder && folders.length === 1) {
+      tracks.value = await listTracks({
+        category: slug.value,
+        folder: folders[0],
+        year: selectedYear.value ?? undefined,
+        signal,
+      })
+      if (signal.aborted) return
       await router.replace({
         name: 'mp3-album',
         params: { slug: slug.value },
-        query: { folder: folderPaths.value[0] },
+        query: { folder: folders[0] },
       })
       return
     }
 
-    if (activeFolder.value) {
-      await loadFolderTracks()
-    } else {
-      tracks.value = []
-    }
+    tracks.value = folder ? folderTracks : []
   } catch (e) {
+    if (signal.aborted || (e instanceof Error && e.name === 'CanceledError')) return
     error.value = e instanceof Error ? e.message : 'Không tải được bài'
   } finally {
-    loading.value = false
+    if (!signal.aborted) loading.value = false
   }
 }
 
 onMounted(load)
 watch([() => route.params.slug, () => route.query.folder], load)
 
-watch(selectedYear, async () => {
-  loading.value = true
-  error.value = ''
-  try {
-    await loadYears()
-    await loadFolderList()
-    if (!activeFolder.value && folderPaths.value.length === 1) {
-      await router.replace({
-        name: 'mp3-album',
-        params: { slug: slug.value },
-        query: {
-          folder: folderPaths.value[0],
-          ...(selectedYear.value != null ? { year: String(selectedYear.value) } : {}),
-        },
-      })
-      return
-    }
-    if (activeFolder.value) {
-      await loadFolderTracks()
-    } else {
-      tracks.value = []
-    }
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Không tải được bài'
-  } finally {
-    loading.value = false
-  }
+watch(selectedYear, () => {
+  void load()
 })
 
 function openFolder(path: string) {
@@ -258,8 +235,8 @@ function onDownloadFolder(folderPath: string, e: Event) {
       </div>
     </div>
 
-    <p v-if="loading" class="text-muted">Đang tải…</p>
-    <p v-else-if="error" class="text-red-800">{{ error }}</p>
+    <p v-if="error" class="text-red-800">{{ error }}</p>
+    <p v-else-if="loading" class="text-muted">Đang tải danh sách phát…</p>
 
     <!-- Folder list (Flutter-style) -->
     <template v-else-if="!activeFolder">

@@ -1,8 +1,8 @@
-import { DelayedLoadingBlock } from "../../../components/ui/DelayedLoading";
+import { LoadingBlock } from "../../../components/ui/Spinner";
 
 export default function Loading() {
   return (
-    <DelayedLoadingBlock
+    <LoadingBlock
       label="Đang tải pháp âm…"
       className="mx-auto max-w-[1080px] px-4"
     />

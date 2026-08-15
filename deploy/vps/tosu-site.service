@@ -7,6 +7,10 @@ Type=simple
 WorkingDirectory=/opt/tosu-thien/site
 Environment=NODE_ENV=production
 Environment=PORT=5175
+Environment=NEXT_PUBLIC_SITE_URL=https://tosuthien.com
+Environment=NEXT_PUBLIC_API_BASE_URL=https://api.tosuthien.net
+Environment=API_INTERNAL_BASE_URL=http://127.0.0.1:8000
+# Nest on this VPS — site always fetches via loopback.
 ExecStart=/usr/bin/npm run start --silent
 Restart=on-failure
 RestartSec=5

@@ -125,7 +125,7 @@ function loadAndPlay(index: number) {
   syncMediaSession();
 
   howl = new Howl({
-    src: [track.publicUrl],
+    src: [track.publicUrl.replace(/^https?:\/\/api\.tosuthien\.net(?=\/)/i, "")],
     html5: true,
     preload: true,
     onload: () => {

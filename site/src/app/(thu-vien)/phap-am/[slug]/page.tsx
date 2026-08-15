@@ -1,11 +1,13 @@
-import { Suspense } from "react";
 import { PhapAmAlbumClient } from "../../../../components/library/PhapAmAlbumClient";
-import { DelayedLoadingBlock } from "../../../../components/ui/DelayedLoading";
-import { API_BASE } from "../../../../lib/api";
+import { loadMp3Album } from "../../../../lib/library/mp3Album";
 import type { MediaCategory } from "../../../../lib/library/types";
+import { API_BASE } from "../../../../lib/api";
 import { buildMetadata } from "../../../../lib/seo";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ folder?: string; year?: string }>;
+};
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
@@ -20,7 +22,7 @@ export async function generateMetadata({ params }: Props) {
       if (cat?.name) title = cat.name;
     }
   } catch {
-    /* giữ title mặc định */
+    /* keep default title */
   }
   return buildMetadata({
     title,
@@ -29,13 +31,25 @@ export async function generateMetadata({ params }: Props) {
   });
 }
 
-export default async function PhapAmAlbumPage({ params }: Props) {
+export default async function PhapAmAlbumPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const query = await searchParams;
+  const folder = query.folder?.trim() || null;
+  const yearRaw = query.year;
+  const selectedYear =
+    yearRaw && Number.isFinite(Number(yearRaw)) ? Number(yearRaw) : null;
+
+  const album = await loadMp3Album({ slug, folder, year: selectedYear });
+
   return (
-    <Suspense
-      fallback={<DelayedLoadingBlock label="Đang tải pháp âm…" />}
-    >
-      <PhapAmAlbumClient slug={slug} />
-    </Suspense>
+    <PhapAmAlbumClient
+      slug={slug}
+      folder={album.folder}
+      selectedYear={selectedYear}
+      cat={album.cat}
+      folders={album.folders}
+      tracks={album.tracks}
+      years={album.years}
+    />
   );
 }

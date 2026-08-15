@@ -1,15 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { useMp3Player } from "../../hooks/useMp3Player";
-import {
-  fetchMediaCategories,
-  fetchMp3Folders,
-  fetchMp3Tracks,
-  fetchMp3Years,
-} from "../../lib/library/api";
 import {
   downloadTrackMp3,
   filterMp3Years,
@@ -17,7 +11,6 @@ import {
   showMp3Year,
 } from "../../lib/library/mp3Download";
 import type { MediaCategory, Mp3Track } from "../../lib/library/types";
-import { DelayedLoadingBlock } from "../ui/DelayedLoading";
 
 function DownloadIcon({ spinning }: { spinning?: boolean }) {
   if (spinning) {
@@ -66,28 +59,41 @@ function FolderIcon() {
   );
 }
 
-type Props = { slug: string };
+type Props = {
+  slug: string;
+  folder: string | null;
+  selectedYear: number | null;
+  cat: MediaCategory | null;
+  folders: string[];
+  tracks: Mp3Track[];
+  years: number[];
+};
 
-export function PhapAmAlbumClient({ slug }: Props) {
+export function PhapAmAlbumClient({
+  slug,
+  folder,
+  selectedYear,
+  cat,
+  folders,
+  tracks,
+  years: yearsRaw,
+}: Props) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const folder = searchParams.get("folder")?.trim() || null;
-  const yearParam = searchParams.get("year");
-  const selectedYear =
-    yearParam && Number.isFinite(Number(yearParam)) ? Number(yearParam) : null;
-
-  const [cat, setCat] = useState<MediaCategory | null>(null);
-  const [folders, setFolders] = useState<string[]>([]);
-  const [tracks, setTracks] = useState<Mp3Track[]>([]);
-  const [yearsRaw, setYearsRaw] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [q, setQ] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const player = useMp3Player();
 
   const years = useMemo(() => filterMp3Years(yearsRaw), [yearsRaw]);
   const isSingleFolder = folders.length === 1;
+
+  useEffect(() => {
+    if (!folder || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("folder") === folder) return;
+    params.set("folder", folder);
+    const qs = params.toString();
+    router.replace(`/phap-am/${slug}${qs ? `?${qs}` : ""}`);
+  }, [folder, router, slug]);
 
   const filteredFolders = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -110,52 +116,6 @@ export function PhapAmAlbumClient({ slug }: Props) {
     if (!s) return tracks;
     return tracks.filter((t) => t.title.toLowerCase().includes(s));
   }, [tracks, q]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const cats = await fetchMediaCategories();
-      setCat(cats.find((c) => c.slug === slug) ?? null);
-      const y = await fetchMp3Years({
-        category: slug,
-        folder: folder ?? undefined,
-      });
-      setYearsRaw(y);
-      const folderList = await fetchMp3Folders({
-        category: slug,
-        year: selectedYear ?? undefined,
-      });
-      setFolders(folderList);
-
-      if (!folder && folderList.length === 1) {
-        router.replace(
-          `/phap-am/${slug}?folder=${encodeURIComponent(folderList[0])}`,
-        );
-        return;
-      }
-
-      if (folder) {
-        setTracks(
-          await fetchMp3Tracks({
-            category: slug,
-            folder,
-            year: selectedYear ?? undefined,
-          }),
-        );
-      } else {
-        setTracks([]);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được dữ liệu");
-    } finally {
-      setLoading(false);
-    }
-  }, [slug, folder, selectedYear, router]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   function yearQuery() {
     return selectedYear != null ? `&year=${selectedYear}` : "";
@@ -207,12 +167,6 @@ export function PhapAmAlbumClient({ slug }: Props) {
     router.push(`/phap-am/${slug}`);
   }
 
-  if (loading) {
-    return <DelayedLoadingBlock label="Đang tải pháp âm…" />;
-  }
-  if (error) {
-    return <p className="py-12 text-center text-alert">{error}</p>;
-  }
   if (!cat) {
     return <p className="py-12 text-center text-muted">Không tìm thấy album.</p>;
   }

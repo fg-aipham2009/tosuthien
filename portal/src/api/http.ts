@@ -9,6 +9,9 @@ const http = axios.create({
 http.interceptors.response.use(
   (res) => res,
   (err) => {
+    if (axios.isCancel(err) || err.code === 'ERR_CANCELED') {
+      return Promise.reject(err)
+    }
     const data = err.response?.data
     const msg =
       (typeof data?.message === 'string' && data.message) ||

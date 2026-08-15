@@ -43,7 +43,11 @@ export class Mp3Controller {
     @Query('year') year?: string,
     @Query('folder') folder?: string,
     @Query('all') all?: string,
+    @Res({ passthrough: true }) res?: Response,
   ) {
+    if (all !== 'true') {
+      res?.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    }
     return this.service.findMp3(
       category,
       year ? parseInt(year, 10) : undefined,
@@ -67,13 +71,17 @@ export class Mp3Controller {
 export class Mp3FoldersController {
   constructor(private readonly service: MediaService) {}
 
-  /** Distinct folder paths (lightweight — for lazy UI like Flutter). */
+  /** Distinct folder paths (lightweight — no track payloads). */
   @Get()
   listFolders(
     @Query('category') category?: string,
     @Query('year') year?: string,
     @Query('all') all?: string,
+    @Res({ passthrough: true }) res?: Response,
   ) {
+    if (all !== 'true') {
+      res?.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    }
     return this.service.findMp3FolderPaths(
       category,
       year ? parseInt(year, 10) : undefined,
@@ -131,7 +139,11 @@ export class Mp3YearsController {
     @Query('category') category?: string,
     @Query('folder') folder?: string,
     @Query('all') all?: string,
+    @Res({ passthrough: true }) res?: Response,
   ) {
+    if (all !== 'true') {
+      res?.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    }
     return this.service.findMp3Years(category, folder, all === 'true');
   }
 }

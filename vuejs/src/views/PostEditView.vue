@@ -16,7 +16,15 @@ import {
 } from '@/api/posts';
 import { fetchZoomRooms } from '@/api/zoom-rooms';
 import { fetchTeachers } from '@/api/teachers';
-import type { PostCategory, PostFormData, PostImage, Teacher, ZoomRoom } from '@/types/models';
+import { fetchCenters } from '@/api/centers';
+import type {
+  Center,
+  PostCategory,
+  PostFormData,
+  PostImage,
+  Teacher,
+  ZoomRoom,
+} from '@/types/models';
 
 const route = useRoute();
 const router = useRouter();
@@ -34,10 +42,12 @@ const formRef = ref<FormInstance>();
 const categories = ref<PostCategory[]>([]);
 const zoomRooms = ref<ZoomRoom[]>([]);
 const teachers = ref<Teacher[]>([]);
+const centers = ref<Center[]>([]);
 const teacherId = ref<string | null>(null);
-const applyingTeacherCover = ref(false);
+const centerId = ref<string | null>(null);
+const applyingCover = ref(false);
 /** Cover to apply after the post is first created. */
-const pendingTeacherCover = ref<string | null>(null);
+const pendingCover = ref<string | null>(null);
 
 const form = reactive({
   title: '',
@@ -58,6 +68,12 @@ const contentImages = computed(() => images.value.filter((image) => image.role !
 const uploadingCover = ref(false);
 const uploadingImages = ref(false);
 
+/** Class: teacher + schedule. Center: pick thiền đường banner. News: topic/body/zoom/images. */
+type PostKind = 'news' | 'class' | 'center';
+const postKind = ref<PostKind>('news');
+const isClassNotice = computed(() => postKind.value === 'class');
+const isCenterNotice = computed(() => postKind.value === 'center');
+
 const selectedZoomHint = computed(() => {
   const room = zoomRooms.value.find((z) => z.id === form.zoomRoomId);
   if (!room) return '';
@@ -66,6 +82,10 @@ const selectedZoomHint = computed(() => {
 
 const selectedTeacher = computed(() =>
   teachers.value.find((t) => t.id === teacherId.value) || null,
+);
+
+const selectedCenter = computed(() =>
+  centers.value.find((c) => c.id === centerId.value) || null,
 );
 
 function teacherLabel(t: Teacher) {
@@ -127,6 +147,14 @@ function applyPost(p: Awaited<ReturnType<typeof fetchPost>>) {
   form.description = p.description ?? '';
   coverImageUrl.value = p.coverImageUrl;
   images.value = p.images ?? [];
+  centerId.value = matchCenterId(p);
+  if ((p.teacherText || '').trim() || (p.scheduleText || '').trim()) {
+    postKind.value = 'class';
+  } else if (centerId.value) {
+    postKind.value = 'center';
+  } else {
+    postKind.value = 'news';
+  }
 }
 
 async function loadCategories() {
@@ -159,30 +187,61 @@ async function loadTeachers() {
   }
 }
 
-async function applyTeacherCover(photoUrl: string | null | undefined) {
+async function loadCenters() {
+  try {
+    centers.value = await fetchCenters(true);
+  } catch {
+    centers.value = [];
+  }
+}
+
+function matchCenterId(p: {
+  coverImageUrl?: string | null;
+  title?: string | null;
+  topicText?: string | null;
+}): string | null {
+  const cover = (p.coverImageUrl || '').trim();
+  if (cover) {
+    const byCover = centers.value.find((c) => (c.mainImageUrl || '').trim() === cover);
+    if (byCover) return byCover.id;
+  }
+  const hay = `${p.title || ''} ${p.topicText || ''}`.toLowerCase();
+  if (!hay.trim()) return null;
+  const byName = centers.value.find((c) => {
+    const name = (c.templeName || '').trim().toLowerCase();
+    return name && hay.includes(name);
+  });
+  return byName?.id || null;
+}
+
+async function applyCover(
+  photoUrl: string | null | undefined,
+  successMsg: string,
+  errorMsg: string,
+) {
   if (!photoUrl?.trim()) return;
   const id = postId.value;
   if (!id) {
-    pendingTeacherCover.value = photoUrl.trim();
+    pendingCover.value = photoUrl.trim();
     return;
   }
-  applyingTeacherCover.value = true;
+  applyingCover.value = true;
   try {
     const updated = await setPostCoverUrl(id, photoUrl.trim());
     coverImageUrl.value = updated.coverImageUrl;
     images.value = updated.images ?? images.value;
-    pendingTeacherCover.value = null;
-    ElMessage.success('Đã dùng ảnh giảng sư làm ảnh bìa');
+    pendingCover.value = null;
+    ElMessage.success(successMsg);
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : 'Không gắn được ảnh giảng sư');
+    ElMessage.error(e instanceof Error ? e.message : errorMsg);
   } finally {
-    applyingTeacherCover.value = false;
+    applyingCover.value = false;
   }
 }
 
-async function flushPendingTeacherCover() {
-  if (!pendingTeacherCover.value || !postId.value) return;
-  await applyTeacherCover(pendingTeacherCover.value);
+async function flushPendingCover() {
+  if (!pendingCover.value || !postId.value) return;
+  await applyCover(pendingCover.value, 'Đã gắn ảnh bìa', 'Không gắn được ảnh bìa');
 }
 
 async function onTeacherChange(id: string | null) {
@@ -190,9 +249,27 @@ async function onTeacherChange(id: string | null) {
   const t = teachers.value.find((x) => x.id === id);
   form.teacherText = t ? teacherLabel(t) : '';
   if (t?.photoUrl) {
-    await applyTeacherCover(t.photoUrl);
+    await applyCover(
+      t.photoUrl,
+      'Đã dùng ảnh giảng sư làm ảnh bìa',
+      'Không gắn được ảnh giảng sư',
+    );
   } else {
-    pendingTeacherCover.value = null;
+    pendingCover.value = null;
+  }
+}
+
+async function onCenterChange(id: string | null) {
+  centerId.value = id;
+  const c = centers.value.find((x) => x.id === id);
+  if (c?.mainImageUrl) {
+    await applyCover(
+      c.mainImageUrl,
+      'Đã dùng ảnh thiền đường làm ảnh bìa',
+      'Không gắn được ảnh thiền đường',
+    );
+  } else {
+    pendingCover.value = null;
   }
 }
 
@@ -225,8 +302,8 @@ function buildPayload(): PostFormData {
     isPublished: form.isPublished,
     sortOrder: form.sortOrder ?? 0,
     topicText: form.topicText.trim(),
-    teacherText: form.teacherText.trim(),
-    scheduleText: form.scheduleText.trim(),
+    teacherText: isClassNotice.value ? form.teacherText.trim() : '',
+    scheduleText: isClassNotice.value ? form.scheduleText.trim() : '',
     zoomRoomId: form.zoomRoomId,
     description: form.description.trim(),
   };
@@ -245,7 +322,7 @@ async function ensurePostId(): Promise<string | null> {
     const created = await createPost(buildPayload());
     activePostId.value = created.id;
     applyPost(created);
-    await flushPendingTeacherCover();
+    await flushPendingCover();
     await router.replace(`/posts/${created.id}`);
     ElMessage.success('Đã tạo bài — tiếp tục upload ảnh');
     return created.id;
@@ -267,13 +344,13 @@ async function save() {
       const created = await createPost(buildPayload());
       activePostId.value = created.id;
       applyPost(created);
-      await flushPendingTeacherCover();
+      await flushPendingCover();
       ElMessage.success('Đã tạo bài viết');
       await router.replace(`/posts/${created.id}`);
     } else {
       const updated = await updatePost(postId.value, buildPayload());
       applyPost(updated);
-      await flushPendingTeacherCover();
+      await flushPendingCover();
       ElMessage.success('Đã lưu');
     }
   } catch (e) {
@@ -353,7 +430,7 @@ function goBack() {
 onMounted(async () => {
   activePostId.value =
     route.name === 'post-new' ? null : String(route.params.id || '') || null;
-  await Promise.all([loadCategories(), loadZoomRooms(), loadTeachers()]);
+  await Promise.all([loadCategories(), loadZoomRooms(), loadTeachers(), loadCenters()]);
   await loadPost();
 });
 
@@ -382,33 +459,29 @@ watch(
 
     <el-card shadow="never">
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+        <el-form-item label="Loại bài">
+          <el-radio-group v-model="postKind">
+            <el-radio-button value="news">Tin tức / khoá tu</el-radio-button>
+            <el-radio-button value="class">Thông báo lớp học</el-radio-button>
+            <el-radio-button value="center">Thông báo thiền đường</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+
         <el-form-item label="Tiêu đề" prop="title">
           <el-input
             v-model="form.title"
-            placeholder="VD: Thông báo lớp học chuyên đề …"
+            :placeholder="
+              isClassNotice
+                ? 'VD: Thông báo lớp học chuyên đề …'
+                : isCenterNotice
+                  ? 'VD: Thông báo thiền đường …'
+                  : 'VD: Thông báo khoá tu …'
+            "
           />
         </el-form-item>
 
         <el-row :gutter="16">
           <el-col :xs="24" :md="12">
-            <el-form-item label="Danh mục">
-              <el-select
-                v-model="form.categoryIds"
-                multiple
-                filterable
-                placeholder="Chọn danh mục"
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="c in categories"
-                  :key="c.id"
-                  :label="c.name"
-                  :value="c.id"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :md="6">
             <el-form-item label="Thứ tự hiển thị">
               <el-input-number
                 v-model="form.sortOrder"
@@ -419,105 +492,163 @@ watch(
               <p class="hint">Số nhỏ hơn lên trước; trùng thì theo ngày tạo mới hơn.</p>
             </el-form-item>
           </el-col>
-          <el-col :xs="24" :md="6">
+          <el-col :xs="24" :md="12">
             <el-form-item label="Công khai">
               <el-switch v-model="form.isPublished" />
             </el-form-item>
           </el-col>
         </el-row>
 
-        <div class="form-section-title">Thông tin lớp học</div>
-        <el-row :gutter="16">
-          <el-col :xs="24" :md="12">
-            <el-form-item label="1. Đề tài">
-              <el-input v-model="form.topicText" placeholder="VD: Duy Lực Ngữ Lục 44" />
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :md="12">
-            <el-form-item label="2. Giảng sư">
-              <el-select
-                :model-value="teacherId"
-                clearable
-                filterable
-                placeholder="Chọn giảng sư"
-                style="width: 100%"
-                :disabled="applyingTeacherCover"
-                @change="onTeacherChange"
-              >
-                <el-option
-                  v-for="t in teachers"
-                  :key="t.id"
-                  :label="teacherLabel(t)"
-                  :value="t.id"
-                >
-                  <div class="teacher-option">
-                    <el-avatar
-                      v-if="t.photoUrl"
-                      :src="t.photoUrl"
-                      :size="28"
-                      shape="circle"
-                    />
-                    <el-avatar v-else :size="28">{{ t.name.slice(0, 1) }}</el-avatar>
-                    <span>{{ teacherLabel(t) }}</span>
-                  </div>
-                </el-option>
-              </el-select>
-              <p class="hint">
-                Có ảnh giảng sư → dùng làm ảnh bìa (giống trang cũ). Chưa có ảnh → giữ ảnh mặc định / upload tay.
-              </p>
-              <div v-if="selectedTeacher?.photoUrl" class="teacher-photo-preview">
-                <el-image
-                  :src="selectedTeacher.photoUrl"
-                  fit="contain"
-                  style="width: 96px; height: 96px; border-radius: 8px"
-                />
-              </div>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :md="12">
-            <el-form-item label="3. Thời gian">
-              <el-input
-                v-model="form.scheduleText"
-                type="textarea"
-                :rows="3"
-                placeholder="Lịch học / ngày giờ"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :md="12">
-            <el-form-item label="4. Zoom">
-              <el-select
-                v-model="form.zoomRoomId"
-                clearable
-                filterable
-                placeholder="Chọn phòng Zoom"
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="z in zoomRooms"
-                  :key="z.id"
-                  :label="`${z.name} — ID ${z.meetingId}`"
-                  :value="z.id"
-                />
-              </el-select>
-              <p v-if="selectedZoomHint" class="hint zoom-hint">{{ selectedZoomHint }}</p>
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <div class="form-section-title">TIN TỨC</div>
 
-        <el-form-item label="Mô tả thêm (tuỳ chọn)">
+        <el-form-item label="1. Đề tài">
+          <el-input
+            v-model="form.topicText"
+            :placeholder="
+              isClassNotice
+                ? 'VD: Duy Lực Ngữ Lục 44'
+                : isCenterNotice
+                  ? 'VD: Thiền đường …'
+                  : 'VD: Khoá tu Tổ Sư Thiền tại …'
+            "
+          />
+        </el-form-item>
+
+        <template v-if="isClassNotice">
+          <el-row :gutter="16">
+            <el-col :xs="24" :md="12">
+              <el-form-item label="Giảng sư">
+                <el-select
+                  :model-value="teacherId"
+                  clearable
+                  filterable
+                  placeholder="Chọn giảng sư"
+                  style="width: 100%"
+                  :disabled="applyingCover"
+                  @change="onTeacherChange"
+                >
+                  <el-option
+                    v-for="t in teachers"
+                    :key="t.id"
+                    :label="teacherLabel(t)"
+                    :value="t.id"
+                  >
+                    <div class="teacher-option">
+                      <el-avatar
+                        v-if="t.photoUrl"
+                        :src="t.photoUrl"
+                        :size="28"
+                        shape="circle"
+                      />
+                      <el-avatar v-else :size="28">{{ t.name.slice(0, 1) }}</el-avatar>
+                      <span>{{ teacherLabel(t) }}</span>
+                    </div>
+                  </el-option>
+                </el-select>
+                <p class="hint">
+                  Có ảnh giảng sư → dùng làm ảnh bìa. Chưa có ảnh → upload tay ở mục 4.
+                </p>
+                <div v-if="selectedTeacher?.photoUrl" class="teacher-photo-preview">
+                  <el-image
+                    :src="selectedTeacher.photoUrl"
+                    fit="contain"
+                    style="width: 96px; height: 96px; border-radius: 8px"
+                  />
+                </div>
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="Thời gian">
+                <el-input
+                  v-model="form.scheduleText"
+                  type="textarea"
+                  :rows="3"
+                  placeholder="Lịch học / ngày giờ"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </template>
+
+        <el-form-item v-if="isCenterNotice" label="Thiền đường">
+          <el-select
+            :model-value="centerId"
+            clearable
+            filterable
+            placeholder="Chọn thiền đường"
+            style="width: 100%"
+            :disabled="applyingCover"
+            @change="onCenterChange"
+          >
+            <el-option
+              v-for="c in centers"
+              :key="c.id"
+              :label="c.templeName"
+              :value="c.id"
+            >
+              <div class="teacher-option">
+                <el-avatar
+                  v-if="c.mainImageUrl"
+                  :src="c.mainImageUrl"
+                  :size="28"
+                  shape="square"
+                />
+                <el-avatar v-else :size="28" shape="square">
+                  {{ c.templeName.slice(0, 1) }}
+                </el-avatar>
+                <span>{{ c.templeName }}</span>
+              </div>
+            </el-option>
+          </el-select>
+          <p class="hint">
+            Có ảnh đại diện thiền đường → dùng làm ảnh bìa. Chưa có ảnh → upload tay ở mục 4.
+          </p>
+          <div v-if="selectedCenter?.mainImageUrl" class="teacher-photo-preview">
+            <el-image
+              :src="selectedCenter.mainImageUrl"
+              fit="contain"
+              style="width: 160px; height: 96px; border-radius: 8px"
+            />
+          </div>
+        </el-form-item>
+
+        <el-form-item label="2. Viết bài tin tức">
           <el-input
             v-model="form.description"
             type="textarea"
-            :rows="3"
-            placeholder="Có thể để trống"
+            :rows="isClassNotice ? 3 : 10"
+            :placeholder="
+              isClassNotice
+                ? 'Mô tả thêm (tuỳ chọn)'
+                : isCenterNotice
+                  ? 'Nội dung thông báo thiền đường…'
+                  : 'Nội dung tin / khoá tu…'
+            "
           />
+        </el-form-item>
+
+        <el-form-item label="3. Phòng Zoom">
+          <el-select
+            v-model="form.zoomRoomId"
+            clearable
+            filterable
+            placeholder="Chọn phòng Zoom (có thể bỏ trống)"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="z in zoomRooms"
+              :key="z.id"
+              :label="`${z.name} — ID ${z.meetingId}`"
+              :value="z.id"
+            />
+          </el-select>
+          <p v-if="selectedZoomHint" class="hint zoom-hint">{{ selectedZoomHint }}</p>
         </el-form-item>
       </el-form>
 
-      <div class="form-section-title">Ảnh bìa (danh sách tin)</div>
+      <div class="form-section-title">4. Đăng nhiều hình ảnh</div>
       <p class="hint">
-        JPG / PNG / WEBP / GIF · tối đa 15MB. Có thể upload ngay khi tạo bài (cần có tiêu đề).
+        JPG / PNG / WEBP / GIF · tối đa 15MB. Ảnh bìa hiện trên danh sách tin; ảnh khác hiện dưới bài.
       </p>
       <div class="main-row">
         <el-image
@@ -550,8 +681,6 @@ watch(
         </div>
       </div>
 
-      <div class="form-section-title">Ảnh phía dưới</div>
-      <p class="hint">Ảnh hiển thị dưới 4 ô thông tin trên trang tin — upload được ngay khi tạo.</p>
       <el-upload
         :show-file-list="false"
         accept="image/jpeg,image/png,image/webp,image/gif"
@@ -560,7 +689,7 @@ watch(
         :before-upload="onImagesUpload"
       >
         <el-button type="primary" plain :loading="uploadingImages || saving">
-          Thêm ảnh
+          Thêm nhiều ảnh
         </el-button>
       </el-upload>
 
