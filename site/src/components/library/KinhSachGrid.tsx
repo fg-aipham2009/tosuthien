@@ -9,20 +9,23 @@ import { DelayedLoadingBlock } from "../ui/DelayedLoading";
 
 type Mode = "shelf" | "text" | "pdf";
 
-const FLIP_SHELF_SRC =
-  process.env.NEXT_PUBLIC_FLIPHTML5_SHELF_URL?.trim() ||
-  "https://fliphtml5.com/bookcase/smonj/red";
+/** Same-origin Flip shelf (avoids Cloudflare blank iframe on fliphtml5.com). */
+const FLIP_SHELF_EMBED = "/flip-shelf";
 
 function modeFromQuery(raw: string | null): Mode {
-  if (raw === "pdf") return "pdf";
   if (raw === "text") return "text";
+  if (raw === "pdf") return "pdf";
+  // Default: FlipHTML5 shelf embed
+  if (raw === "shelf" || raw === "flip" || raw == null || raw === "") {
+    return "shelf";
+  }
   return "shelf";
 }
 
 function hrefForMode(mode: Mode): string {
   if (mode === "pdf") return "/kinh-sach?mode=pdf";
   if (mode === "text") return "/kinh-sach?mode=text";
-  return "/kinh-sach";
+  return "/kinh-sach?mode=shelf";
 }
 
 function coverStyle(index: number): React.CSSProperties {
@@ -151,31 +154,11 @@ export function KinhSachGrid() {
         <div className="overflow-hidden rounded-[12px] border border-line bg-paper-warm">
           <iframe
             title="Kệ sách FlipHTML5"
-            src={FLIP_SHELF_SRC}
+            src={FLIP_SHELF_EMBED}
             className="min-h-[min(72vh,640px)] h-[min(88vh,960px)] w-full border-0 sm:min-h-[560px]"
             allowFullScreen
             loading="eager"
-            referrerPolicy="no-referrer-when-downgrade"
           />
-          <p className="px-4 py-3 text-center text-sm text-muted">
-            Đọc nhanh trên kệ 3D. Cần tìm chữ / đọc dở trên máy chủ — dùng{" "}
-            <button
-              type="button"
-              className="font-semibold text-primary underline-offset-2 hover:underline"
-              onClick={() => go("text")}
-            >
-              Đọc chữ
-            </button>{" "}
-            hoặc{" "}
-            <button
-              type="button"
-              className="font-semibold text-primary underline-offset-2 hover:underline"
-              onClick={() => go("pdf")}
-            >
-              Bản gốc
-            </button>
-            .
-          </p>
         </div>
       ) : (
         <div>
@@ -224,7 +207,7 @@ export function KinhSachGrid() {
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5 px-0.5">
-                      <strong className="line-clamp-2 text-sm leading-snug font-bold text-ink sm:text-base">
+                      <strong className="text-sm leading-snug font-bold text-ink sm:text-base break-words">
                         {b.title}
                       </strong>
                       {b.lastPage ? (

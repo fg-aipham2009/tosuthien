@@ -59,8 +59,8 @@ export function Mp3MiniPlayer() {
     >
       <div className="flex items-start justify-between gap-2 px-3 pt-2.5">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{current.title}</p>
-          <p className="truncate text-xs text-white/55">{statusText}</p>
+          <p className="text-sm font-medium break-words">{current.title}</p>
+          <p className="text-xs text-white/55 break-words">{statusText}</p>
         </div>
         <button
           type="button"

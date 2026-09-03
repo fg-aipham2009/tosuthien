@@ -18,6 +18,12 @@ const nextConfig: NextConfig = {
     return [
       { source: "/api/:path*", destination: `${rewriteApiOrigin}/api/:path*` },
       { source: "/files/:path*", destination: `${rewriteApiOrigin}/files/:path*` },
+      // FlipHTML5 bookcase skin assets (JS uses absolute /bookcase/img/...)
+      {
+        source: "/bookcase/img/:path*",
+        destination:
+          "https://static.fliphtml5.com/resourceFiles/bookcase/img/:path*",
+      },
     ];
   },
   async redirects() {

@@ -266,7 +266,13 @@
 
 /* Tin tức — ảnh trong bài: không kéo rộng hơn file gốc / khung đọc */
 .post-content {
-  line-height: 1.65;
+  line-height: 1.75;
+  text-align: justify;
+}
+
+.post-content p:not(:has(img)) {
+  margin-bottom: 0.85em;
+  text-align: justify;
 }
 
 .post-content .post-lead {

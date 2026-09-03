@@ -60,8 +60,8 @@ function onScrubCommit() {
   >
     <div class="flex items-start justify-between gap-2 px-3 pt-2.5">
       <div class="min-w-0 flex-1">
-        <p class="truncate text-sm font-medium text-white">{{ current.title }}</p>
-        <p class="truncate text-xs text-white/55">{{ statusText }}</p>
+        <p class="break-words text-sm font-medium whitespace-normal text-white">{{ current.title }}</p>
+        <p class="break-words text-xs whitespace-normal text-white/55">{{ statusText }}</p>
       </div>
       <button
         type="button"

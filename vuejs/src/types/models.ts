@@ -242,6 +242,7 @@ export interface Post {
   isPinned: boolean;
   sortOrder: number;
   isPublished: boolean;
+  kind?: 'news' | 'class' | 'center' | string;
   topicText?: string | null;
   teacherText?: string | null;
   scheduleText?: string | null;
@@ -269,6 +270,7 @@ export interface PostFormData {
   isPinned?: boolean;
   sortOrder?: number;
   isPublished?: boolean;
+  kind?: 'news' | 'class' | 'center';
   topicText?: string;
   teacherText?: string;
   scheduleText?: string;

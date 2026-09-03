@@ -265,7 +265,7 @@ function onDownloadFolder(folderPath: string, e: Event) {
                 </svg>
               </span>
               <span class="min-w-0">
-                <span class="block truncate font-serif text-lg font-semibold text-ink">
+                <span class="block break-words font-serif text-lg font-semibold text-ink">
                   {{ folder.name }}
                 </span>
                 <span class="text-xs text-muted">Mở thư mục</span>
@@ -331,7 +331,7 @@ function onDownloadFolder(folderPath: string, e: Event) {
               :class="isActive(t) ? 'font-semibold text-brand' : ''"
               @click="playAt(filteredTracks, i)"
             >
-              <span class="block truncate">{{ t.title }}</span>
+              <span class="block break-words whitespace-normal">{{ t.title }}</span>
               <span v-if="t.year" class="text-xs text-muted">{{ t.year }}</span>
               <span v-if="isActive(t)" class="ml-2 text-xs font-semibold text-brand">
                 {{ state.playing ? 'Đang phát' : 'Tạm dừng' }}

@@ -359,8 +359,13 @@ export class ChatDto {
 }
 
 export class CreatePostDto {
+  @IsOptional()
   @IsString()
-  title!: string;
+  title?: string;
+
+  @IsOptional()
+  @IsIn(['news', 'class', 'center'])
+  kind?: 'news' | 'class' | 'center';
 
   @IsOptional()
   @IsString()

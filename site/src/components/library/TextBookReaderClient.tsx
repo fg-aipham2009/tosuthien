@@ -204,7 +204,7 @@ export function TextBookReaderClient({ id }: Props) {
           ← Đọc chữ
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate font-serif text-base font-bold sm:text-lg">
+          <h1 className="font-serif text-base font-bold sm:text-lg break-words">
             {book?.title || "Đọc chữ"}
           </h1>
         </div>

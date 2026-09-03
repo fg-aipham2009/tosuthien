@@ -6,9 +6,10 @@ import type { BookPdf, TextBook } from '../types'
 
 type Mode = 'pdf' | 'text' | 'shelf'
 
+/** Same-origin shelf page on public site (avoids Cloudflare blank iframe). */
 const FLIP_SHELF_SRC =
   (import.meta.env.VITE_FLIPHTML5_SHELF_URL as string | undefined)?.trim() ||
-  'https://fliphtml5.com/bookcase/smonj/red'
+  'https://tosuthien.com/flip-shelf'
 
 const route = useRoute()
 const router = useRouter()
@@ -148,9 +149,6 @@ watch(
           allowfullscreen
         />
         <p v-else class="py-10 text-center text-muted">Đang mở kệ sách 3D…</p>
-        <p class="px-4 py-3 text-center text-sm text-muted">
-          FlipHTML5 chỉ tải khi mở tab này. Ảnh bìa nét dùng tab Bản gốc / Đọc chữ.
-        </p>
       </div>
     </template>
 

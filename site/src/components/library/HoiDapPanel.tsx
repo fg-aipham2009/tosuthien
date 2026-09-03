@@ -95,7 +95,7 @@ export function HoiDapPanel() {
               ☰
             </button>
           )}
-          <h2 className="min-w-0 flex-1 truncate text-base font-semibold">{chat.title}</h2>
+          <h2 className="min-w-0 flex-1 text-base font-semibold break-words">{chat.title}</h2>
           <button
             type="button"
             className="rounded-full border border-[var(--c-outline)] px-3 py-1 text-sm font-semibold text-[var(--c-primary)] hover:bg-[var(--c-surface-mid)]"
@@ -219,7 +219,7 @@ function ChatSidebar({
                   : "hover:bg-[var(--c-sidebar-hover)]"
               }`}
             >
-              <span className="line-clamp-2">{c.title}</span>
+              <span>{c.title}</span>
             </button>
             <button
               type="button"
@@ -298,7 +298,7 @@ function BookFilterBar({
     >
       <span className="shrink-0 text-[var(--c-primary)]">{selectedCount ? "▽" : "☰"}</span>
       <span className="min-w-0 flex-1">
-        <strong className="block truncate text-sm">Lọc sách: {label}</strong>
+        <strong className="block text-sm break-words">Lọc sách: {label}</strong>
         <small className="block text-xs opacity-90">
           {selectedCount
             ? `Đang lọc ${selectedCount} sách — giữ qua các lượt hỏi`

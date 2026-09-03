@@ -16,9 +16,8 @@ import {
   SITE_NAME,
   SITE_URL,
   buildMetadata,
-  excerptForOg,
 } from "../../lib/seo";
-import { preferFullPostImageUrl } from "../../lib/postContent";
+import { preferFullPostImageUrl, preferListCoverUrl } from "../../lib/postContent";
 
 export const metadata = buildMetadata({
   title: "Tin Tức Tổ Sư Thiền",
@@ -108,16 +107,19 @@ export default async function TinTucPage({ searchParams }: Props) {
                 </h2>
                 <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
                   {group.items.map((post, i) => {
-                    const excerpt = excerptForOg(
-                      stripHtml(post.excerpt || post.content),
-                      140,
+                    const excerpt = stripHtml(
+                      post.excerpt || post.description || post.content,
                     );
                     const date = formatPostDate(post.publishedAt);
                     // List banner: teacher portrait when known; else post cover / default.
                     // Detail page keeps its own poster/gallery unchanged.
-                    const coverSrc =
+                    const rawCover =
                       resolveTeacherPhotoUrl(post.teacherText, teachers) ||
-                      preferFullPostImageUrl(post.coverImageUrl) ||
+                      post.coverImageUrl ||
+                      null;
+                    const coverSrc =
+                      preferListCoverUrl(rawCover) ||
+                      preferFullPostImageUrl(rawCover) ||
                       "/wp/header-right.png";
                     return (
                       <Reveal key={post.id} delay={(i % 3) * 60}>
@@ -130,6 +132,8 @@ export default async function TinTucPage({ searchParams }: Props) {
                           <img
                             src={coverSrc}
                             alt={post.title}
+                            width={720}
+                            height={540}
                             loading={i < 3 ? "eager" : "lazy"}
                             decoding="async"
                             fetchPriority={i === 0 ? "high" : "auto"}
@@ -155,7 +159,7 @@ export default async function TinTucPage({ searchParams }: Props) {
                             </Link>
                           </h3>
                           {excerpt ? (
-                            <p className="mt-2 line-clamp-3 text-base leading-6 text-ink">
+                            <p className="mt-2 text-base leading-6 text-ink whitespace-pre-wrap break-words">
                               {excerpt}
                             </p>
                           ) : null}

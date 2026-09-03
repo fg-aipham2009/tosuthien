@@ -141,12 +141,17 @@ export class UploadService {
 
   async uploadPostCover(id: string, file: Express.Multer.File) {
     this.assertImage(file);
-    // Always store tin tức covers as PNG (same pipeline as book covers).
-    const pngBuffer = await this.toPngBuffer(file);
+    // Full cover: capped PNG for detail/OG. List uses cover-thumb.webp (~50–120KB).
+    const { pngBuffer, thumbBuffer } = await this.toCoverBuffers(file);
     const { url } = this.saveBuffer(
       MEDIA_DIRS.images,
       pngBuffer,
       path.join('posts', id, 'cover.png'),
+    );
+    this.saveBuffer(
+      MEDIA_DIRS.images,
+      thumbBuffer,
+      path.join('posts', id, 'cover-thumb.webp'),
     );
     const postDir = path.join(this.dataRoot, MEDIA_DIRS.images, 'posts', id);
     for (const legacy of ['cover.jpg', 'cover.jpeg', 'cover.webp', 'cover.gif']) {
@@ -182,11 +187,16 @@ export class UploadService {
 
   async uploadTeacherPhoto(id: string, file: Express.Multer.File) {
     this.assertImage(file);
-    const pngBuffer = await this.toPngBuffer(file);
+    const { pngBuffer, thumbBuffer } = await this.toCoverBuffers(file);
     const { url } = this.saveBuffer(
       MEDIA_DIRS.images,
       pngBuffer,
       path.join('teachers', id, 'photo.png'),
+    );
+    this.saveBuffer(
+      MEDIA_DIRS.images,
+      thumbBuffer,
+      path.join('teachers', id, 'photo-thumb.webp'),
     );
     return this.teachersService.setPhoto(id, url);
   }
@@ -277,6 +287,29 @@ export class UploadService {
       return await sharp(file.buffer).rotate().png({ compressionLevel: 9 }).toBuffer();
     } catch {
       throw new BadRequestException('Không chuyển được ảnh sang PNG');
+    }
+  }
+
+  /** Post cover: max 1600px PNG + list thumb WebP (720px). */
+  private async toCoverBuffers(
+    file: Express.Multer.File,
+  ): Promise<{ pngBuffer: Buffer; thumbBuffer: Buffer }> {
+    const sharp = (await import('sharp')).default;
+    try {
+      const base = sharp(file.buffer).rotate();
+      const pngBuffer = await base
+        .clone()
+        .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+        .png({ compressionLevel: 9 })
+        .toBuffer();
+      const thumbBuffer = await base
+        .clone()
+        .resize({ width: 720, height: 720, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 78 })
+        .toBuffer();
+      return { pngBuffer, thumbBuffer };
+    } catch {
+      throw new BadRequestException('Không xử lý được ảnh bìa');
     }
   }
 }

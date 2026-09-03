@@ -32,6 +32,7 @@ export type Post = {
   isPinned: boolean;
   sortOrder: number;
   isPublished: boolean;
+  kind?: 'news' | 'class' | 'center' | string;
   topicText?: string | null;
   teacherText?: string | null;
   scheduleText?: string | null;

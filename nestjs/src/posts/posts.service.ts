@@ -134,6 +134,40 @@ export class PostsService {
     return { isDeleted: false };
   }
 
+  private resolveKind(kind?: string | null): 'news' | 'class' | 'center' {
+    if (kind === 'class' || kind === 'center' || kind === 'news') return kind;
+    return 'news';
+  }
+
+  private resolveTitle(dto: {
+    title?: string;
+    description?: string;
+    content?: string;
+    kind?: string | null;
+  }): string {
+    const titled = dto.title?.trim();
+    if (titled) return titled;
+    const fromBody = (dto.description || dto.content || '')
+      .trim()
+      .split(/\n/)[0]
+      ?.replace(/<[^>]+>/g, '')
+      .trim()
+      .slice(0, 80);
+    if (fromBody) return fromBody;
+    if (dto.kind === 'class') return 'Thông báo lớp học';
+    if (dto.kind === 'center') return 'Thông báo thiền đường';
+    return 'Tin tức';
+  }
+
+  private resolveBody(dto: { description?: string; content?: string }): {
+    description: string | null;
+    content: string | null;
+  } {
+    const body =
+      (dto.description ?? dto.content ?? '').trim() || null;
+    return { description: body, content: dto.content?.trim() || body };
+  }
+
   private async uniqueCategorySlug(
     base: string,
     excludeId?: string,
@@ -209,6 +243,66 @@ export class PostsService {
       ];
     }
 
+    // Public list cards only need light fields — full HTML/images kill TTFB.
+    if (!params.all) {
+      const [total, rows] = await this.prisma.$transaction([
+        this.prisma.post.count({ where }),
+        this.prisma.post.findMany({
+          where,
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            excerpt: true,
+            coverImageUrl: true,
+            publishedAt: true,
+            isPinned: true,
+            sortOrder: true,
+            isPublished: true,
+            kind: true,
+            topicText: true,
+            teacherText: true,
+            scheduleText: true,
+            createdAt: true,
+            updatedAt: true,
+            description: true,
+            categories: {
+              include: { category: true },
+            },
+          },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+          skip,
+          take: limit,
+        }),
+      ]);
+
+      return {
+        items: rows.map((row) => {
+          const { categories, description, excerpt, ...rest } = row;
+          const excerptOut =
+            (excerpt || '').trim() ||
+            this.excerptFromHtml(description);
+          return {
+            ...rest,
+            excerpt: excerptOut,
+            content: null,
+            description: null,
+            images: [] as PostImage[],
+            categories: categories
+              .map((link) => link.category)
+              .sort(
+                (a, b) =>
+                  a.sortOrder - b.sortOrder || a.name.localeCompare(b.name),
+              ),
+          };
+        }),
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    }
+
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.post.count({ where }),
       this.prisma.post.findMany({
@@ -232,6 +326,19 @@ export class PostsService {
     };
   }
 
+  private excerptFromHtml(html?: string | null): string | null {
+    if (!html?.trim()) return null;
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return text || null;
+  }
+
   async findBySlug(slug: string) {
     const post = await this.prisma.post.findFirst({
       where: { slug, isPublished: true, isDeleted: false },
@@ -251,7 +358,10 @@ export class PostsService {
   }
 
   async create(dto: CreatePostDto) {
-    const slug = await this.uniqueSlug(dto.slug || dto.title);
+    const kind = this.resolveKind(dto.kind);
+    const title = this.resolveTitle({ ...dto, kind });
+    const body = this.resolveBody(dto);
+    const slug = await this.uniqueSlug(dto.slug || title);
     const publishedAt =
       this.parsePublishedAt(dto.publishedAt) ??
       (dto.publishedAt === undefined ? new Date() : null);
@@ -263,10 +373,11 @@ export class PostsService {
 
     const post = await this.prisma.post.create({
       data: {
-        title: dto.title,
+        title,
+        kind,
         slug,
         excerpt: dto.excerpt,
-        content: dto.content,
+        content: body.content,
         coverImageUrl: dto.coverImageUrl,
         sourceUrl: dto.sourceUrl,
         authorName: dto.authorName,
@@ -285,7 +396,7 @@ export class PostsService {
         ...(zoom.zoomRoomId !== undefined
           ? { zoomRoomId: zoom.zoomRoomId }
           : {}),
-        description: dto.description,
+        description: body.description,
         ...(categoryIds.length
           ? {
               categories: {
@@ -308,9 +419,25 @@ export class PostsService {
 
     const data: Prisma.PostUpdateInput = {};
 
-    if (dto.title !== undefined) data.title = dto.title;
+    if (dto.title !== undefined) {
+      data.title = dto.title.trim() || existing.title;
+    }
+    if (dto.kind !== undefined) data.kind = this.resolveKind(dto.kind);
     if (dto.excerpt !== undefined) data.excerpt = dto.excerpt;
-    if (dto.content !== undefined) data.content = dto.content;
+    if (dto.content !== undefined || dto.description !== undefined) {
+      const body = this.resolveBody({
+        description:
+          dto.description !== undefined
+            ? dto.description
+            : existing.description || undefined,
+        content:
+          dto.content !== undefined
+            ? dto.content
+            : existing.content || undefined,
+      });
+      data.description = body.description;
+      data.content = body.content;
+    }
     if (dto.coverImageUrl !== undefined) data.coverImageUrl = dto.coverImageUrl;
     if (dto.sourceUrl !== undefined) data.sourceUrl = dto.sourceUrl;
     if (dto.authorName !== undefined) data.authorName = dto.authorName;
@@ -322,7 +449,6 @@ export class PostsService {
     if (dto.topicText !== undefined) data.topicText = dto.topicText;
     if (dto.teacherText !== undefined) data.teacherText = dto.teacherText;
     if (dto.scheduleText !== undefined) data.scheduleText = dto.scheduleText;
-    if (dto.description !== undefined) data.description = dto.description;
 
     if (
       dto.zoomRoomId !== undefined ||

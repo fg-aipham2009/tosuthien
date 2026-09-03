@@ -9,7 +9,12 @@ import {
   Video,
 } from "lucide-react";
 import { Reveal } from "./motion/Reveal";
-import type { PostDisplayData } from "../lib/postContent";
+import { CenterGallery } from "./CenterGallery";
+import {
+  imageUrlsInHtml,
+  preferFullPostImageUrl,
+  type PostDisplayData,
+} from "../lib/postContent";
 
 type SectionCardProps = {
   step: string;
@@ -48,7 +53,7 @@ function SectionCard({
             <Icon className="size-6" strokeWidth={1.85} />
           </span>
           <span className="text-[1.05rem] font-bold uppercase tracking-[0.1em] text-primary md:text-[1.12rem]">
-            {step}. {label}
+            {/^\d+$/.test(step) ? `${step}. ${label}` : `${step} · ${label}`}
           </span>
         </div>
         <div className="min-w-0 flex-1 text-[1.15rem] leading-relaxed text-ink md:text-[1.2rem]">
@@ -71,16 +76,34 @@ export function PostArticleBody({
   coverFallback,
   publishedLabel,
 }: Props) {
-  const posters =
+  const { topic, teacher, schedule, zoom } = display.sections;
+  const isClassNotice =
+    display.kind === "class" || Boolean(teacher || schedule);
+  const isCenterNotice = display.kind === "center";
+  /** Class/center show poster banner on detail; news cover is list-only. */
+  const showPosterGallery = isClassNotice || isCenterNotice;
+  const postersAll =
     display.posterUrls?.length
       ? display.posterUrls
       : display.posterUrl
         ? [display.posterUrl]
-        : coverFallback
+        : showPosterGallery && coverFallback
           ? [coverFallback]
           : [];
-  const { topic, teacher, schedule, zoom } = display.sections;
-  const isClassNotice = Boolean(teacher || schedule);
+  const coverNorm = coverFallback
+    ? preferFullPostImageUrl(coverFallback) || coverFallback
+    : null;
+  const inline = new Set(
+    imageUrlsInHtml(display.proseHtml).map(
+      (url) => preferFullPostImageUrl(url) || url,
+    ),
+  );
+  const posters = postersAll.filter((src) => {
+    const full = preferFullPostImageUrl(src) || src;
+    if (inline.has(full)) return false;
+    if (!showPosterGallery && coverNorm && full === coverNorm) return false;
+    return true;
+  });
   const hasClassCards = Boolean(topic || teacher || schedule || zoom);
 
   return (
@@ -189,9 +212,9 @@ export function PostArticleBody({
       {!isClassNotice ? (
         <>
           {topic ? (
-            <SectionCard step="1" label="Đề tài" Icon={BookOpenText} delay={80}>
-              <p className="font-semibold text-primary">{topic}</p>
-            </SectionCard>
+            <p className="text-center text-lg font-semibold text-primary md:text-xl">
+              {topic}
+            </p>
           ) : null}
 
           {display.proseHtml ? (
@@ -203,10 +226,27 @@ export function PostArticleBody({
             </Reveal>
           ) : null}
 
+          {posters.length === 1 ? (
+            <Reveal delay={200} variant="zoom">
+              <figure className="post-poster overflow-hidden rounded-[14px] border border-line bg-paper-warm p-2 shadow-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={posters[0]}
+                  alt=""
+                  loading="eager"
+                  decoding="async"
+                  className="mx-auto max-h-[min(520px,70vh)] w-auto max-w-full rounded-[10px] object-contain"
+                />
+              </figure>
+            </Reveal>
+          ) : posters.length > 1 ? (
+            <CenterGallery urls={posters} templeName="Tin tức" />
+          ) : null}
+
           {zoom ? (
             <SectionCard
-              step="3"
-              label="Phòng Zoom"
+              step="Zoom"
+              label="Phòng họp"
               Icon={Video}
               accent
               delay={200}
@@ -233,25 +273,6 @@ export function PostArticleBody({
                 Vào phòng Zoom
               </Link>
             </SectionCard>
-          ) : null}
-
-          {posters.length ? (
-            <div className="space-y-4">
-              {posters.map((src, index) => (
-                <Reveal key={`${src}-${index}`} delay={260 + index * 40} variant="zoom">
-                  <figure className="post-poster overflow-hidden rounded-[14px] border border-line bg-paper-warm p-2 shadow-sm">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt=""
-                      loading={index === 0 ? "eager" : "lazy"}
-                      decoding="async"
-                      className="mx-auto max-h-[min(640px,75vh)] w-auto max-w-full rounded-[10px] object-contain"
-                    />
-                  </figure>
-                </Reveal>
-              ))}
-            </div>
           ) : null}
         </>
       ) : (

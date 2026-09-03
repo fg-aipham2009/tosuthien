@@ -280,6 +280,8 @@ model Post {
   isPublished     Boolean   @default(true) @map("is_published")
   /// Soft delete — excluded from list/detail when true.
   isDeleted       Boolean   @default(false) @map("is_deleted")
+  /// news = free-form; class = lớp học; center = thiền đường.
+  kind            String    @default("news")
   /// Structured class-notice fields (admin form; preferred over legacy HTML content).
   topicText       String?   @map("topic_text")
   teacherText     String?   @map("teacher_text")
@@ -301,6 +303,7 @@ model Post {
   @@index([isPinned, sortOrder], map: "idx_posts_pinned_sort")
   @@index([zoomRoomId], map: "idx_posts_zoom_room")
   @@index([isDeleted, createdAt(sort: Desc)], map: "idx_posts_not_deleted")
+  @@index([kind], map: "idx_posts_kind")
   @@map("posts")
 }
 

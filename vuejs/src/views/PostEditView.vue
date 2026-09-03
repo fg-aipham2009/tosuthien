@@ -17,6 +17,7 @@ import {
 import { fetchZoomRooms } from '@/api/zoom-rooms';
 import { fetchTeachers } from '@/api/teachers';
 import { fetchCenters } from '@/api/centers';
+import PostBodyEditor from '@/components/PostBodyEditor.vue';
 import type {
   Center,
   PostCategory,
@@ -67,12 +68,18 @@ const images = ref<PostImage[]>([]);
 const contentImages = computed(() => images.value.filter((image) => image.role !== 'cover'));
 const uploadingCover = ref(false);
 const uploadingImages = ref(false);
+const bodyEditorRef = ref<{ insertImages: (urls: string[]) => void; saveSelection: () => void } | null>(
+  null,
+);
+const inlineFileRef = ref<HTMLInputElement | null>(null);
+let embedInBody = false;
 
 /** Class: teacher + schedule. Center: pick thiền đường banner. News: topic/body/zoom/images. */
 type PostKind = 'news' | 'class' | 'center';
 const postKind = ref<PostKind>('news');
 const isClassNotice = computed(() => postKind.value === 'class');
 const isCenterNotice = computed(() => postKind.value === 'center');
+const isNews = computed(() => postKind.value === 'news');
 
 const selectedZoomHint = computed(() => {
   const room = zoomRooms.value.find((z) => z.id === form.zoomRoomId);
@@ -107,9 +114,7 @@ function matchTeacherId(text: string | null | undefined): string | null {
 const IMAGE_MAX = 15 * 1024 * 1024;
 const IMAGE_OK = /\.(jpe?g|png|webp|gif)$/i;
 
-const rules: FormRules = {
-  title: [{ required: true, message: 'Nhập tiêu đề', trigger: 'blur' }],
-};
+const rules: FormRules = {};
 
 function assertImage(file: File) {
   if (!IMAGE_OK.test(file.name)) {
@@ -123,6 +128,24 @@ function assertImage(file: File) {
   return true;
 }
 
+function htmlFromDescription(raw: string) {
+  const text = (raw || '').trim();
+  if (!text) return '';
+  if (/<[a-z][\s\S]*>/i.test(text)) return text;
+  return text
+    .split(/\n{2,}/)
+    .map((block) => `<p>${block.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
+
+function textFromHtml(html: string) {
+  return html
+    .replace(/<img[^>]*>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 function defaultTinTucCategoryIds(): string[] {
   const tinTuc = categories.value.find((c) => c.slug === 'tin-tuc');
   return tinTuc ? [tinTuc.id] : [];
@@ -144,13 +167,13 @@ function applyPost(p: Awaited<ReturnType<typeof fetchPost>>) {
       (z) => z.meetingId === (p.zoomMeetingId || '').replace(/\s/g, ''),
     )?.id ||
     null;
-  form.description = p.description ?? '';
+  form.description = htmlFromDescription(p.description ?? p.content ?? '');
   coverImageUrl.value = p.coverImageUrl;
   images.value = p.images ?? [];
   centerId.value = matchCenterId(p);
-  if ((p.teacherText || '').trim() || (p.scheduleText || '').trim()) {
+  if (p.kind === 'class' || (p.teacherText || '').trim() || (p.scheduleText || '').trim()) {
     postKind.value = 'class';
-  } else if (centerId.value) {
+  } else if (p.kind === 'center' || centerId.value) {
     postKind.value = 'center';
   } else {
     postKind.value = 'news';
@@ -292,12 +315,13 @@ async function loadPost() {
 }
 
 function buildPayload(): PostFormData {
+  const description = form.description.trim();
   return {
     title: form.title.trim(),
+    kind: postKind.value,
     categoryIds: form.categoryIds.length
       ? form.categoryIds
       : defaultTinTucCategoryIds(),
-    // Auto timestamp — no UI for createdAt/publishedAt
     publishedAt: form.publishedAt || new Date().toISOString().slice(0, 19),
     isPublished: form.isPublished,
     sortOrder: form.sortOrder ?? 0,
@@ -305,26 +329,31 @@ function buildPayload(): PostFormData {
     teacherText: isClassNotice.value ? form.teacherText.trim() : '',
     scheduleText: isClassNotice.value ? form.scheduleText.trim() : '',
     zoomRoomId: form.zoomRoomId,
-    description: form.description.trim(),
+    description,
+    content: description,
   };
+}
+
+function hasPostBody(): boolean {
+  return Boolean(
+    form.title.trim() ||
+      textFromHtml(form.description) ||
+      /<img/i.test(form.description) ||
+      form.topicText.trim() ||
+      coverImageUrl.value ||
+      contentImages.value.length ||
+      (isClassNotice.value && (form.teacherText.trim() || form.scheduleText.trim())) ||
+      (isCenterNotice.value && centerId.value),
+  );
 }
 
 /** Create draft post when uploading images on the "new" screen. */
 async function ensurePostId(): Promise<string | null> {
   if (postId.value) return postId.value;
-  const title = form.title.trim();
-  if (!title) {
-    ElMessage.warning('Nhập tiêu đề trước khi upload ảnh');
-    return null;
-  }
   saving.value = true;
   try {
     const created = await createPost(buildPayload());
     activePostId.value = created.id;
-    applyPost(created);
-    await flushPendingCover();
-    await router.replace(`/posts/${created.id}`);
-    ElMessage.success('Đã tạo bài — tiếp tục upload ảnh');
     return created.id;
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : 'Không tạo được bài');
@@ -335,8 +364,10 @@ async function ensurePostId(): Promise<string | null> {
 }
 
 async function save() {
-  const valid = await formRef.value?.validate().catch(() => false);
-  if (!valid) return;
+  if (!hasPostBody() && !postId.value) {
+    ElMessage.warning('Nhập nội dung hoặc thêm ảnh');
+    return;
+  }
 
   saving.value = true;
   try {
@@ -351,6 +382,9 @@ async function save() {
       const updated = await updatePost(postId.value, buildPayload());
       applyPost(updated);
       await flushPendingCover();
+      if (route.name === 'post-new') {
+        await router.replace(`/posts/${updated.id}`);
+      }
       ElMessage.success('Đã lưu');
     }
   } catch (e) {
@@ -392,21 +426,99 @@ async function onClearCover() {
   }
 }
 
-async function onImagesUpload(file: UploadRawFile) {
-  if (!assertImage(file)) return false;
+const galleryQueue: UploadRawFile[] = [];
+let galleryFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function onImagesUpload(file: UploadRawFile) {
+  queueImageFiles([file]);
+  return false;
+}
+
+function queueImageFiles(files: File[]) {
+  let added = 0;
+  for (const file of files) {
+    if (!assertImage(file)) continue;
+    galleryQueue.push(file as UploadRawFile);
+    added += 1;
+  }
+  if (!added) return;
+  if (galleryFlushTimer) clearTimeout(galleryFlushTimer);
+  galleryFlushTimer = setTimeout(() => {
+    galleryFlushTimer = null;
+    void flushGalleryQueue();
+  }, 30);
+}
+
+function onPasteImages(e: ClipboardEvent) {
+  if (isNews.value) return;
+  const files = [...(e.clipboardData?.files ?? [])].filter(
+    (file) => file.type.startsWith('image/') || IMAGE_OK.test(file.name),
+  );
+  if (!files.length) return;
+  e.preventDefault();
+  queueImageFiles(files);
+}
+
+function pickInlineImages() {
+  embedInBody = true;
+  bodyEditorRef.value?.saveSelection();
+  inlineFileRef.value?.click();
+}
+
+function onInlineFilesSelected(e: Event) {
+  const input = e.target as HTMLInputElement;
+  embedInBody = true;
+  queueImageFiles([...(input.files ?? [])]);
+  input.value = '';
+}
+
+function onEditorFiles(files: File[]) {
+  embedInBody = true;
+  queueImageFiles(files);
+}
+
+async function flushGalleryQueue() {
+  const files = galleryQueue.splice(0);
+  if (!files.length) return;
+  const putInBody = embedInBody;
+  embedInBody = false;
+  const urlsBefore = new Set(images.value.map((image) => image.url));
   const id = await ensurePostId();
-  if (!id) return false;
+  if (!id) {
+    ElMessage.warning('Không tạo được bài để gắn ảnh');
+    return;
+  }
   uploadingImages.value = true;
   try {
-    const updated = await uploadPostImages(id, [file]);
-    images.value = updated.images ?? [];
-    ElMessage.success('Đã thêm ảnh');
+    let rest = files;
+    let updated: Awaited<ReturnType<typeof uploadPostImages>> | null = null;
+    if (!putInBody && !coverImageUrl.value && rest.length) {
+      const cover = rest[0];
+      rest = rest.slice(1);
+      updated = await uploadPostCover(id, cover);
+      coverImageUrl.value = updated.coverImageUrl;
+      images.value = updated.images ?? images.value;
+    }
+    if (rest.length) {
+      updated = await uploadPostImages(id, rest);
+    }
+    if (updated) images.value = updated.images ?? [];
+    if (putInBody) {
+      const urls: string[] = [];
+      for (const image of images.value) {
+        if (!urlsBefore.has(image.url)) urls.push(image.url);
+      }
+      bodyEditorRef.value?.insertImages([...new Set(urls)]);
+    }
+    ElMessage.success(
+      files.length > 1 ? `Đã thêm ${files.length} ảnh` : 'Đã thêm ảnh',
+    );
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : 'Upload thất bại');
   } finally {
     uploadingImages.value = false;
+    if (galleryQueue.length) void flushGalleryQueue();
   }
-  return false;
 }
 
 async function onDeleteImage(img: PostImage) {
@@ -436,12 +548,10 @@ onMounted(async () => {
 
 watch(
   () => route.params.id,
-  async () => {
-    if (route.name === 'post-new') {
-      activePostId.value = null;
-      return;
-    }
-    activePostId.value = String(route.params.id || '') || null;
+  async (id) => {
+    if (route.name === 'post-new') return;
+    if (id && id === activePostId.value) return;
+    activePostId.value = String(id || '') || null;
     await loadPost();
   },
 );
@@ -457,7 +567,7 @@ watch(
       </div>
     </div>
 
-    <el-card shadow="never">
+    <el-card shadow="never" @paste="onPasteImages">
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
         <el-form-item label="Loại bài">
           <el-radio-group v-model="postKind">
@@ -467,7 +577,7 @@ watch(
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="Tiêu đề" prop="title">
+        <el-form-item label="Tiêu đề">
           <el-input
             v-model="form.title"
             :placeholder="
@@ -475,7 +585,7 @@ watch(
                 ? 'VD: Thông báo lớp học chuyên đề …'
                 : isCenterNotice
                   ? 'VD: Thông báo thiền đường …'
-                  : 'VD: Thông báo khoá tu …'
+                  : 'Tuỳ chọn — để trống thì hệ thống tự đặt tiêu đề'
             "
           />
         </el-form-item>
@@ -499,9 +609,9 @@ watch(
           </el-col>
         </el-row>
 
-        <div class="form-section-title">TIN TỨC</div>
+        <div class="form-section-title">{{ isNews ? 'Nội dung' : 'TIN TỨC' }}</div>
 
-        <el-form-item label="1. Đề tài">
+        <el-form-item :label="isNews ? 'Đề tài (tuỳ chọn)' : '1. Đề tài'">
           <el-input
             v-model="form.topicText"
             :placeholder="
@@ -612,7 +722,7 @@ watch(
           </div>
         </el-form-item>
 
-        <el-form-item label="2. Viết bài tin tức">
+        <el-form-item v-if="!isNews" :label="'2. Viết bài tin tức'">
           <el-input
             v-model="form.description"
             type="textarea"
@@ -620,14 +730,30 @@ watch(
             :placeholder="
               isClassNotice
                 ? 'Mô tả thêm (tuỳ chọn)'
-                : isCenterNotice
-                  ? 'Nội dung thông báo thiền đường…'
-                  : 'Nội dung tin / khoá tu…'
+                : 'Nội dung thông báo thiền đường…'
             "
           />
         </el-form-item>
 
-        <el-form-item label="3. Phòng Zoom">
+        <el-form-item v-else label="Viết bài">
+          <PostBodyEditor
+            ref="bodyEditorRef"
+            v-model="form.description"
+            :disabled="uploadingImages || saving"
+            @pick-images="pickInlineImages"
+            @files="onEditorFiles"
+          />
+          <input
+            ref="inlineFileRef"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            hidden
+            @change="onInlineFilesSelected"
+          />
+        </el-form-item>
+
+        <el-form-item v-if="!isNews" label="3. Phòng Zoom">
           <el-select
             v-model="form.zoomRoomId"
             clearable
@@ -646,13 +772,21 @@ watch(
         </el-form-item>
       </el-form>
 
-      <div class="form-section-title">4. Đăng nhiều hình ảnh</div>
+      <div v-if="!isNews" class="form-section-title">4. Đăng nhiều hình ảnh</div>
+      <template v-if="!isNews">
       <p class="hint">
-        JPG / PNG / WEBP / GIF · tối đa 15MB. Ảnh bìa hiện trên danh sách tin; ảnh khác hiện dưới bài.
+        JPG / PNG / WEBP / GIF · tối đa 15MB.
+        <template v-if="isCenterNotice">
+          Ảnh bìa là banner thiền đường; bấm «Thêm nhiều ảnh» để hiện gallery trên trang tin.
+        </template>
+        <template v-else>
+          Ảnh bìa hiện trên danh sách tin; ảnh khác hiện dưới bài.
+        </template>
       </p>
       <div class="main-row">
         <el-image
           v-if="coverImageUrl"
+          :key="coverImageUrl"
           :src="coverImageUrl"
           fit="cover"
           class="main-preview"
@@ -682,15 +816,21 @@ watch(
       </div>
 
       <el-upload
+        drag
         :show-file-list="false"
         accept="image/jpeg,image/png,image/webp,image/gif"
         multiple
         :disabled="uploadingImages || saving"
         :before-upload="onImagesUpload"
+        class="image-drop"
       >
-        <el-button type="primary" plain :loading="uploadingImages || saving">
-          Thêm nhiều ảnh
-        </el-button>
+        <div class="drop-copy">
+          {{
+            uploadingImages
+              ? 'Đang tải ảnh…'
+              : 'Kéo thả ảnh vào đây, dán Ctrl+V, hoặc bấm để chọn nhiều ảnh'
+          }}
+        </div>
       </el-upload>
 
       <div v-if="contentImages.length" class="gallery-grid">
@@ -707,6 +847,61 @@ watch(
           </div>
         </div>
       </div>
+      </template>
+
+      <div v-if="isNews" class="form-section-title">Ảnh bìa (danh sách tin)</div>
+      <div v-if="isNews" class="main-row">
+        <el-image
+          v-if="coverImageUrl"
+          :key="coverImageUrl"
+          :src="coverImageUrl"
+          fit="cover"
+          class="main-preview"
+          :preview-src-list="[coverImageUrl]"
+        />
+        <div v-else class="main-preview empty">Chưa có ảnh bìa</div>
+        <div class="main-actions">
+          <el-upload
+            :show-file-list="false"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            :disabled="uploadingCover || saving"
+            :before-upload="onCoverUpload"
+          >
+            <el-button type="primary" :loading="uploadingCover || saving">
+              {{ coverImageUrl ? 'Đổi ảnh bìa' : 'Upload ảnh bìa' }}
+            </el-button>
+          </el-upload>
+          <el-button
+            v-if="coverImageUrl && postId"
+            type="danger"
+            plain
+            @click="onClearCover"
+          >
+            Xóa ảnh bìa
+          </el-button>
+        </div>
+      </div>
+      <p v-if="isNews" class="hint">Tuỳ chọn. Ảnh trong bài dùng nút «Chèn ảnh vào bài» phía trên.</p>
+
+      <el-form v-if="isNews" label-position="top" style="margin-top: 20px">
+        <el-form-item label="Phòng Zoom (tuỳ chọn)">
+          <el-select
+            v-model="form.zoomRoomId"
+            clearable
+            filterable
+            placeholder="Chọn phòng Zoom nếu tin có họp online"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="z in zoomRooms"
+              :key="z.id"
+              :label="`${z.name} — ID ${z.meetingId}`"
+              :value="z.id"
+            />
+          </el-select>
+          <p v-if="selectedZoomHint" class="hint zoom-hint">{{ selectedZoomHint }}</p>
+        </el-form-item>
+      </el-form>
     </el-card>
   </div>
 </template>
@@ -777,6 +972,20 @@ watch(
   gap: 2px;
   padding: 4px 2px;
   background: #fff;
+}
+
+.image-drop {
+  width: 100%;
+}
+
+.image-drop :deep(.el-upload-dragger) {
+  padding: 28px 16px;
+  border-radius: 12px;
+}
+
+.drop-copy {
+  color: #6b7280;
+  font-size: 0.95rem;
 }
 
 .teacher-option {

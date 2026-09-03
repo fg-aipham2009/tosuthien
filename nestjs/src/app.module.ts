@@ -38,7 +38,12 @@ import { ZoomRoomsModule } from './zoom-rooms/zoom-rooms.module';
         return [{
           rootPath: root,
           serveRoot: '/files',
-          serveStaticOptions: { index: false, fallthrough: true },
+          // No SPA fallback under /files — missing paths must 404 cleanly (not look for index.html).
+          serveStaticOptions: {
+            index: false,
+            fallthrough: false,
+            redirect: false,
+          },
         }];
       },
     }),

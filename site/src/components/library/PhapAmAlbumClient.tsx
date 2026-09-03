@@ -259,7 +259,7 @@ export function PhapAmAlbumClient({
                     <FolderIcon />
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-lg font-semibold text-black">
+                    <span className="block text-lg font-semibold text-black break-words">
                       {name}
                     </span>
                     <span className="text-xs text-muted">Mở thư mục</span>
@@ -300,7 +300,7 @@ export function PhapAmAlbumClient({
                         onClick={() => playAt(filteredTracks, i)}
                       >
                         <span
-                          className={`block truncate ${active ? "font-semibold text-primary" : "font-medium text-black"}`}
+                          className={`block break-words ${active ? "font-semibold text-primary" : "font-medium text-black"}`}
                         >
                           {t.title}
                         </span>

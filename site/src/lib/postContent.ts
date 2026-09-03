@@ -24,11 +24,30 @@ export type PostDisplayData = {
   posterUrls?: string[];
   proseHtml: string;
   sections: PostAnnouncementSections;
+  kind?: string;
 };
 
 export function preferFullPostImageUrl(url?: string | null): string | undefined {
   if (!url) return undefined;
   return url.replace(POST_FILE_SIZE, "$1");
+}
+
+/**
+ * List cards: prefer small WebP sibling (~50–120KB).
+ * - cover.png → cover-thumb.webp
+ * - photo.png → photo-thumb.webp
+ * - foo.png → foo.list.webp
+ */
+export function preferListCoverUrl(url?: string | null): string | undefined {
+  const full = preferFullPostImageUrl(url);
+  if (!full) return undefined;
+  if (/\/cover\.(png|jpe?g|webp|gif)$/i.test(full)) {
+    return full.replace(/\/cover\.(png|jpe?g|webp|gif)$/i, "/cover-thumb.webp");
+  }
+  if (/\/photo\.(png|jpe?g|webp|gif)$/i.test(full)) {
+    return full.replace(/\/photo\.(png|jpe?g|webp|gif)$/i, "/photo-thumb.webp");
+  }
+  return full.replace(/\.(png|jpe?g|webp|gif)$/i, ".list.webp");
 }
 
 export function normalizePostHtml(html?: string | null): string {
@@ -197,6 +216,7 @@ export function extractPostDisplayData(html: string): PostDisplayData {
 }
 
 type StructuredPostInput = {
+  kind?: string | null;
   topicText?: string | null;
   teacherText?: string | null;
   scheduleText?: string | null;
@@ -209,26 +229,77 @@ type StructuredPostInput = {
   images?: Array<{ role: string; url: string; sortOrder?: number }>;
 };
 
-function hasStructuredAnnouncement(post: StructuredPostInput): boolean {
+function hasAdminPostFields(post: StructuredPostInput): boolean {
   return Boolean(
-    post.topicText?.trim() ||
+    post.kind === "class" ||
+      post.kind === "center" ||
+      post.topicText?.trim() ||
       post.teacherText?.trim() ||
       post.scheduleText?.trim() ||
-      post.zoomMeetingId?.trim(),
+      post.zoomMeetingId?.trim() ||
+      post.description?.trim() ||
+      post.coverImageUrl?.trim() ||
+      (post.images && post.images.length),
   );
+}
+
+function uniqueImageUrls(urls: Array<string | undefined>): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of urls) {
+    const url = preferFullPostImageUrl(raw);
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+  }
+  return out;
+}
+
+function isNewsOnlyPost(post: StructuredPostInput): boolean {
+  if (post.kind === "center" || post.kind === "class") return false;
+  if (post.kind === "news") return true;
+  return !post.teacherText?.trim() && !post.scheduleText?.trim();
 }
 
 function pickPosterUrls(post: StructuredPostInput): string[] {
   const images = [...(post.images ?? [])].sort(
     (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
   );
-  const fromImages = images
+  const extras = images
     .filter((img) => img.role === "poster" || img.role === "content")
-    .map((img) => preferFullPostImageUrl(img.url))
-    .filter((url): url is string => Boolean(url));
-  if (fromImages.length) return fromImages;
-  const cover = preferFullPostImageUrl(post.coverImageUrl);
-  return cover ? [cover] : [];
+    .map((img) => img.url);
+
+  // News: cover is list-thumbnail only — gallery = extra uploads not in HTML.
+  if (isNewsOnlyPost(post)) {
+    return uniqueImageUrls(extras);
+  }
+
+  const covers = images
+    .filter((img) => img.role === "cover")
+    .map((img) => img.url);
+  return uniqueImageUrls([post.coverImageUrl ?? undefined, ...covers, ...extras]);
+}
+
+export function imageUrlsInHtml(html?: string | null): string[] {
+  if (!html) return [];
+  const urls: string[] = [];
+  const re = /<img[^>]+src=["']([^"']+)["']/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(html)) !== null) {
+    const url = preferFullPostImageUrl(match[1]);
+    if (url) urls.push(url);
+  }
+  return urls;
+}
+
+function proseFromDescription(desc: string): string {
+  const text = desc.trim();
+  if (!text) return "";
+  if (/<[a-z][\s\S]*>/i.test(text)) return normalizePostHtml(text);
+  return text
+    .split(/\n{2,}/)
+    .map((block) => `<p>${block.replace(/\n/g, "<br>")}</p>`)
+    .join("");
 }
 
 function buildZoomFromFields(post: StructuredPostInput): PostZoomInfo | undefined {
@@ -247,7 +318,7 @@ function buildZoomFromFields(post: StructuredPostInput): PostZoomInfo | undefine
  * Prefer structured admin fields; fall back to legacy WP HTML parsing.
  */
 export function buildPostDisplayData(post: StructuredPostInput): PostDisplayData {
-  if (hasStructuredAnnouncement(post)) {
+  if (hasAdminPostFields(post)) {
     const sections: PostAnnouncementSections = {};
     const topic = post.topicText?.trim();
     const teacher = post.teacherText?.trim();
@@ -258,13 +329,14 @@ export function buildPostDisplayData(post: StructuredPostInput): PostDisplayData
     const zoom = buildZoomFromFields(post);
     if (zoom) sections.zoom = zoom;
 
-    const desc = post.description?.trim();
+    const desc = post.description?.trim() || post.content?.trim();
     const posterUrls = pickPosterUrls(post);
     return {
       posterUrl: posterUrls[0],
       posterUrls,
-      proseHtml: desc ? normalizePostHtml(desc) : "",
+      proseHtml: desc ? proseFromDescription(desc) : "",
       sections,
+      kind: post.kind || undefined,
     };
   }
 
@@ -280,7 +352,8 @@ export function buildPostDisplayData(post: StructuredPostInput): PostDisplayData
         ? [fromHtml.posterUrl]
         : [],
     proseHtml: post.description?.trim()
-      ? normalizePostHtml(post.description)
+      ? proseFromDescription(post.description)
       : fromHtml.proseHtml,
+    kind: post.kind || undefined,
   };
 }
