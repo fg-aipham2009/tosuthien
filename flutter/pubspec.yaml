@@ -1,7 +1,7 @@
 name: tosuthien
 description: Tổ Sư Thiền — tra cứu kinh sách Hoà thượng Thích Duy Lực
 publish_to: 'none'
-version: 1.0.0+12
+version: 1.0.0+1
 
 environment:
   sdk: ^3.8.0

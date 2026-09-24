@@ -1,4 +1,4 @@
-package com.tosuthien.tosuthien
+package net.tosuthien.app
 
 import com.ryanheise.audioservice.AudioServiceActivity
 
