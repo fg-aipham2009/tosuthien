@@ -159,6 +159,18 @@ async function installApp() {
       <RouterView />
     </main>
 
+    <footer
+      class="z-20 shrink-0 border-t border-black/10 bg-surface px-4 py-2 text-center text-xs text-muted lg:px-8"
+    >
+      <RouterLink class="underline-offset-2 hover:text-brand hover:underline" to="/chinh-sach-bao-mat"
+        >Chính sách quyền riêng tư</RouterLink
+      >
+      <span class="mx-2 opacity-40">·</span>
+      <RouterLink class="underline-offset-2 hover:text-brand hover:underline" to="/dieu-khoan"
+        >Điều khoản sử dụng</RouterLink
+      >
+    </footer>
+
     <MiniPlayer />
 
     <nav

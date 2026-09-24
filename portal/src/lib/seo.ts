@@ -36,6 +36,18 @@ const ROUTE_SEO: Record<
     description: "Danh sách thiền đường, chùa trong Tông Phong Tổ Sư Thiền.",
     path: "/thien-duong",
   },
+  "/chinh-sach-bao-mat": {
+    title: "Chính sách quyền riêng tư",
+    description:
+      "Chính sách quyền riêng tư ứng dụng và website Tổ Sư Thiền (tosuthien.net).",
+    path: "/chinh-sach-bao-mat",
+  },
+  "/dieu-khoan": {
+    title: "Điều khoản sử dụng",
+    description:
+      "Điều khoản sử dụng và tiêu chuẩn cộng đồng Tổ Sư Thiền, bao gồm cấm CSAE.",
+    path: "/dieu-khoan",
+  },
 };
 
 function matchRoute(path: string) {

@@ -52,6 +52,18 @@ const router = createRouter({
       component: () => import('./views/CenterDetailView.vue'),
       meta: { title: 'Chi tiết thiền đường' },
     },
+    {
+      path: '/chinh-sach-bao-mat',
+      name: 'privacy',
+      component: () => import('./views/PrivacyPolicyView.vue'),
+      meta: { title: 'Chính sách quyền riêng tư' },
+    },
+    {
+      path: '/dieu-khoan',
+      name: 'terms',
+      component: () => import('./views/TermsOfServiceView.vue'),
+      meta: { title: 'Điều khoản sử dụng' },
+    },
   ],
   scrollBehavior() {
     return { top: 0 }
