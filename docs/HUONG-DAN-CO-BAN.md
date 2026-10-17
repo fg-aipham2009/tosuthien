@@ -284,7 +284,7 @@ HHTECH_API_KEY=sk-...
 
 HHTECH_BASE_URL=https://hhtechapi.com/v1
 
-CHAT_MODEL=claude-opus-4-6
+CHAT_MODEL=claude-opus-5-5
 
 
 
@@ -294,9 +294,9 @@ EMBEDDING_BASE_URL=http://localhost:7997/v1
 
 EMBEDDING_API_KEY=local
 
-EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+EMBEDDING_MODEL=BAAI/bge-m3
 
-EMBEDDING_DIM=384
+EMBEDDING_DIM=1024
 
 ```
 
@@ -310,7 +310,7 @@ EMBEDDING_DIM=384
 
 | `HHTECH_API_KEY` | API key từ hhtechapi.com |
 
-| `CHAT_MODEL` | `claude-opus-4-6` |
+| `CHAT_MODEL` | `claude-opus-5-5` |
 
 | `EMBEDDING_*` | Trỏ embed server local — không tốn phí API |
 
@@ -342,7 +342,7 @@ OCR_MODEL=claude-opus-4-6
 
 Câu hỏi
 
-  → embed câu hỏi (local MiniLM, 384-dim)
+  → embed câu hỏi (local BGE-M3, 1024-dim)
 
   → hybrid retrieval: FTS (từ khoá) + vector (ngữ nghĩa), gộp RRF
 
@@ -448,7 +448,7 @@ tosuthien/
 
 ├── vuejs/             # Admin web
 
-└── schema.sql         # PostgreSQL + pgvector vector(384)
+└── schema.sql         # PostgreSQL + pgvector vector(1024)
 
 ```
 

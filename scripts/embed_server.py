@@ -1,28 +1,21 @@
 #!/usr/bin/env python3
 """
-Local OpenAI-compatible embedding server (fastembed, multilingual, 384-dim).
+Local OpenAI-compatible embedding server — BAAI/bge-m3 only (1024-d).
 
-Serves POST /v1/embeddings so BOTH the offline batch job (scripts/embed.py)
-and the NestJS runtime (EmbeddingService) can share one model — no API key,
-no cost. Default model paraphrase-multilingual-MiniLM-L12-v2 outputs 384 dims
-(matching pgvector schema vector(384)). On this Vietnamese Zen corpus it
-retrieved relevant passages better than the larger mpnet-base-v2 (which
-surfaced cover pages / boilerplate) and embeds far faster on CPU (~23s).
+Shared by scripts/embed.py and NestJS EmbeddingService.
 
-Only e5-family models use asymmetric prefixes ("query: ..." / "passage: ...");
-for symmetric sentence-transformers (the default) prefixes hurt, so they are
-applied only when the model name contains "e5". The caller signals intent via
-the (non-OpenAI) `input_type` field; NestJS sends input_type="query".
+Per https://huggingface.co/BAAI/bge-m3 :
+  - Dense retrieval: 1024 dims, up to 8192 tokens
+  - Do NOT add instruction prefixes to query or passage (unlike older BGE)
+  - Official RAG tip: hybrid retrieval (+ optional rerank) — FTS lives in Nest/DB
 
-Usage:
-  python3 scripts/embed_server.py                 # http://localhost:7997
-  EMBED_PORT=8100 python3 scripts/embed_server.py
-
-.env (point both consumers here):
+.env:
   EMBEDDING_BASE_URL=http://localhost:7997/v1
   EMBEDDING_API_KEY=local
-  EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-  EMBEDDING_DIM=384
+  EMBEDDING_MODEL=BAAI/bge-m3
+  EMBEDDING_DIM=1024
+  EMBED_THREADS=1
+  EMBED_BATCH=8
 """
 
 from __future__ import annotations
@@ -30,49 +23,56 @@ from __future__ import annotations
 import os
 from typing import List, Optional, Union
 
-# Use both VPS cores for ONNX / BLAS inside a single embed process.
-_nthreads = max(1, int(os.getenv("EMBED_THREADS", os.getenv("OMP_NUM_THREADS", "2"))))
+_nthreads = max(1, int(os.getenv("EMBED_THREADS", os.getenv("OMP_NUM_THREADS", "1"))))
 os.environ.setdefault("OMP_NUM_THREADS", str(_nthreads))
 os.environ.setdefault("MKL_NUM_THREADS", str(_nthreads))
 os.environ.setdefault("OPENBLAS_NUM_THREADS", str(_nthreads))
-os.environ.setdefault("ORT_NUM_THREADS", str(_nthreads))
-os.environ.setdefault("TOKENIZERS_PARALLELISM", "true")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 from fastapi import FastAPI
-from fastembed import TextEmbedding
 from pydantic import BaseModel
+from sentence_transformers import SentenceTransformer
 
-MODEL_NAME = os.getenv(
-    "EMBEDDING_MODEL",
-    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-)
+MODEL_NAME = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
 PORT = int(os.getenv("EMBED_PORT", "7997"))
-USES_E5_PREFIX = "e5" in MODEL_NAME.lower()
+EXPECTED_DIM = int(os.getenv("EMBEDDING_DIM", "1024"))
+
+if "bge-m3" not in MODEL_NAME.lower():
+    raise SystemExit(
+        f"Unsupported EMBEDDING_MODEL={MODEL_NAME!r}. "
+        "This server only serves BAAI/bge-m3 (MiniLM/fastembed removed)."
+    )
 
 print(
-    f"Loading fastembed model: {MODEL_NAME} "
-    f"(threads={_nthreads}, first run downloads weights)..."
+    f"Loading {MODEL_NAME} (sentence-transformers, cpu, threads={_nthreads}; "
+    "first run may download from Hugging Face)..."
 )
-_model = TextEmbedding(model_name=MODEL_NAME, threads=_nthreads)
+_model = SentenceTransformer(MODEL_NAME, device="cpu")
 print("Model ready.")
 
-app = FastAPI(title="Local Embedding Server")
+app = FastAPI(title="Local Embedding Server (BGE-M3)")
 
 
 class EmbeddingRequest(BaseModel):
     input: Union[str, List[str]]
     model: Optional[str] = None
-    # Accepted for OpenAI compatibility but ignored: dim is fixed by the model.
     dimensions: Optional[int] = None
-    # "passage" (default) for documents, "query" for search queries.
+    # Accepted for API compat; BGE-M3 dense needs no query/passage prefix.
     input_type: str = "passage"
 
 
-def _apply_prefix(texts: List[str], input_type: str) -> List[str]:
-    if not USES_E5_PREFIX:
-        return texts
-    prefix = "query: " if input_type == "query" else "passage: "
-    return [prefix + t for t in texts]
+def _embed(texts: List[str]) -> List[List[float]]:
+    batch = max(1, int(os.getenv("EMBED_BATCH", "8")))
+    vectors = _model.encode(
+        texts,
+        batch_size=batch,
+        normalize_embeddings=True,
+        show_progress_bar=False,
+    )
+    out = [vec.tolist() for vec in vectors]
+    if out and len(out[0]) != EXPECTED_DIM:
+        raise RuntimeError(f"Got dim {len(out[0])}, expected {EXPECTED_DIM}")
+    return out
 
 
 @app.get("/health")
@@ -80,6 +80,8 @@ def health() -> dict:
     return {
         "status": "ok",
         "model": MODEL_NAME,
+        "dim": EXPECTED_DIM,
+        "backend": "sentence-transformers",
         "threads": _nthreads,
     }
 
@@ -88,8 +90,7 @@ def health() -> dict:
 @app.post("/embeddings")
 def embeddings(req: EmbeddingRequest) -> dict:
     texts = [req.input] if isinstance(req.input, str) else req.input
-    prefixed = _apply_prefix(texts, req.input_type)
-    vectors = [vec.tolist() for vec in _model.embed(prefixed)]
+    vectors = _embed(texts)
     data = [
         {"object": "embedding", "index": i, "embedding": vec}
         for i, vec in enumerate(vectors)
@@ -105,12 +106,11 @@ def embeddings(req: EmbeddingRequest) -> dict:
 if __name__ == "__main__":
     import uvicorn
 
-    # One process (model is large); FastAPI runs sync handlers in a threadpool.
     uvicorn.run(
         app,
         host="0.0.0.0",
         port=PORT,
         workers=1,
-        limit_concurrency=32,
+        limit_concurrency=8,
         timeout_keep_alive=30,
     )

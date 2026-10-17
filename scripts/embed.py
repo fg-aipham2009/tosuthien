@@ -28,7 +28,7 @@ from dotenv import load_dotenv
 from tqdm import tqdm
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_DIM = 384
+DEFAULT_DIM = 1024
 MAX_CHARS = 12_000
 BATCH_SIZE = 32
 
@@ -114,7 +114,12 @@ def vector_literal(values: list[float]) -> str:
     return "[" + ",".join(f"{v:.8f}" for v in values) + "]"
 
 
-def fetch_passages(conn: psycopg.Connection, source_file: str | None, reembed: bool) -> list[tuple]:
+def fetch_passages(
+    conn: psycopg.Connection,
+    source_file: str | None,
+    reembed: bool,
+    kind: str = "book",
+) -> list[tuple]:
     sql = """
         SELECT p.id, p.content, r.source_file, r.id AS rag_source_id
         FROM passages p
@@ -122,6 +127,11 @@ def fetch_passages(conn: psycopg.Connection, source_file: str | None, reembed: b
     """
     params: list = []
     clauses: list[str] = []
+
+    # book = Tổ Sư Thiền (text/*.txt); canon = CBETA — keep embed corpora separate
+    if kind != "all":
+        clauses.append("r.kind = %s")
+        params.append(kind)
 
     if source_file:
         clauses.append("r.source_file = %s")
@@ -171,7 +181,11 @@ def upsert_embeddings(
         )
 
 
-def update_rag_status(conn: psycopg.Connection, source_file: str | None) -> None:
+def update_rag_status(
+    conn: psycopg.Connection,
+    source_file: str | None,
+    kind: str = "book",
+) -> None:
     now = datetime.now(timezone.utc)
     sql = """
         UPDATE rag_sources r
@@ -187,6 +201,9 @@ def update_rag_status(conn: psycopg.Connection, source_file: str | None) -> None
         )
     """
     params: list = [now]
+    if kind != "all":
+        sql += " AND r.kind = %s"
+        params.append(kind)
     if source_file:
         sql += " AND r.source_file = %s"
         params.append(source_file)
@@ -210,15 +227,24 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Embed passages for RAG")
     parser.add_argument("--all", action="store_true", help="Embed lại cả passages đã có vector")
     parser.add_argument("--source", help="Chỉ một file, vd 13.txt")
+    parser.add_argument(
+        "--kind",
+        default="book",
+        choices=["book", "canon", "all"],
+        help="book=Tổ Sư Thiền (default); canon=CBETA; all=cả hai (không khuyến nghị)",
+    )
     parser.add_argument("--create-index", action="store_true", help="Tạo HNSW index sau embed")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     args = parser.parse_args()
 
     cfg = load_config()
-    print(f"🔢 {cfg['base_url']}  model={cfg['model']}  dim={cfg['dimensions']}  batch={args.batch_size}")
+    print(
+        f"🔢 {cfg['base_url']}  model={cfg['model']}  dim={cfg['dimensions']}  "
+        f"batch={args.batch_size}  kind={args.kind}"
+    )
 
     with psycopg.connect(cfg["db_url"]) as conn:
-        rows = fetch_passages(conn, args.source, args.all)
+        rows = fetch_passages(conn, args.source, args.all, kind=args.kind)
         if not rows:
             print("Không có passage cần embed.")
             if args.create_index:
@@ -226,7 +252,7 @@ def main() -> None:
                 conn.commit()
             return
 
-        print(f"📦 {len(rows)} passages cần embed")
+        print(f"📦 {len(rows)} passages cần embed (kind={args.kind})")
         t0 = time.time()
 
         for i in tqdm(range(0, len(rows), args.batch_size), desc="Embedding"):
@@ -247,17 +273,29 @@ def main() -> None:
             upsert_embeddings(conn, batch, vectors, cfg["model"], cfg["dimensions"])
             conn.commit()
 
-        update_rag_status(conn, args.source)
+        update_rag_status(conn, args.source, kind=args.kind)
         if args.create_index:
             create_hnsw_index(conn)
         conn.commit()
 
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM passage_embeddings")
+            if args.kind == "all":
+                cur.execute("SELECT COUNT(*) FROM passage_embeddings")
+            else:
+                cur.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM passage_embeddings e
+                    JOIN passages p ON p.id = e.passage_id
+                    JOIN rag_sources r ON r.id = p.rag_source_id
+                    WHERE r.kind = %s
+                    """,
+                    (args.kind,),
+                )
             total = cur.fetchone()[0]
 
     elapsed = time.time() - t0
-    print(f"\n🎉 Xong — {total} vectors ({elapsed:.0f}s)")
+    print(f"\n🎉 Xong — {total} vectors kind={args.kind} ({elapsed:.0f}s)")
     print("   Test: POST http://localhost:8000/api/rag/chat  {\"question\":\"...\"}")
 
 

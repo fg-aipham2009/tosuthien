@@ -492,9 +492,14 @@ export class ChatService {
     return citations.filter((c) => allow.has((c.sourceFile || '').toLowerCase()));
   }
 
+  /**
+   * Hỏi AI (Tổ Sư Thiền) only searches rag_sources.kind = 'book'.
+   * CBETA canon chunks use kind = 'canon' and stay out of this retrieval path.
+   */
   private sourceFilterSql(sourceFiles: string[]): Prisma.Sql {
-    if (!sourceFiles.length) return Prisma.empty;
-    return Prisma.sql`AND r.source_file IN (${Prisma.join(
+    const kindSql = Prisma.sql`AND r.kind = 'book'`;
+    if (!sourceFiles.length) return kindSql;
+    return Prisma.sql`${kindSql} AND r.source_file IN (${Prisma.join(
       sourceFiles.map((f) => Prisma.sql`${f}`),
     )})`;
   }
@@ -956,7 +961,11 @@ export class ChatService {
 
   private async countEmbeddings(): Promise<number> {
     const [{ count }] = await this.prisma.$queryRaw<{ count: bigint }[]>`
-      SELECT COUNT(*)::bigint AS count FROM passage_embeddings
+      SELECT COUNT(*)::bigint AS count
+      FROM passage_embeddings e
+      JOIN passages p ON p.id = e.passage_id
+      JOIN rag_sources r ON r.id = p.rag_source_id
+      WHERE r.kind = 'book'
     `;
     return Number(count);
   }
@@ -1124,7 +1133,8 @@ export class ChatService {
         FROM passage_embeddings e
         JOIN passages p ON p.id = e.passage_id
         JOIN rag_sources r ON r.id = p.rag_source_id
-        WHERE r.source_file = ANY($3::text[])
+        WHERE r.kind = 'book'
+          AND r.source_file = ANY($3::text[])
         ORDER BY e.embedding <=> $1::vector
         LIMIT $2
         `,
@@ -1149,6 +1159,7 @@ export class ChatService {
       FROM passage_embeddings e
       JOIN passages p ON p.id = e.passage_id
       JOIN rag_sources r ON r.id = p.rag_source_id
+      WHERE r.kind = 'book'
       ORDER BY e.embedding <=> $1::vector
       LIMIT $2
       `,
@@ -1558,7 +1569,8 @@ export class ChatService {
         0::float8 AS score
       FROM passages p
       JOIN rag_sources r ON r.id = p.rag_source_id
-      WHERE r.source_file = ${sourceFile}
+      WHERE r.kind = 'book'
+        AND r.source_file = ${sourceFile}
         AND p.page_num BETWEEN ${pageStart} AND ${pageEnd}
       ORDER BY p.page_num ASC NULLS LAST, length(p.content) ASC
     `;

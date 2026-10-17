@@ -1,5 +1,5 @@
 [Unit]
-Description=Tosu Thien Embed Server (fastembed)
+Description=Tosu Thien Embed Server (BGE-M3 CPU / sentence-transformers)
 After=network.target
 
 [Service]

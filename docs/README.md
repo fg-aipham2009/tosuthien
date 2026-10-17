@@ -117,7 +117,7 @@ pdf_to_text.py        →  OCR PDF → text/*.txt
 
 ```
 POST /api/rag/chat
-  → embed câu hỏi (local MiniLM, port 7997)
+  → embed câu hỏi (local BGE-M3 1024-d, port 7997)
   → hybrid retrieval: FTS + vector (RRF)
   → Claude (HHTechAPI / Nexus / ShopAIKey) + system prompt
   → answer + citations (quyển, trang)
@@ -236,7 +236,7 @@ DATABASE_URL=postgresql://tosuthien:thamthien@localhost:5432/tosuthien
 CHAT_PROVIDER=hhtech
 HHTECH_API_KEY=sk-...
 HHTECH_BASE_URL=https://hhtechapi.com/v1
-CHAT_MODEL=claude-opus-4-6
+CHAT_MODEL=claude-opus-5-5
 PUBLIC_BASE_URL=https://domain.com
 EMBEDDING_BASE_URL_DOCKER=http://host.docker.internal:7997/v1
 ```

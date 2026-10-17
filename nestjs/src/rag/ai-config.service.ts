@@ -58,7 +58,7 @@ export class AiConfigService {
       this.config.get<string>('CHAT_PROVIDER') || 'shopaikey'
     ).toLowerCase() as ChatProvider;
     const defaultModel =
-      this.config.get<string>('CHAT_MODEL') || 'claude-opus-5';
+      this.config.get<string>('CHAT_MODEL') || 'claude-opus-5-5';
 
     const primary = this.resolveEndpoint(provider, defaultModel, shopKey, shopBase);
     const endpoints: ChatEndpoint[] = [primary];
@@ -87,10 +87,9 @@ export class AiConfigService {
       embeddingApiKey: embedKey,
       embeddingBaseUrl: embedBase.replace(/\/$/, ''),
       embeddingModel:
-        this.config.get<string>('EMBEDDING_MODEL') ||
-        'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2',
+        this.config.get<string>('EMBEDDING_MODEL') || 'BAAI/bge-m3',
       embeddingDim: parseInt(
-        this.config.get<string>('EMBEDDING_DIM') || '384',
+        this.config.get<string>('EMBEDDING_DIM') || '1024',
         10,
       ),
       chatApiKey: primary.apiKey,

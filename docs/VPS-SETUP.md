@@ -173,17 +173,17 @@ DATA_ROOT=../data
 # CHAT RAG — chọn 1 provider: hhtech | nexus | shopaikey
 # =============================================================================
 CHAT_PROVIDER=hhtech
-CHAT_MODEL=claude-opus-4-6
+CHAT_MODEL=claude-opus-5-5
 
 # --- HHTechAPI (khuyến nghị) ---
 HHTECH_API_KEY=sk-fbe41e3c5e6b46e5a887011e
 HHTECH_BASE_URL=https://hhtechapi.com/v1
-HHTECH_CHAT_MODEL=claude-opus-4-6
+HHTECH_CHAT_MODEL=claude-opus-5-5
 
 # --- Nexus (dự phòng) ---
 NEXUS_API_KEY=
 NEXUS_BASE_URL=https://api.nexusmmo.store/api/v1
-NEXUS_CHAT_MODEL=claude-opus-4-6
+NEXUS_CHAT_MODEL=claude-opus-5-5
 
 # --- ShopAIKey (dự phòng) ---
 SHOPAIKEY_API_KEY=
@@ -194,8 +194,8 @@ SHOPAIKEY_BASE_URL=https://api.shopaikey.com
 # =============================================================================
 EMBEDDING_API_KEY=local
 EMBEDDING_BASE_URL=http://localhost:7997/v1
-EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-EMBEDDING_DIM=384
+EMBEDDING_MODEL=BAAI/bge-m3
+EMBEDDING_DIM=1024
 
 # Container "api" gọi embed server trên HOST (Linux: cần extra_hosts trong compose)
 EMBEDDING_BASE_URL_DOCKER=http://host.docker.internal:7997/v1
@@ -259,7 +259,7 @@ Lưu ý: giá trị thật nằm trong file `.env` ở root repo.
 | `CHAT_MODEL` | Không | Model mặc định nếu provider không có model riêng |
 | `HHTECH_API_KEY` | Khi `CHAT_PROVIDER=hhtech` | API key HHTechAPI |
 | `HHTECH_BASE_URL` | Không | `https://hhtechapi.com/v1` |
-| `HHTECH_CHAT_MODEL` | Không | Model chat (khuyên `claude-opus-4-6`) |
+| `HHTECH_CHAT_MODEL` | Không | Model chat (khuyên `claude-opus-5-5`) |
 | `NEXUS_API_KEY` | Khi `CHAT_PROVIDER=nexus` | API key Nexus |
 | `NEXUS_BASE_URL` | Không | `https://api.nexusmmo.store/api/v1` |
 | `NEXUS_CHAT_MODEL` | Không | Model Nexus |
@@ -273,8 +273,8 @@ Lưu ý: giá trị thật nằm trong file `.env` ở root repo.
 | `EMBEDDING_API_KEY` | Có | Đặt `local` khi dùng embed server |
 | `EMBEDDING_BASE_URL` | Có | Host scripts: `http://localhost:7997/v1` |
 | `EMBEDDING_BASE_URL_DOCKER` | Có (Docker) | API container gọi embed trên host |
-| `EMBEDDING_MODEL` | Không | Model fastembed (384 dim) |
-| `EMBEDDING_DIM` | Không | Phải khớp schema `vector(384)` |
+| `EMBEDDING_MODEL` | Không | `BAAI/bge-m3` (1024 dim) |
+| `EMBEDDING_DIM` | Không | Phải khớp schema `vector(1024)` |
 | `EMBED_PORT` | Không | Port `embed_server.py` (mặc định `7997`) |
 
 #### OCR PDF (`pdf_to_text.py`)
@@ -390,7 +390,7 @@ curl http://localhost:7997/health
 ```bash
 sudo tee /etc/systemd/system/tosu-embed.service > /dev/null <<'EOF'
 [Unit]
-Description=Tosu Thien Embed Server (fastembed)
+Description=Tosu Thien Embed Server (BGE-M3)
 After=network.target
 
 [Service]
