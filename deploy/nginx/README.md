@@ -6,14 +6,14 @@
 | `admin.tosuthien.net.conf` | `admin.tosuthien.net` | `127.0.0.1:5173` (Docker `admin`) |
 | `app.tosuthien.net.conf` | `app.tosuthien.net` | `/opt/tosu-thien/www` (Flutter `build/web`) |
 | `tosuthien.net.conf` | `tosuthien.net`, `www` | `/opt/tosu-thien/portal-dist` (built Vue portal) |
-| `demo.tosuthien.net.conf` | `demo.tosuthien.net` | `127.0.0.1:5175` (Next `site/`) |
+| `demo.tosuthien.net.conf` | `demo.tosuthien.net` | `/opt/tosu-thien/portal-dist` (CBETA UI; `/` → `/cbeta`) |
 
 ## Domain map (VPS)
 
 | URL | App | Nginx upstream |
 |-----|-----|----------------|
-| **https://demo.tosuthien.net** | Next `site/` (preview **tosuthien.com**) | `127.0.0.1:5175` |
-| **https://admin.tosuthien.net** | Vue admin (Docker) | `127.0.0.1:5173` |
+| **https://demo.tosuthien.net** | Portal CBETA (`/cbeta`) | `portal-dist` |
+| **https://admin.tosuthien.net** | Vue admin (Docker); `/cbeta` → demo | `127.0.0.1:5173` |
 | **https://api.tosuthien.net** | Nest API | `127.0.0.1:8000` |
 | **https://tosuthien.net** | Vue portal `portal-dist` | static |
 | **https://app.tosuthien.net** | Flutter web | `/opt/tosu-thien/www` |

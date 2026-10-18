@@ -17,16 +17,12 @@ if [[ ! -f /etc/letsencrypt/live/demo.tosuthien.net/fullchain.pem ]]; then
   sudo certbot certonly --nginx -d demo.tosuthien.net --non-interactive --agree-tos --register-unsafely-without-email
 fi
 
-echo "==> Site Next (demo.tosuthien.net)"
-chmod +x deploy/scripts/deploy-site-on-vps.sh
-./deploy/scripts/deploy-site-on-vps.sh
-
-echo "==> Portal Vue (tosuthien.net)"
+echo "==> Portal Vue (demo CBETA + tosuthien.net)"
 chmod +x deploy/scripts/deploy-portal-on-vps.sh
 ./deploy/scripts/deploy-portal-on-vps.sh || echo "WARN: portal build failed — run deploy-portal-on-vps.sh after npm deps"
 
 echo ""
 echo "Verify:"
-echo "  curl -I https://demo.tosuthien.net   # Next site"
-echo "  curl -I https://admin.tosuthien.net  # Vue admin"
-echo "  curl -I https://tosuthien.net        # portal-dist"
+echo "  curl -I https://demo.tosuthien.net/cbeta  # CBETA UI"
+echo "  curl -I https://admin.tosuthien.net       # Vue admin"
+echo "  curl -I https://tosuthien.net             # portal-dist"

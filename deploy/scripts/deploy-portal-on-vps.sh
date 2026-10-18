@@ -22,4 +22,4 @@ sudo chown -R www-data:www-data "$PORTAL_DST"
 sudo chmod -R 755 "$PORTAL_DST"
 
 echo "Published portal → $PORTAL_DST"
-echo "Open https://tosuthien.net"
+echo "Open https://demo.tosuthien.net/cbeta (CBETA) · https://tosuthien.net (portal)"
