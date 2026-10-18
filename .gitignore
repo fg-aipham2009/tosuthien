@@ -20,6 +20,7 @@ data/images/**
 !data/images/.gitkeep
 data/backups/**
 !data/backups/.gitkeep
+data/cbeta/**
 .cicd_vps_ssh_b64.txt
 .cicd_vps_ssh_private
 # Next.js marketing site
@@ -35,3 +36,4 @@ portal/node_modules/
 # Flutter web build output (deploy via CI / flutter build web → VPS www)
 www/
 logs/*.log
+data/cbeta/vector_export/

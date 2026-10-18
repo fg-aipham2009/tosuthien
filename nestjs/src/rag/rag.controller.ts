@@ -13,6 +13,7 @@ import { ChatService } from './chat.service';
 import { ChatDto } from '../dto';
 import type { ChatOptions } from './rag.types';
 
+/** Duy Lực book RAG only — CBETA lives under `/api/cbeta/*`. */
 @Controller('rag')
 export class RagController {
   constructor(

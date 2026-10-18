@@ -64,6 +64,7 @@ export class AdminWriteGuard implements CanActivate {
   private isPublicWrite(method: string, path: string): boolean {
     if (method === 'POST' && path === '/api/auth/login') return true;
     if (method === 'POST' && path.startsWith('/api/rag/')) return true;
+    if (method === 'POST' && path.startsWith('/api/cbeta/')) return true;
     if (method === 'PUT' && path === '/api/reading-progress') return true;
     if (method === 'POST' && path === '/api/mp3/favorites/toggle') return true;
     return false;

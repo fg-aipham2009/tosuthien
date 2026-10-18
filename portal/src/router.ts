@@ -11,6 +11,12 @@ const router = createRouter({
       meta: { title: 'Hỏi Đáp' },
     },
     {
+      path: '/cbeta',
+      name: 'cbeta-chat',
+      component: () => import('./views/CbetaChatView.vue'),
+      meta: { title: 'CBETA' },
+    },
+    {
       path: '/mp3',
       name: 'mp3',
       component: () => import('./views/Mp3View.vue'),

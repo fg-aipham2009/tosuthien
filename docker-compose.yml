@@ -40,6 +40,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      # Schema for isolated CBETA DB (created by init/02-create-cbeta-db.sh)
+      - ./docker/postgres/cbeta:/cbeta-schema:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tosuthien} -d ${POSTGRES_DB:-tosuthien}"]
       interval: 5s
@@ -58,6 +60,8 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-tosuthien}:${POSTGRES_PASSWORD:-thamthien}@db:5432/${POSTGRES_DB:-tosuthien}?connection_limit=5&pool_timeout=20
+      # Isolated CBETA RAG DB (same Postgres, different database name)
+      CBETA_DATABASE_URL: postgresql://${POSTGRES_USER:-tosuthien}:${POSTGRES_PASSWORD:-thamthien}@db:5432/cbeta
       DATA_ROOT: /data
       TEXT_BOOKS_ROOT: /text-books
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://api.tosuthien.net}

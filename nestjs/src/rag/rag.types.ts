@@ -63,6 +63,15 @@ export interface ChatOptions {
   sourceFiles?: string[];
   /** Prior conversation turns (not including the current question). */
   messages?: ChatTurn[];
+  /**
+   * Used only by dedicated `/api/cbeta/*` (always cbeta).
+   * Book RAG (`/api/rag/*`) ignores this field.
+   */
+  corpus?: 'books' | 'cbeta' | 'auto';
+  /** Optional CBETA collection filter (T, X, XY, …). */
+  cbetaCollections?: string[];
+  /** Optional force fast|deep on CBETA API. */
+  cbetaPath?: 'fast' | 'deep';
 }
 
 export interface ChatMeta {
@@ -99,14 +108,16 @@ export interface ChatResult {
 
 /** SSE payload shapes for POST /rag/chat/stream */
 export type ChatStreamEvent =
-  | { type: 'status'; phase: 'retrieving' | 'generating' | 'finalizing' }
+  | { type: 'status'; phase: 'retrieving' | 'generating' | 'finalizing'; message?: string }
+  | { type: 'meta'; meta: Record<string, unknown> }
+  | { type: 'citations'; citations: unknown[] }
   | { type: 'delta'; text: string }
   | {
       type: 'done';
       answer: string;
       aiInterpretation: string | null;
-      disclaimer: string;
-      citations: ChatCitation[];
-      meta: ChatMeta;
+      disclaimer?: string;
+      citations: unknown[];
+      meta?: ChatMeta | Record<string, unknown>;
     }
   | { type: 'error'; message: string };

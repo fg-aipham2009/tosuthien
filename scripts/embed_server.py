@@ -16,11 +16,13 @@ Per https://huggingface.co/BAAI/bge-m3 :
   EMBEDDING_DIM=1024
   EMBED_THREADS=1
   EMBED_BATCH=8
+  EMBED_DEVICE=auto   # auto | mps | cpu  (auto prefers Apple MPS when available)
 """
 
 from __future__ import annotations
 
 import os
+import threading
 from typing import List, Optional, Union
 
 _nthreads = max(1, int(os.getenv("EMBED_THREADS", os.getenv("OMP_NUM_THREADS", "1"))))
@@ -36,6 +38,41 @@ from sentence_transformers import SentenceTransformer
 MODEL_NAME = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
 PORT = int(os.getenv("EMBED_PORT", "7997"))
 EXPECTED_DIM = int(os.getenv("EMBEDDING_DIM", "1024"))
+# HTTP accept limit (uvicorn). Encode itself is serialized by _ENCODE_LOCK —
+# raise this so clients wait instead of getting 503 "Exceeded concurrency limit".
+LIMIT_CONCURRENCY = max(1, int(os.getenv("EMBED_LIMIT_CONCURRENCY", "64")))
+# Cap sequence length for speed (CBETA chunks ~512–1k tokens; full 8192 is slow).
+MAX_SEQ_LENGTH = max(128, int(os.getenv("EMBED_MAX_SEQ_LENGTH", "1024")))
+_ENCODE_LOCK = threading.Lock()
+
+
+def _resolve_device() -> str:
+    """Pick inference device. Prefer MPS on Apple Silicon when EMBED_DEVICE=auto."""
+    wanted = (os.getenv("EMBED_DEVICE") or "auto").strip().lower()
+    if wanted == "cpu":
+        return "cpu"
+    if wanted == "mps":
+        try:
+            import torch
+
+            if torch.backends.mps.is_available():
+                return "mps"
+        except Exception:
+            pass
+        print("EMBED_DEVICE=mps unavailable; falling back to cpu", flush=True)
+        return "cpu"
+    # auto
+    try:
+        import torch
+
+        if torch.backends.mps.is_available():
+            return "mps"
+    except Exception:
+        pass
+    return "cpu"
+
+
+DEVICE = _resolve_device()
 
 if "bge-m3" not in MODEL_NAME.lower():
     raise SystemExit(
@@ -44,11 +81,16 @@ if "bge-m3" not in MODEL_NAME.lower():
     )
 
 print(
-    f"Loading {MODEL_NAME} (sentence-transformers, cpu, threads={_nthreads}; "
-    "first run may download from Hugging Face)..."
+    f"Loading {MODEL_NAME} (sentence-transformers, device={DEVICE}, "
+    f"threads={_nthreads}; first run may download from Hugging Face)...",
+    flush=True,
 )
-_model = SentenceTransformer(MODEL_NAME, device="cpu")
-print("Model ready.")
+_model = SentenceTransformer(MODEL_NAME, device=DEVICE)
+try:
+    _model.max_seq_length = MAX_SEQ_LENGTH
+except Exception:
+    pass
+print(f"Model ready. max_seq_length={getattr(_model, 'max_seq_length', '?')}", flush=True)
 
 app = FastAPI(title="Local Embedding Server (BGE-M3)")
 
@@ -63,12 +105,15 @@ class EmbeddingRequest(BaseModel):
 
 def _embed(texts: List[str]) -> List[List[float]]:
     batch = max(1, int(os.getenv("EMBED_BATCH", "8")))
-    vectors = _model.encode(
-        texts,
-        batch_size=batch,
-        normalize_embeddings=True,
-        show_progress_bar=False,
-    )
+    # One encode at a time — BGE-M3 + MPS/CPU cannot usefully parallelize HTTP
+    # requests; queuing avoids uvicorn 503 storms that waste client retries.
+    with _ENCODE_LOCK:
+        vectors = _model.encode(
+            texts,
+            batch_size=batch,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
     out = [vec.tolist() for vec in vectors]
     if out and len(out[0]) != EXPECTED_DIM:
         raise RuntimeError(f"Got dim {len(out[0])}, expected {EXPECTED_DIM}")
@@ -82,7 +127,11 @@ def health() -> dict:
         "model": MODEL_NAME,
         "dim": EXPECTED_DIM,
         "backend": "sentence-transformers",
+        "device": DEVICE,
         "threads": _nthreads,
+        "batch": max(1, int(os.getenv("EMBED_BATCH", "8"))),
+        "max_seq_length": getattr(_model, "max_seq_length", None),
+        "limit_concurrency": LIMIT_CONCURRENCY,
     }
 
 
@@ -111,6 +160,6 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=PORT,
         workers=1,
-        limit_concurrency=8,
-        timeout_keep_alive=30,
+        limit_concurrency=LIMIT_CONCURRENCY,
+        timeout_keep_alive=120,
     )

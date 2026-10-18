@@ -74,6 +74,10 @@ CREATE TABLE rag_sources (
   folder_path   TEXT NOT NULL DEFAULT 'text/',
   status        TEXT NOT NULL DEFAULT 'pending'
                   CHECK (status IN ('pending', 'ingested', 'embedded')),
+  -- book = Tổ Sư Thiền (Hỏi AI); canon = CBETA (separate corpus / embed path)
+  kind          TEXT NOT NULL DEFAULT 'book'
+                  CHECK (kind IN ('book', 'canon')),
+  canon_work_id UUID,
   chunk_count   INT DEFAULT 0,
   ingested_at   TIMESTAMPTZ,
   embedded_at   TIMESTAMPTZ,
@@ -83,6 +87,7 @@ CREATE TABLE rag_sources (
 
 CREATE INDEX idx_rag_sources_status ON rag_sources(status);
 CREATE INDEX idx_rag_sources_sort ON rag_sources(sort_order);
+CREATE INDEX idx_rag_sources_kind ON rag_sources(kind);
 
 CREATE TABLE passages (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -102,7 +107,7 @@ CREATE INDEX idx_passages_fts ON passages USING gin(to_tsvector('simple', conten
 
 CREATE TABLE passage_embeddings (
   passage_id  UUID PRIMARY KEY REFERENCES passages(id) ON DELETE CASCADE,
-  embedding   vector(384) NOT NULL,
+  embedding   vector(1024) NOT NULL,
   model       TEXT,
   created_at  TIMESTAMPTZ DEFAULT now()
 );

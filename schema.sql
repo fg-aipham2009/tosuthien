@@ -177,7 +177,7 @@ CREATE TABLE public.mp3_tracks (
 
 CREATE TABLE public.passage_embeddings (
     passage_id uuid NOT NULL,
-    embedding public.vector(384) NOT NULL,
+    embedding public.vector(1024) NOT NULL,
     model text,
     created_at timestamp with time zone DEFAULT now()
 );

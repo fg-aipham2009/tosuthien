@@ -1,0 +1,91 @@
+{
+  "_source": "HHTech portal/api/public/models (user session)",
+  "_fetched_at": "2026-10-13T14:14:45+07:00",
+  "_unit": "credit per 1M tokens (= VND; 1.000đ = 1.000 credit)",
+  "_price_ratio": {
+    "priceRatioBaseBp": 10000,
+    "priceRatioBp": 26500,
+    "priceRatioClaudeBp": 26500,
+    "priceRatioScope": "claude",
+    "vip": false,
+    "note": "Claude-scoped models billed at 2.65× base catalog; public unauth fetch may show base only"
+  },
+  "_anthropic_list_usd_per_mtok": {
+    "claude-opus-5-5": {
+      "input": 4.0,
+      "output": 20.0
+    },
+    "claude-sonnet-5-5": {
+      "input": 2.0,
+      "output": 10.0
+    },
+    "claude-fable-5-1": {
+      "input": 10.0,
+      "output": 50.0
+    }
+  },
+  "claude-fable-5-1": {
+    "input": 31800,
+    "output": 159000,
+    "cache_read": 3180,
+    "cache_write": 39750,
+    "blended": 11925,
+    "provider": "claude"
+  },
+  "claude-fable-5": {
+    "input": 31800,
+    "output": 159000,
+    "cache_read": 3180,
+    "cache_write": 39750,
+    "blended": 11925,
+    "provider": "claude"
+  },
+  "claude-opus-5-5": {
+    "input": 15900,
+    "output": 79500,
+    "cache_read": 1590,
+    "cache_write": 19875,
+    "blended": 6625,
+    "provider": "claude"
+  },
+  "claude-opus-5": {
+    "input": 15900,
+    "output": 79500,
+    "cache_read": 1590,
+    "cache_write": 19875,
+    "blended": 5300,
+    "provider": "kiro"
+  },
+  "claude-opus-4-8": {
+    "input": 15900,
+    "output": 79500,
+    "cache_read": 1590,
+    "cache_write": 19875,
+    "blended": 5300,
+    "provider": "kiro"
+  },
+  "claude-sonnet-5-5": {
+    "input": 6360,
+    "output": 31800,
+    "cache_read": 636,
+    "cache_write": 7950,
+    "blended": 3180,
+    "provider": "claude"
+  },
+  "claude-sonnet-5": {
+    "input": 6360,
+    "output": 31800,
+    "cache_read": 636,
+    "cache_write": 7950,
+    "blended": 3180,
+    "provider": "kiro"
+  },
+  "gpt-6-astra": {
+    "input": 8000,
+    "output": 40000,
+    "cache_read": 800,
+    "cache_write": 10000,
+    "blended": 1800,
+    "provider": "codex"
+  }
+}

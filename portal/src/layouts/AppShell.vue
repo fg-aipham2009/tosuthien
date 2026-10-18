@@ -19,13 +19,14 @@ declare global {
 const route = useRoute()
 const tabs = [
   { to: '/', label: 'Hỏi Đáp', match: (p: string) => p === '/' },
+  { to: '/cbeta', label: 'CBETA', match: (p: string) => p.startsWith('/cbeta') },
   { to: '/mp3', label: 'Pháp Âm', match: (p: string) => p.startsWith('/mp3') },
   { to: '/kinh-sach', label: 'Kinh sách', match: (p: string) => p.startsWith('/kinh-sach') },
   { to: '/thien-duong', label: 'Thiền đường', match: (p: string) => p.startsWith('/thien-duong') },
 ] as const
 
 const activePath = computed(() => route.path)
-const isChat = computed(() => route.path === '/')
+const isChat = computed(() => route.path === '/' || route.path.startsWith('/cbeta'))
 const canInstall = ref(false)
 const alreadyInstalled = ref(false)
 const showInstallButton = computed(() => !alreadyInstalled.value)
@@ -174,7 +175,7 @@ async function installApp() {
     <MiniPlayer />
 
     <nav
-      class="z-30 grid shrink-0 grid-cols-4 gap-0.5 border-t border-black/10 bg-surface px-1.5 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 lg:hidden"
+      class="z-30 grid shrink-0 grid-cols-5 gap-0.5 border-t border-black/10 bg-surface px-1.5 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 lg:hidden"
       aria-label="Tab"
     >
       <RouterLink

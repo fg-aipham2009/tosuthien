@@ -58,9 +58,14 @@ model RagSource {
   embeddedAt  DateTime?       @map("embedded_at") @db.Timestamptz(6)
   sortOrder   Int             @default(0) @map("sort_order")
   createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// book | canon
+  kind        String          @default("book")
+  canonWorkId String?         @unique(map: "uq_rag_sources_canon_work") @map("canon_work_id") @db.Uuid
 
-  passages Passage[]
+  passages  Passage[]
+  canonWork CanonWork? @relation(fields: [canonWorkId], references: [id], onDelete: Cascade)
 
+  @@index([kind], map: "idx_rag_sources_kind")
   @@index([status], map: "idx_rag_sources_status")
   @@index([sortOrder], map: "idx_rag_sources_sort")
   @@map("rag_sources")
@@ -86,7 +91,7 @@ model Passage {
 
 model PassageEmbedding {
   passageId String                      @id @map("passage_id") @db.Uuid
-  embedding Unsupported("vector(384)")
+  embedding Unsupported("vector(1024)")
   model     String?
   createdAt DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -412,6 +417,9 @@ model AdminUser {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  canonTranslations CanonTranslation[]
+  canonReviews      CanonReview[]
+
   @@map("admin_users")
 }
 
@@ -496,4 +504,247 @@ model ClassAnnouncement {
   @@index([classId, sessionDate(sort: Desc)], map: "idx_class_announcements_class_date")
   @@index([isPublished, sessionDate(sort: Desc)], map: "idx_class_announcements_published")
   @@map("class_announcements")
+}
+
+/// CBETA canon collection (T = Đại Tạng, X = Tục Tạng).
+model CanonCollection {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String   @unique
+  nameZh      String   @map("name_zh")
+  nameVi      String?  @map("name_vi")
+  shortNameVi String?  @map("short_name_vi")
+  sourceUrl   String?  @map("source_url")
+  license     String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  categories CanonCategory[]
+  works      CanonWork[]
+
+  @@map("canon_collections")
+}
+
+/// Category tree: scheme cbeta = 部類, scheme orig = original canon structure.
+model CanonCategory {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// cbeta | orig
+  scheme       String
+  code         String
+  parentId     String?  @map("parent_id") @db.Uuid
+  collectionId String?  @map("collection_id") @db.Uuid
+  nameZh       String   @map("name_zh")
+  nameVi       String?  @map("name_vi")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  parent     CanonCategory?   @relation("CanonCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children   CanonCategory[]  @relation("CanonCategoryTree")
+  collection CanonCollection? @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  works      CanonWork[]      @relation("CanonWorkCategory")
+  origWorks  CanonWork[]      @relation("CanonWorkOrigCategory")
+
+  @@unique([scheme, code])
+  @@index([parentId, sortOrder], map: "idx_canon_categories_parent")
+  @@map("canon_categories")
+}
+
+/// One CBETA work, e.g. X1456.
+model CanonWork {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  collectionId    String   @map("collection_id") @db.Uuid
+  workCode        String   @unique @map("work_code")
+  categoryId      String?  @map("category_id") @db.Uuid
+  origCategoryId  String?  @map("orig_category_id") @db.Uuid
+  titleZh         String   @map("title_zh")
+  titleVi         String?  @map("title_vi")
+  bylineZh        String?  @map("byline_zh")
+  bylineVi        String?  @map("byline_vi")
+  dynasty         String?
+  volumeStart     String?  @map("volume_start")
+  volumeEnd       String?  @map("volume_end")
+  juanCount       Int      @default(0) @map("juan_count")
+  cjkChars        Int      @default(0) @map("cjk_chars")
+  priority        Int      @default(0)
+  /// pending | in_progress | translated | reviewed | approved
+  translateStatus String   @default("pending") @map("translate_status")
+  cbetaVersion    String?  @map("cbeta_version")
+  sourcePaths     String[] @default([]) @map("source_paths")
+  metadata        Json     @default("{}")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  collection      CanonCollection        @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  category        CanonCategory?         @relation("CanonWorkCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  origCategory    CanonCategory?         @relation("CanonWorkOrigCategory", fields: [origCategoryId], references: [id], onDelete: SetNull)
+  juans           CanonJuan[]
+  readingProgress CanonReadingProgress[]
+  ragSource       RagSource?
+
+  @@index([collectionId, sortOrder], map: "idx_canon_works_collection")
+  @@index([categoryId], map: "idx_canon_works_category")
+  @@index([origCategoryId], map: "idx_canon_works_orig_category")
+  @@index([translateStatus, priority(sort: Desc), sortOrder], map: "idx_canon_works_queue")
+  @@map("canon_works")
+}
+
+model CanonJuan {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workId          String   @map("work_id") @db.Uuid
+  juanNo          Int      @map("juan_no")
+  /// CBETA juan n, e.g. 001 / 001a; empty = front matter
+  juanLabel       String   @map("juan_label")
+  titleZh         String?  @map("title_zh")
+  titleVi         String?  @map("title_vi")
+  sourcePath      String?  @map("source_path")
+  cbetaRefStart   String?  @map("cbeta_ref_start")
+  segmentCount    Int      @default(0) @map("segment_count")
+  translatedCount Int      @default(0) @map("translated_count")
+  approvedCount   Int      @default(0) @map("approved_count")
+  /// pending | in_progress | translated | reviewed | approved
+  status          String   @default("pending")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  work            CanonWork              @relation(fields: [workId], references: [id], onDelete: Cascade)
+  segments        CanonSegment[]
+  jobs            CanonJob[]
+  readingProgress CanonReadingProgress[]
+
+  @@unique([workId, juanNo])
+  @@unique([workId, juanLabel])
+  @@index([status], map: "idx_canon_juans_status")
+  @@map("canon_juans")
+}
+
+/// One source sentence / verse line.
+model CanonSegment {
+  id           BigInt   @id @default(autoincrement())
+  juanId       String   @map("juan_id") @db.Uuid
+  seq          Int
+  paragraphNo  Int      @map("paragraph_no")
+  /// heading | prose | verse | dharani | byline | note
+  segmentType  String   @default("prose") @map("segment_type")
+  headingLevel Int?     @map("heading_level") @db.SmallInt
+  cbetaRef     String?  @map("cbeta_ref")
+  contentZh    String   @map("content_zh")
+  contentHash  String   @map("content_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  juan            CanonJuan              @relation(fields: [juanId], references: [id], onDelete: Cascade)
+  translations    CanonTranslation[]
+  readingProgress CanonReadingProgress[]
+
+  @@unique([juanId, seq])
+  @@index([juanId, paragraphNo], map: "idx_canon_segments_paragraph")
+  @@index([cbetaRef], map: "idx_canon_segments_ref")
+  @@map("canon_segments")
+}
+
+model CanonGlossary {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  termZh     String   @map("term_zh")
+  termVi     String   @map("term_vi")
+  altVi      String[] @default([]) @map("alt_vi")
+  note       String?
+  /// duy_luc | tri_tinh | cbeta | manual
+  sourceType String   @default("manual") @map("source_type")
+  sourceRef  String?  @map("source_ref")
+  scope      String   @default("all")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([termZh, scope])
+  @@map("canon_glossary")
+}
+
+/// Translation version of a segment; one current version per segment (partial unique index in SQL).
+model CanonTranslation {
+  id            BigInt   @id @default(autoincrement())
+  segmentId     BigInt   @map("segment_id")
+  versionNo     Int      @map("version_no")
+  contentVi     String   @map("content_vi")
+  footnoteVi    String?  @map("footnote_vi")
+  /// ai | human
+  source        String
+  model         String?
+  promptVersion String?  @map("prompt_version")
+  editedBy      String?  @map("edited_by") @db.Uuid
+  /// draft | ai_checked | flagged | approved | rejected
+  status        String   @default("draft")
+  isCurrent     Boolean  @default(false) @map("is_current")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  segment CanonSegment  @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  editor  AdminUser?    @relation(fields: [editedBy], references: [id], onDelete: SetNull)
+  reviews CanonReview[]
+
+  @@unique([segmentId, versionNo])
+  @@map("canon_translations")
+}
+
+model CanonReview {
+  id            BigInt   @id @default(autoincrement())
+  translationId BigInt   @map("translation_id")
+  /// ai | human
+  reviewerType  String   @map("reviewer_type")
+  reviewer      String?
+  adminUserId   String?  @map("admin_user_id") @db.Uuid
+  /// ok | issue
+  verdict       String
+  issues        Json     @default("[]")
+  comment       String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  translation CanonTranslation @relation(fields: [translationId], references: [id], onDelete: Cascade)
+  adminUser   AdminUser?       @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([translationId], map: "idx_canon_reviews_translation")
+  @@map("canon_reviews")
+}
+
+/// Nightly runner log (resume point + token / credit usage).
+model CanonJob {
+  id            BigInt    @id @default(autoincrement())
+  juanId        String    @map("juan_id") @db.Uuid
+  /// translate | review | retry
+  step          String
+  model         String
+  promptVersion String?   @map("prompt_version")
+  /// queued | running | done | failed
+  status        String    @default("queued")
+  segmentFrom   Int?      @map("segment_from")
+  segmentTo     Int?      @map("segment_to")
+  tokensIn      Int?      @map("tokens_in")
+  tokensOut     Int?      @map("tokens_out")
+  credits       Decimal?  @db.Decimal(14, 2)
+  error         String?
+  startedAt     DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt    DateTime? @map("finished_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  juan CanonJuan @relation(fields: [juanId], references: [id], onDelete: Cascade)
+
+  @@index([juanId, createdAt(sort: Desc)], map: "idx_canon_jobs_juan")
+  @@index([status], map: "idx_canon_jobs_status")
+  @@map("canon_jobs")
+}
+
+model CanonReadingProgress {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deviceId  String   @map("device_id")
+  workId    String   @map("work_id") @db.Uuid
+  juanId    String?  @map("juan_id") @db.Uuid
+  segmentId BigInt?  @map("segment_id")
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  work    CanonWork     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  juan    CanonJuan?    @relation(fields: [juanId], references: [id], onDelete: SetNull)
+  segment CanonSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+
+  @@unique([deviceId, workId])
+  @@index([deviceId], map: "idx_canon_reading_progress_device")
+  @@map("canon_reading_progress")
 }
