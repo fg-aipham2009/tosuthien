@@ -1,5 +1,13 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
+/** CBETA chunk_embeddings + local embed_server.py — never MiniLM 384. */
+export const REQUIRED_EMBEDDING_MODEL = 'BAAI/bge-m3';
+export const REQUIRED_EMBEDDING_DIM = 1024;
 
 export type ChatProvider = 'shopaikey' | 'nexus' | 'hhtech' | 'flare';
 
@@ -32,6 +40,7 @@ export function resolveAnthropicMessagesUrl(chatBaseUrl: string): string {
 
 @Injectable()
 export class AiConfigService {
+  private readonly logger = new Logger(AiConfigService.name);
   private cached: AiConfig | null = null;
 
   constructor(private readonly config: ConfigService) {}
@@ -83,15 +92,20 @@ export class AiConfigService {
       }
     }
 
+    const rawModel =
+      this.config.get<string>('EMBEDDING_MODEL') || REQUIRED_EMBEDDING_MODEL;
+    const rawDim = parseInt(
+      this.config.get<string>('EMBEDDING_DIM') || String(REQUIRED_EMBEDDING_DIM),
+      10,
+    );
+    const { model: embeddingModel, dim: embeddingDim } =
+      this.normalizeEmbeddingConfig(rawModel, rawDim);
+
     this.cached = {
       embeddingApiKey: embedKey,
       embeddingBaseUrl: embedBase.replace(/\/$/, ''),
-      embeddingModel:
-        this.config.get<string>('EMBEDDING_MODEL') || 'BAAI/bge-m3',
-      embeddingDim: parseInt(
-        this.config.get<string>('EMBEDDING_DIM') || '1024',
-        10,
-      ),
+      embeddingModel,
+      embeddingDim,
       chatApiKey: primary.apiKey,
       chatBaseUrl: primary.baseUrl,
       chatModel: primary.model,
@@ -100,6 +114,37 @@ export class AiConfigService {
     };
 
     return this.cached;
+  }
+
+  /**
+   * Refuse MiniLM/384 (old Duy Lực default). CBETA vectors are BGE-M3 1024-d;
+   * a mismatched query embed silently breaks hybrid search.
+   */
+  private normalizeEmbeddingConfig(
+    model: string,
+    dim: number,
+  ): { model: string; dim: number } {
+    const m = (model || '').trim() || REQUIRED_EMBEDDING_MODEL;
+    const d = Number.isFinite(dim) && dim > 0 ? dim : REQUIRED_EMBEDDING_DIM;
+    const badModel = /minilm|paraphrase-multilingual/i.test(m);
+    const badDim = d !== REQUIRED_EMBEDDING_DIM;
+    if (badModel || badDim) {
+      this.logger.error(
+        `Refusing embedding config model=${m} dim=${d}; ` +
+          `forcing ${REQUIRED_EMBEDDING_MODEL} / ${REQUIRED_EMBEDDING_DIM} ` +
+          `(CBETA chunk_embeddings). Fix host .env — do not set MiniLM/384.`,
+      );
+      return {
+        model: REQUIRED_EMBEDDING_MODEL,
+        dim: REQUIRED_EMBEDDING_DIM,
+      };
+    }
+    if (!/bge-m3/i.test(m)) {
+      this.logger.warn(
+        `EMBEDDING_MODEL=${m} is not BGE-M3; CBETA expects ${REQUIRED_EMBEDDING_MODEL}`,
+      );
+    }
+    return { model: m, dim: d };
   }
 
   private isChatProvider(value: string): value is ChatProvider {
