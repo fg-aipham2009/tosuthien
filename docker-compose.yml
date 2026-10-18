@@ -76,11 +76,11 @@ services:
       EMBEDDING_MODEL: BAAI/bge-m3
       EMBEDDING_DIM: "1024"
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-local}
-      # HARD-PIN hhtech (not 9flare). Stale CHAT_PROVIDER=flare in .env used to win.
+      # HARD-PIN hhtech only — no flare/nexus fallback (bad key used to silently hit nexus).
       CHAT_PROVIDER: hhtech
       # HARD-PIN Opus 5.5 — do not interpolate from .env (stale claude-opus-5 used to win).
       CHAT_MODEL: claude-opus-5-5
-      CHAT_FALLBACK_PROVIDER: ${CHAT_FALLBACK_PROVIDER:-nexus}
+      CHAT_FALLBACK_PROVIDER: ""
       FLARE_BASE_URL: ${FLARE_BASE_URL:-https://9flare.com/api/v1}
       FLARE_CHAT_MODEL: pro/claude-opus-5-5-medium
       HHTECH_BASE_URL: ${HHTECH_BASE_URL:-https://hhtechapi.com/v1}
