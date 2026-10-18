@@ -68,8 +68,12 @@ services:
       PORT: 8000
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
       UV_THREADPOOL_SIZE: ${UV_THREADPOOL_SIZE:-4}
-      # host.docker.internal → embed_server.py on the Mac host (port 7997)
+      # host.docker.internal → embed_server.py on the host (port 7997)
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL_DOCKER:-http://host.docker.internal:7997/v1}
+      # Must match CBETA chunk_embeddings (BGE-M3 1024) — do not leave MiniLM 384 in .env alone
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-1024}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-local}
       # Pin chat providers so a stale shell env / old image cannot revive dead Nexus host.
       CHAT_PROVIDER: ${CHAT_PROVIDER:-flare}
       CHAT_MODEL: ${CHAT_MODEL:-claude-opus-5-5}
