@@ -321,6 +321,29 @@ def seed_and_import(collections: list[str]) -> None:
                   name_vi = EXCLUDED.name_vi
                 """
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS collection_aliases (
+                  id               bigserial PRIMARY KEY,
+                  collection_code  text NOT NULL REFERENCES collections (code) ON DELETE CASCADE,
+                  alias            text NOT NULL,
+                  created_at       timestamptz NOT NULL DEFAULT now(),
+                  UNIQUE (collection_code, alias)
+                )
+                """
+            )
+            cur.execute(
+                """
+                INSERT INTO collection_aliases (collection_code, alias) VALUES
+                  ('XY', '虛雲'),
+                  ('XY', 'hư vân'),
+                  ('XY', 'xuyun'),
+                  ('LQ', '來果'),
+                  ('LQ', 'lai quả'),
+                  ('LQ', 'laiguo')
+                ON CONFLICT (collection_code, alias) DO NOTHING
+                """
+            )
         conn.commit()
 
     cmd = [

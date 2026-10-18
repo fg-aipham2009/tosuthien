@@ -6,6 +6,7 @@ import { LlmService } from './llm.service';
 import { ChatService } from './chat.service';
 import { CitationLinkService } from './citation-link.service';
 import { CbetaDbService } from './cbeta/cbeta-db.service';
+import { CbetaCollectionsService } from './cbeta/cbeta-collections.service';
 import { CbetaEntitiesService } from './cbeta/cbeta-entities.service';
 import { CbetaRetrieveService } from './cbeta/cbeta-retrieve.service';
 import { CbetaChatService } from './cbeta/cbeta-chat.service';
@@ -22,6 +23,7 @@ import { PdfModule } from '../pdf/pdf.module';
     ChatService,
     CitationLinkService,
     CbetaDbService,
+    CbetaCollectionsService,
     CbetaEntitiesService,
     CbetaRetrieveService,
     CbetaChatService,

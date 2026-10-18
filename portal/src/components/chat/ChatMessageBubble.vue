@@ -9,9 +9,14 @@ import {
   tappablePages,
 } from '../../lib/openCitation'
 
-const props = defineProps<{
-  message: ChatMessage
-}>()
+const props = withDefaults(
+  defineProps<{
+    message: ChatMessage
+    /** Label above scripture/answer body (CBETA uses translation label). */
+    scriptureLabel?: string
+  }>(),
+  { scriptureLabel: 'Nguyên văn kinh sách' },
+)
 
 const openingKey = ref<string | null>(null)
 const openError = ref('')
@@ -28,6 +33,13 @@ function copyText(text: string) {
 
 async function openCitation(c: ChatCitation, filePage?: number) {
   openError.value = ''
+  if (c.url?.trim()) {
+    const opened = window.open(c.url.trim(), '_blank', 'noopener,noreferrer')
+    if (!opened) {
+      openError.value = 'Trình duyệt đang chặn tab mới — cho phép popup rồi thử lại.'
+    }
+    return
+  }
   const page = filePage ?? defaultFilePage(c)
   const key = `${c.passageId || c.title || ''}:${page}`
   if (openingKey.value) return
@@ -50,7 +62,7 @@ async function openCitation(c: ChatCitation, filePage?: number) {
 }
 
 function canOpen(c: ChatCitation): boolean {
-  return !!(c.pdf?.pdfFileId || c.sourceFile)
+  return !!(c.url?.trim() || c.pdf?.pdfFileId || c.pdf?.pdfUrl)
 }
 </script>
 
@@ -68,12 +80,12 @@ function canOpen(c: ChatCitation): boolean {
         <div class="assistant-body">
           <template v-if="scripture || message.streaming">
             <div class="label-row">
-              <span class="label scripture-label">Nguyên văn kinh sách</span>
+              <span class="label scripture-label">{{ scriptureLabel }}</span>
               <button
                 v-if="!message.streaming && scripture"
                 type="button"
                 class="copy"
-                title="Sao chép nguyên văn"
+                title="Sao chép"
                 @click="copyText(scripture)"
               >
                 Sao chép
@@ -104,13 +116,13 @@ function canOpen(c: ChatCitation): boolean {
                     </button>
                   </div>
                   <button
-                    v-else-if="canOpen(c) && tappablePages(c).length === 1"
+                    v-else-if="canOpen(c)"
                     type="button"
                     class="page-chip"
                     :disabled="openingKey !== null"
-                    @click="openCitation(c, tappablePages(c)[0]!.filePage)"
+                    @click="openCitation(c, tappablePages(c)[0]?.filePage)"
                   >
-                    Mở PDF
+                    {{ c.url ? 'Mở CBETA' : c.openLabel || 'Mở PDF' }}
                   </button>
                 </div>
               </li>

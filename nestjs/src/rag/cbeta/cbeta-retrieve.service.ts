@@ -5,6 +5,12 @@ import { CANDIDATE_POOL, LOOKUP_TOP_K } from '../rag.constants';
 import { CbetaDbService } from './cbeta-db.service';
 import { CbetaEntitiesService } from './cbeta-entities.service';
 import { lexicalOverlapScore } from './cbeta-entity.util';
+import { buildCbetaOnlineUrl } from './cbeta-link.util';
+import {
+  buildOrTsQuery,
+  extractLexicalTerms,
+  parseNgramSizes,
+} from './cbeta-lexical.util';
 import type {
   CbetaChunkHit,
   CbetaDeepProgress,
@@ -13,12 +19,13 @@ import type {
   CbetaRouteDecision,
 } from './cbeta.types';
 
+/** Classic RRF rank constant (Cormack et al.). */
 const RRF_K = 60;
 
-/** Title patterns for coverage / denglu-style works (deep path seed). */
-const COVERAGE_TITLE_SQL = `
-  title_zh ~ '傳燈|五燈|指月|高僧傳|續燈|會元|燈錄|禪林'
-`;
+export interface CbetaRetrieveOptions {
+  /** Extra terms from VN→Hán rewrite keywords (for FTS OR / ILIKE). */
+  lexicalKeywords?: string[];
+}
 
 @Injectable()
 export class CbetaRetrieveService {
@@ -30,6 +37,15 @@ export class CbetaRetrieveService {
     private readonly config: ConfigService,
     private readonly entities: CbetaEntitiesService,
   ) {}
+
+  /**
+   * Optional Postgres regex for coverage seed titles (env CBETA_COVERAGE_TITLE_REGEX).
+   * When unset, coverage lists works by size/filter only — no invented title subset.
+   */
+  private coverageTitleRegex(): string | null {
+    const re = (this.config.get<string>('CBETA_COVERAGE_TITLE_REGEX') || '').trim();
+    return re || null;
+  }
 
   private candidatePool(): number {
     const n = parseInt(
@@ -52,21 +68,37 @@ export class CbetaRetrieveService {
     question: string,
     decision: CbetaRouteDecision,
     topK?: number,
+    options?: CbetaRetrieveOptions,
   ): Promise<CbetaRetrieveResult> {
-    if (decision.path === 'deep') {
-      return this.retrieveDeep(question, decision, topK);
+    // Multi-pass lamp/denglu scan only for real coverage/enumerate intent.
+    // forcePath=deep without coverageMode must not invent that subset.
+    if (decision.path === 'deep' && decision.coverageMode) {
+      return this.retrieveDeep(question, decision, topK, undefined, options);
     }
-    return this.retrieveFast(question, decision, topK);
+    return this.retrieveFast(question, decision, topK, options);
+  }
+
+  private lexicalTerms(
+    question: string,
+    options?: CbetaRetrieveOptions,
+  ): string[] {
+    const ngrams = parseNgramSizes(
+      this.config.get<string>('CBETA_LEXICAL_NGRAMS') ||
+        process.env.CBETA_LEXICAL_NGRAMS,
+    );
+    return extractLexicalTerms(question, options?.lexicalKeywords || [], ngrams);
   }
 
   async retrieveFast(
     question: string,
     decision: CbetaRouteDecision,
     topK?: number,
+    options?: CbetaRetrieveOptions,
   ): Promise<CbetaRetrieveResult> {
     const pool = this.candidatePool();
     const k = Math.max(1, topK ?? pool);
     const filter = this.filterSql({ ...decision, path: 'fast' });
+    const terms = this.lexicalTerms(question, options);
 
     let embedError: string | null = null;
     let vectorHits: CbetaChunkHit[] = [];
@@ -78,7 +110,10 @@ export class CbetaRetrieveService {
       this.logger.warn(`CBETA embed failed: ${embedError}`);
     }
 
-    const ftsHits = await this.searchFts(question, pool, filter, 'fast');
+    let ftsHits = await this.searchFts(question, terms, pool, filter, 'fast');
+    if (!ftsHits.length && terms.length) {
+      ftsHits = await this.searchLexical(terms, pool, filter);
+    }
 
     let hits: CbetaChunkHit[];
     let searchMode: 'hybrid' | 'vector' | 'fts';
@@ -93,30 +128,39 @@ export class CbetaRetrieveService {
       searchMode = 'fts';
     }
 
-    hits = this.rerank(question, hits).slice(0, k);
+    const rerankQ = [question, ...terms].join(' ');
+    hits = this.rerank(rerankQ, hits).slice(0, k);
     hits = await this.expandNeighbors(hits);
     return { hits, searchMode, embedError };
   }
 
   /**
-   * Coverage multi-pass: scan denglu/lamp works for master names, upsert entities,
-   * then hybrid+rerank for citation context.
+   * Coverage multi-pass: scan works whose titles match lamp/denglu patterns
+   * (only when decision.coverageMode), extract entities, then hybrid+rerank.
    */
   async retrieveDeep(
     question: string,
     decision: CbetaRouteDecision,
     topK?: number,
     onProgress?: (p: CbetaDeepProgress) => void,
+    options?: CbetaRetrieveOptions,
   ): Promise<CbetaRetrieveResult> {
-    const works = await this.listCoverageWorks(decision.collections);
+    if (!decision.coverageMode) {
+      return this.retrieveFast(question, decision, topK, options);
+    }
     const maxWorksEnv = parseInt(
       this.config.get<string>('CBETA_DEEP_MAX_WORKS') || '',
       10,
     );
-    const workList =
-      Number.isFinite(maxWorksEnv) && maxWorksEnv > 0
-        ? works.slice(0, maxWorksEnv)
-        : works;
+    const hasMaxWorks = Number.isFinite(maxWorksEnv) && maxWorksEnv > 0;
+    if (!this.coverageTitleRegex() && !hasMaxWorks) {
+      this.logger.warn(
+        'coverageMode needs CBETA_COVERAGE_TITLE_REGEX and/or CBETA_DEEP_MAX_WORKS; falling back to hybrid',
+      );
+      return this.retrieveFast(question, decision, topK);
+    }
+    const works = await this.listCoverageWorks(decision.collections);
+    const workList = hasMaxWorks ? works.slice(0, maxWorksEnv) : works;
 
     const acc = new Map<string, { count: number; works: Set<string> }>();
     const citationPool: CbetaChunkHit[] = [];
@@ -214,6 +258,7 @@ export class CbetaRetrieveService {
       question,
       { ...decision, path: 'fast' },
       topK,
+      options,
     );
     const merged = this.rerank(question, [
       ...citationPool,
@@ -253,7 +298,17 @@ export class CbetaRetrieveService {
       const label = this.citationLabel(h);
       const body = h.contentZh.trim();
       if (!body) continue;
-      const block = `[CBETA]\nTrích dẫn: ${label}\nwork_code=${h.workCode} collection=${h.collection} chunk=${h.chunkIndex}\n\n${body}`;
+      const url = this.cbetaOnlineUrl(h.workCode, h.cbetaRefStart);
+      const meta = [
+        `work_code=${h.workCode}`,
+        `collection=${h.collection}`,
+        h.juanLabel?.trim() || (h.juanNo != null ? `juan=${h.juanNo}` : null),
+        h.cbetaRefStart ? `ref=${h.cbetaRefStart}` : null,
+        url ? `url=${url}` : null,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const block = `[CBETA]\nTrích dẫn: ${label}\n${meta}\n\n${body}`;
       if (used.length && usedChars + block.length > budget) break;
       blocks.push(block);
       used.push(h);
@@ -262,12 +317,27 @@ export class CbetaRetrieveService {
     return { blocks, used };
   }
 
+  /** Public label for UI / LLM — no internal chunk index. */
   citationLabel(h: CbetaChunkHit): string {
     const juan =
       h.juanLabel?.trim() ||
-      (h.juanNo != null ? `卷${h.juanNo}` : `chunk ${h.chunkIndex}`);
+      (h.juanNo != null ? `卷${h.juanNo}` : null);
+    const ref = h.cbetaRefStart?.trim()
+      ? `p.${h.cbetaRefStart.trim().replace(/^p/i, '')}`
+      : null;
     const title = h.titleZh?.trim() || h.workCode;
-    return `${title} · ${h.workCode} · ${juan}`;
+    return [title, h.workCode, juan, ref].filter(Boolean).join(' · ');
+  }
+
+  cbetaOnlineUrl(
+    workCode: string,
+    cbetaRefStart: string | null | undefined,
+  ): string | null {
+    const tpl =
+      this.config.get<string>('CBETA_ONLINE_URL_TEMPLATE') ||
+      process.env.CBETA_ONLINE_URL_TEMPLATE ||
+      '';
+    return buildCbetaOnlineUrl(workCode, cbetaRefStart, tpl);
   }
 
   /** Lexical rerank on top of RRF / vector scores. */
@@ -285,17 +355,21 @@ export class CbetaRetrieveService {
     collections: string[],
   ): Promise<Array<{ work_code: string; title_zh: string; chunk_count: number }>> {
     const params: unknown[] = [];
-    let collSql = '';
+    const where: string[] = ['TRUE'];
+    const titleRe = this.coverageTitleRegex();
+    if (titleRe) {
+      params.push(titleRe);
+      where.push(`title_zh ~ $${params.length}`);
+    }
     if (collections.length) {
       params.push(collections);
-      collSql = `AND collection = ANY($${params.length}::text[])`;
+      where.push(`collection = ANY($${params.length}::text[])`);
     }
     return this.db.query(
       `
       SELECT work_code, title_zh, coalesce(chunk_count, 0)::int AS chunk_count
       FROM works
-      WHERE (${COVERAGE_TITLE_SQL})
-        ${collSql}
+      WHERE ${where.join(' AND ')}
       ORDER BY chunk_count DESC NULLS LAST, work_code ASC
       `,
       params,
@@ -316,9 +390,15 @@ export class CbetaRetrieveService {
       params.push(decision.workCodes);
       parts.push(`c.work_code = ANY($${params.length}::text[])`);
     }
-    if (decision.path === 'deep' && !decision.collections.length) {
-      // Prefer denglu / lamp records when doing coverage without a master filter.
-      parts.push(`(${COVERAGE_TITLE_SQL.replace(/title_zh/g, 'c.title_zh')})`);
+    const titleRe = this.coverageTitleRegex();
+    if (
+      decision.path === 'deep' &&
+      decision.coverageMode &&
+      !decision.collections.length &&
+      titleRe
+    ) {
+      params.push(titleRe);
+      parts.push(`c.title_zh ~ $${params.length}`);
     }
     return {
       sql: parts.length ? `AND ${parts.join(' AND ')}` : '',
@@ -375,15 +455,26 @@ export class CbetaRetrieveService {
     return rows.map((r) => this.toHit(r));
   }
 
+  /**
+   * FTS with OR of lexical terms (CJK n-grams + keywords).
+   * plainto_tsquery ANDs tokens and fails for Chinese multi-phrase rewrite strings.
+   */
   private async searchFts(
     question: string,
+    terms: string[],
     limit: number,
     filter: { sql: string; params: unknown[] },
     path: 'fast' | 'deep',
   ): Promise<CbetaChunkHit[]> {
-    const q = question.trim();
-    if (!q) return [];
-    const params = [q, limit, ...filter.params];
+    const tsQuery =
+      buildOrTsQuery(terms) ||
+      buildOrTsQuery(extractLexicalTerms(question, [], parseNgramSizes(
+        this.config.get<string>('CBETA_LEXICAL_NGRAMS') ||
+          process.env.CBETA_LEXICAL_NGRAMS,
+      )));
+    if (!tsQuery) return [];
+
+    const params = [tsQuery, limit, ...filter.params];
     let filterSql = filter.sql;
     if (filter.params.length) {
       filterSql = filter.sql.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + 2}`);
@@ -392,50 +483,123 @@ export class CbetaRetrieveService {
       path === 'deep'
         ? `ORDER BY c.work_code ASC, c.chunk_index ASC, ts_rank(
              to_tsvector('simple', c.content_zh),
-             plainto_tsquery('simple', $1)
+             to_tsquery('simple', $1)
            ) DESC`
         : `ORDER BY ts_rank(
              to_tsvector('simple', c.content_zh),
-             plainto_tsquery('simple', $1)
+             to_tsquery('simple', $1)
            ) DESC`;
 
-    const rows = await this.db.query<{
-      id: string;
-      work_code: string;
-      collection: string;
-      title_zh: string;
-      juan_no: number | null;
-      juan_label: string | null;
-      chunk_index: number;
-      content_zh: string;
-      cbeta_ref_start: string | null;
-      score: number;
-    }>(
-      `
-      SELECT
-        c.id,
-        c.work_code,
-        c.collection,
-        COALESCE(c.title_zh, w.title_zh, '') AS title_zh,
-        c.juan_no,
-        c.juan_label,
-        c.chunk_index,
-        c.content_zh,
-        c.cbeta_ref_start,
-        ts_rank(
-          to_tsvector('simple', c.content_zh),
-          plainto_tsquery('simple', $1)
-        )::float8 AS score
-      FROM chunks c
-      JOIN works w ON w.work_code = c.work_code
-      WHERE to_tsvector('simple', c.content_zh) @@ plainto_tsquery('simple', $1)
-        ${filterSql}
-      ${orderSql}
-      LIMIT $2
-      `,
-      params,
-    );
-    return rows.map((r) => this.toHit(r));
+    try {
+      const rows = await this.db.query<{
+        id: string;
+        work_code: string;
+        collection: string;
+        title_zh: string;
+        juan_no: number | null;
+        juan_label: string | null;
+        chunk_index: number;
+        content_zh: string;
+        cbeta_ref_start: string | null;
+        score: number;
+      }>(
+        `
+        SELECT
+          c.id,
+          c.work_code,
+          c.collection,
+          COALESCE(c.title_zh, w.title_zh, '') AS title_zh,
+          c.juan_no,
+          c.juan_label,
+          c.chunk_index,
+          c.content_zh,
+          c.cbeta_ref_start,
+          ts_rank(
+            to_tsvector('simple', c.content_zh),
+            to_tsquery('simple', $1)
+          )::float8 AS score
+        FROM chunks c
+        JOIN works w ON w.work_code = c.work_code
+        WHERE to_tsvector('simple', c.content_zh) @@ to_tsquery('simple', $1)
+          ${filterSql}
+        ${orderSql}
+        LIMIT $2
+        `,
+        params,
+      );
+      return rows.map((r) => this.toHit(r));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`CBETA FTS failed: ${msg}`);
+      return [];
+    }
+  }
+
+  /**
+   * Substring / trigram lexical channel when FTS tokens miss (common for CJK).
+   * Patterns come from extracted terms only — no fixed word list.
+   */
+  private async searchLexical(
+    terms: string[],
+    limit: number,
+    filter: { sql: string; params: unknown[] },
+  ): Promise<CbetaChunkHit[]> {
+    const patterns = [...new Set(terms.map((t) => t.trim()).filter((t) => t.length >= 2))];
+    if (!patterns.length) return [];
+
+    const params: unknown[] = [patterns, limit, ...filter.params];
+    let filterSql = filter.sql;
+    if (filter.params.length) {
+      filterSql = filter.sql.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + 2}`);
+    }
+
+    try {
+      const rows = await this.db.query<{
+        id: string;
+        work_code: string;
+        collection: string;
+        title_zh: string;
+        juan_no: number | null;
+        juan_label: string | null;
+        chunk_index: number;
+        content_zh: string;
+        cbeta_ref_start: string | null;
+        score: number;
+      }>(
+        `
+        SELECT
+          c.id,
+          c.work_code,
+          c.collection,
+          COALESCE(c.title_zh, w.title_zh, '') AS title_zh,
+          c.juan_no,
+          c.juan_label,
+          c.chunk_index,
+          c.content_zh,
+          c.cbeta_ref_start,
+          (
+            SELECT count(*)::float8
+            FROM unnest($1::text[]) AS t(term)
+            WHERE position(t.term IN c.content_zh) > 0
+          ) AS score
+        FROM chunks c
+        JOIN works w ON w.work_code = c.work_code
+        WHERE EXISTS (
+          SELECT 1 FROM unnest($1::text[]) AS t(term)
+          WHERE position(t.term IN c.content_zh) > 0
+        )
+          ${filterSql}
+        ORDER BY score DESC, c.work_code ASC, c.chunk_index ASC
+        LIMIT $2
+        `,
+        params,
+      );
+      return rows.map((r) => this.toHit(r));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`CBETA lexical search failed: ${msg}`);
+      return [];
+    }
   }
 
   private fuseRrf(

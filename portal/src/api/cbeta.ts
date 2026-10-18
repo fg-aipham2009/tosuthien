@@ -20,6 +20,8 @@ export type CbetaCitationRaw = {
   label: string
   quote: string
   score: number
+  cbetaRefStart?: string | null
+  url?: string | null
 }
 
 export async function fetchCbetaHealth() {
@@ -61,8 +63,9 @@ export function mapCbetaCitations(raw: CbetaCitationRaw[] | undefined): ChatCita
     score: c.score,
     quote: c.quote,
     excerpt: c.quote,
+    url: c.url ?? null,
     pdf: null,
-    openLabel: null,
+    openLabel: c.url ? 'Mở CBETA' : null,
   }))
 }
 

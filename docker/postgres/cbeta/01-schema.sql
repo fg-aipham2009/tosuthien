@@ -65,6 +65,10 @@ CREATE INDEX IF NOT EXISTS idx_cbeta_chunks_collection
 CREATE INDEX IF NOT EXISTS idx_cbeta_chunks_fts
   ON chunks USING gin (to_tsvector('simple', content_zh));
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX IF NOT EXISTS idx_cbeta_chunks_content_trgm
+  ON chunks USING gin (content_zh gin_trgm_ops);
+
 CREATE TABLE IF NOT EXISTS chunk_embeddings (
   chunk_id   text PRIMARY KEY REFERENCES chunks (id) ON DELETE CASCADE,
   embedding  vector(1024) NOT NULL,
@@ -99,6 +103,18 @@ CREATE INDEX IF NOT EXISTS idx_cbeta_entities_work
 CREATE INDEX IF NOT EXISTS idx_cbeta_entities_kind_count
   ON canon_entities (kind, mention_count DESC);
 
+-- Router: question phrase → collection code (data-driven; not Nest hardcode)
+CREATE TABLE IF NOT EXISTS collection_aliases (
+  id               bigserial PRIMARY KEY,
+  collection_code  text NOT NULL REFERENCES collections (code) ON DELETE CASCADE,
+  alias            text NOT NULL,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (collection_code, alias)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cbeta_collection_aliases_code
+  ON collection_aliases (collection_code);
+
 INSERT INTO collections (code, name_zh, name_vi, sort_order) VALUES
   ('T', '大正新脩大藏經', 'Đại Chính Tân Tu Đại Tạng Kinh', 1),
   ('X', '卍新纂大日本續藏經', 'Tân soạn Vạn Tục tạng', 2),
@@ -124,5 +140,16 @@ INSERT INTO collections (code, name_zh, name_vi, sort_order) VALUES
   ('S', '宋藏遺珍', 'Tống tạng di trân', 22),
   ('GB', '中國佛寺志叢刊', 'Chí chùa TQ', 23),
   ('ZS', '正史佛教資料類編', 'Chính sử Phật giáo', 24),
-  ('M', '卍正藏經', 'Vạn Chính tạng', 25)
+  ('M', '卍正藏經', 'Vạn Chính tạng', 25),
+  ('XY', '虛雲和尚全集（岑學呂法彙＋年譜）', 'Hư Vân toàn tập (Pháp hội + Niên phổ)', 90),
+  ('LQ', '來果禪師語錄／開示錄', 'Lai Quả ngữ lục / khai thị lục', 91)
 ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO collection_aliases (collection_code, alias) VALUES
+  ('XY', '虛雲'),
+  ('XY', 'hư vân'),
+  ('XY', 'xuyun'),
+  ('LQ', '來果'),
+  ('LQ', 'lai quả'),
+  ('LQ', 'laiguo')
+ON CONFLICT (collection_code, alias) DO NOTHING;

@@ -8,7 +8,7 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { IsArray, IsIn, IsInt, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ChatHistoryMessageDto } from '../../dto';
 import { CbetaChatService } from './cbeta-chat.service';
@@ -24,7 +24,6 @@ export class CbetaChatDto {
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(12)
   topK?: number;
 
   /** Optional hard filter: CBETA collection codes (T, X, XY, LQ, …). */
@@ -114,7 +113,7 @@ export class CbetaController {
   /** Preview fast/deep routing for a CBETA question (no LLM). */
   @Post('route')
   @HttpCode(HttpStatus.OK)
-  route(@Body() dto: CbetaChatDto) {
+  async route(@Body() dto: CbetaChatDto) {
     return this.cbetaChat.route(dto.question, this.toOptions(dto));
   }
 

@@ -17,16 +17,17 @@ declare global {
 }
 
 const route = useRoute()
+/** Main portal tabs only — CBETA is a separate surface (no cross-nav). */
 const tabs = [
   { to: '/', label: 'Hỏi Đáp', match: (p: string) => p === '/' },
-  { to: '/cbeta', label: 'CBETA', match: (p: string) => p.startsWith('/cbeta') },
   { to: '/mp3', label: 'Pháp Âm', match: (p: string) => p.startsWith('/mp3') },
   { to: '/kinh-sach', label: 'Kinh sách', match: (p: string) => p.startsWith('/kinh-sach') },
   { to: '/thien-duong', label: 'Thiền đường', match: (p: string) => p.startsWith('/thien-duong') },
 ] as const
 
 const activePath = computed(() => route.path)
-const isChat = computed(() => route.path === '/' || route.path.startsWith('/cbeta'))
+const isCbeta = computed(() => route.path.startsWith('/cbeta'))
+const isChat = computed(() => route.path === '/' || isCbeta.value)
 const canInstall = ref(false)
 const alreadyInstalled = ref(false)
 const showInstallButton = computed(() => !alreadyInstalled.value)
@@ -107,12 +108,23 @@ async function installApp() {
     <header
       class="z-20 flex shrink-0 items-center justify-between gap-3 border-b border-black/10 bg-surface px-4 py-2.5 lg:px-8"
     >
-      <RouterLink class="inline-flex items-center gap-2.5 text-[1.05rem] font-semibold text-brand" to="/">
+      <RouterLink
+        v-if="!isCbeta"
+        class="inline-flex items-center gap-2.5 text-[1.05rem] font-semibold text-brand"
+        to="/"
+      >
         <img class="size-9 rounded-full" src="/logo-tosuthien.png" alt="" width="36" height="36" />
         <span>Tổ Sư Thiền</span>
       </RouterLink>
+      <div
+        v-else
+        class="inline-flex items-center gap-2.5 text-[1.05rem] font-semibold text-brand"
+      >
+        <img class="size-9 rounded-full" src="/logo-tosuthien.png" alt="" width="36" height="36" />
+        <span>CBETA</span>
+      </div>
       <div class="flex items-center gap-2">
-        <nav class="hidden gap-1 lg:flex" aria-label="Chính">
+        <nav v-if="!isCbeta" class="hidden gap-1 lg:flex" aria-label="Chính">
           <RouterLink
             v-for="t in tabs"
             :key="t.to"
@@ -124,7 +136,7 @@ async function installApp() {
           </RouterLink>
         </nav>
         <button
-          v-if="showInstallButton"
+          v-if="showInstallButton && !isCbeta"
           type="button"
           class="rounded-full px-3.5 py-2 text-[0.92rem] font-semibold transition"
           :class="
@@ -172,10 +184,11 @@ async function installApp() {
       >
     </footer>
 
-    <MiniPlayer />
+    <MiniPlayer v-if="!isCbeta" />
 
     <nav
-      class="z-30 grid shrink-0 grid-cols-5 gap-0.5 border-t border-black/10 bg-surface px-1.5 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 lg:hidden"
+      v-if="!isCbeta"
+      class="z-30 grid shrink-0 grid-cols-4 gap-0.5 border-t border-black/10 bg-surface px-1.5 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 lg:hidden"
       aria-label="Tab"
     >
       <RouterLink

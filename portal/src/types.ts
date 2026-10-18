@@ -30,6 +30,8 @@ export interface ChatCitation {
   quote?: string
   excerpt?: string
   openLabel?: string | null
+  /** External reader URL (e.g. CBETA Online). */
+  url?: string | null
   pdf?: {
     pdfFileId?: string
     pdfTitle?: string

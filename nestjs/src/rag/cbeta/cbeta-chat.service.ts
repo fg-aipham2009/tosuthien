@@ -5,29 +5,25 @@ import {
 } from '@nestjs/common';
 import { AI_INTERPRETATION_MARKER } from '../rag.constants';
 import { LlmService } from '../llm.service';
-import type { AnswerStyleContext } from '../rag-answer-style';
 import type { ChatOptions, ChatStreamEvent } from '../rag.types';
 import { routeCbetaQuery } from './cbeta-router';
+import { CbetaCollectionsService } from './cbeta-collections.service';
 import { CbetaDbService } from './cbeta-db.service';
 import { CbetaEntitiesService } from './cbeta-entities.service';
 import { CbetaRetrieveService } from './cbeta-retrieve.service';
 import type {
   CbetaCitation,
   CbetaChunkHit,
+  CbetaQueryRewrite,
   CbetaRetrieveResult,
   CbetaRouteDecision,
 } from './cbeta.types';
-
-const CBETA_STYLE: AnswerStyleContext = {
-  style: 'kinh_long',
-  kinhBlockCount: 1,
-  nguLucBlockCount: 0,
-};
 
 @Injectable()
 export class CbetaChatService {
   constructor(
     private readonly db: CbetaDbService,
+    private readonly collections: CbetaCollectionsService,
     private readonly retrieve: CbetaRetrieveService,
     private readonly entities: CbetaEntitiesService,
     private readonly llm: LlmService,
@@ -42,21 +38,33 @@ export class CbetaChatService {
     }
   }
 
-  route(question: string, options: ChatOptions = {}): CbetaRouteDecision {
-    return routeCbetaQuery({
-      question,
-      corpus: 'cbeta',
-      collections: options.cbetaCollections,
-      forcePath: options.cbetaPath,
-    });
+  /** Preview route + VN→Hán rewrite (no retrieve / no answer LLM). */
+  async route(
+    question: string,
+    options: ChatOptions = {},
+  ): Promise<CbetaRouteDecision & { queryRewrite: CbetaQueryRewrite }> {
+    const rewrite = await this.prepareSearchQuery(question);
+    const decision = await this.routeDecision(question, rewrite.searchZh, options);
+    return { ...decision, queryRewrite: rewrite };
   }
 
   async chat(question: string, options: ChatOptions = {}) {
     this.assertCanChat(question);
     const t0 = Date.now();
-    const decision = this.route(question, options);
-    const retrieval = await this.runRetrieve(question, decision, options.topK);
-    const { blocks, used, citations } = this.pack(retrieval, decision);
+    const rewrite = await this.prepareSearchQuery(question);
+    const decisionMerged = await this.routeDecision(
+      question,
+      rewrite.searchZh,
+      options,
+    );
+    const retrieval = await this.runRetrieve(
+      rewrite.searchZh,
+      decisionMerged,
+      options.topK,
+      undefined,
+      rewrite.keywords,
+    );
+    const { blocks, used, citations } = this.pack(retrieval, decisionMerged);
     const retrievalMs = Date.now() - t0;
 
     if (!blocks.length && !retrieval.entities?.length) {
@@ -66,16 +74,26 @@ export class CbetaChatService {
         aiInterpretation: '',
         citations: [],
         entities: [],
-        meta: this.metaBase(decision, retrieval, retrievalMs, Date.now() - t0, 0),
+        meta: {
+          ...this.metaBase(
+            decisionMerged,
+            retrieval,
+            retrievalMs,
+            Date.now() - t0,
+            0,
+            rewrite,
+          ),
+        },
       };
     }
 
-    const intentBrief = this.intentBrief(decision, retrieval);
+    const intentBrief = this.intentBrief(decisionMerged, retrieval, rewrite);
     const tLlm = Date.now();
-    const raw = await this.llm.answer(
+    const raw = await this.llm.answerCbeta(
       question,
-      blocks.length ? blocks : ['[CBETA] (chỉ có danh sách entity, không có đoạn trích)'],
-      CBETA_STYLE,
+      blocks.length
+        ? blocks
+        : ['[CBETA] (chỉ có danh sách entity, không có đoạn trích)'],
       intentBrief,
       options.messages,
     );
@@ -88,7 +106,14 @@ export class CbetaChatService {
       citations,
       entities: retrieval.entities ?? [],
       meta: {
-        ...this.metaBase(decision, retrieval, retrievalMs, Date.now() - t0, used.length),
+        ...this.metaBase(
+          decisionMerged,
+          retrieval,
+          retrievalMs,
+          Date.now() - t0,
+          used.length,
+          rewrite,
+        ),
         llmMs,
       },
     };
@@ -100,35 +125,47 @@ export class CbetaChatService {
   ): AsyncGenerator<ChatStreamEvent> {
     this.assertCanChat(question);
     const t0 = Date.now();
-    const decision = this.route(question, options);
 
     yield {
       type: 'status',
       phase: 'retrieving',
-      message:
-        decision.path === 'deep'
-          ? 'Đang quét truyền đăng / ngũ đăng (coverage)…'
-          : undefined,
+      message: 'Đang chuẩn hóa câu hỏi → Hán (hhtech)…',
+    };
+    const rewrite = await this.prepareSearchQuery(question);
+    const decisionMerged = await this.routeDecision(
+      question,
+      rewrite.searchZh,
+      options,
+    );
+
+    yield {
+      type: 'status',
+      phase: 'retrieving',
+      message: decisionMerged.coverageMode
+        ? 'Đang quét coverage (theo work khớp cấu hình title)…'
+        : rewrite.skipped
+          ? undefined
+          : `Đang tra CBETA: ${rewrite.searchZh}`,
     };
 
     const retrieval = await this.runRetrieve(
-      question,
-      decision,
+      rewrite.searchZh,
+      decisionMerged,
       options.topK,
       (p) => {
-        // progress surfaced via status message on next tick — stored in meta
         void p;
       },
+      rewrite.keywords,
     );
 
-    const { blocks, used, citations } = this.pack(retrieval, decision);
+    const { blocks, used, citations } = this.pack(retrieval, decisionMerged);
 
     yield {
       type: 'meta',
       meta: {
         corpus: 'cbeta',
-        path: decision.path,
-        route: decision,
+        path: decisionMerged.path,
+        route: decisionMerged,
         searchMode: retrieval.searchMode,
         embedError: retrieval.embedError,
         retrievalMs: Date.now() - t0,
@@ -137,6 +174,7 @@ export class CbetaChatService {
         worksScanned: retrieval.worksScanned ?? [],
         passes: retrieval.passes,
         citationPolicy: 'required',
+        queryRewrite: rewrite,
       },
     };
 
@@ -151,18 +189,22 @@ export class CbetaChatService {
         answer: msg,
         aiInterpretation: '',
         citations: [],
-        meta: { corpus: 'cbeta', path: decision.path, totalMs: Date.now() - t0 },
+        meta: {
+          corpus: 'cbeta',
+          path: decisionMerged.path,
+          totalMs: Date.now() - t0,
+          queryRewrite: rewrite,
+        },
       };
       return;
     }
 
     yield { type: 'status', phase: 'generating' };
-    const intentBrief = this.intentBrief(decision, retrieval);
+    const intentBrief = this.intentBrief(decisionMerged, retrieval, rewrite);
     const parts: string[] = [];
-    for await (const delta of this.llm.answerStream(
+    for await (const delta of this.llm.answerCbetaStream(
       question,
       blocks.length ? blocks : ['[CBETA] (chỉ có danh sách entity)'],
-      CBETA_STYLE,
       intentBrief,
       options.messages,
     )) {
@@ -178,24 +220,116 @@ export class CbetaChatService {
       citations,
       meta: {
         corpus: 'cbeta',
-        path: decision.path,
+        path: decisionMerged.path,
         entities: retrieval.entities ?? [],
         worksScanned: retrieval.worksScanned ?? [],
         totalMs: Date.now() - t0,
+        queryRewrite: rewrite,
       },
     };
   }
 
-  private async runRetrieve(
+  private async routeDecision(
     question: string,
+    searchZh: string,
+    options: ChatOptions,
+  ): Promise<CbetaRouteDecision> {
+    const aliases = await this.collections.listRouteAliases();
+    const decision = routeCbetaQuery({
+      question,
+      corpus: 'cbeta',
+      collections: options.cbetaCollections,
+      forcePath: options.cbetaPath,
+      aliases,
+    });
+    return this.mergeAliasFromSearch(decision, searchZh, options);
+  }
+
+  private async prepareSearchQuery(question: string): Promise<CbetaQueryRewrite> {
+    const t0 = Date.now();
+    const r = await this.llm.rewriteCbetaSearchQuery(question);
+    const keywords = r.keywords || [];
+    const searchZh = [r.searchZh, ...keywords]
+      .map((s) => (s || '').trim())
+      .filter(Boolean)
+      .filter((s, i, arr) => arr.indexOf(s) === i)
+      .join(' ')
+      .trim() || question.trim();
+    return {
+      searchZh,
+      keywords,
+      skipped: r.skipped,
+      reason: r.reason,
+      rewriteMs: Date.now() - t0,
+    };
+  }
+
+  /** Alias match on Hán rewrite only (path/coverage stay from original question). */
+  private async mergeAliasFromSearch(
+    decision: CbetaRouteDecision,
+    searchZh: string,
+    options: ChatOptions,
+  ): Promise<CbetaRouteDecision> {
+    if (!searchZh?.trim()) return decision;
+    const aliases = await this.collections.listRouteAliases();
+    const again = routeCbetaQuery({
+      question: searchZh,
+      corpus: 'cbeta',
+      collections: options.cbetaCollections,
+      forcePath: 'fast',
+      aliases,
+    });
+    if (!again.collections.length) return decision;
+    const merged = [...decision.collections];
+    const seen = new Set(merged);
+    const newAliasReasons: string[] = [];
+    for (const c of again.collections) {
+      if (!seen.has(c)) {
+        seen.add(c);
+        merged.push(c);
+        newAliasReasons.push(`alias→${c}`);
+      }
+    }
+    if (!newAliasReasons.length && merged.length === decision.collections.length) {
+      return decision;
+    }
+    return {
+      ...decision,
+      collections: merged,
+      scopeNote: [
+        `path=${decision.path}`,
+        decision.coverageMode ? 'mode=coverage' : null,
+        merged.length ? `collections=${merged.join(',')}` : 'collections=none',
+      ]
+        .filter(Boolean)
+        .join('; '),
+      reasons: [...decision.reasons, ...newAliasReasons],
+    };
+  }
+
+  private async runRetrieve(
+    searchQuestion: string,
     decision: CbetaRouteDecision,
     topK?: number,
     onProgress?: Parameters<CbetaRetrieveService['retrieveDeep']>[3],
+    lexicalKeywords?: string[],
   ): Promise<CbetaRetrieveResult> {
-    if (decision.path === 'deep') {
-      return this.retrieve.retrieveDeep(question, decision, topK, onProgress);
+    const retrieveOpts = { lexicalKeywords: lexicalKeywords || [] };
+    if (decision.path === 'deep' && decision.coverageMode) {
+      return this.retrieve.retrieveDeep(
+        searchQuestion,
+        decision,
+        topK,
+        onProgress,
+        retrieveOpts,
+      );
     }
-    return this.retrieve.retrieveFast(question, decision, topK);
+    return this.retrieve.retrieveFast(
+      searchQuestion,
+      decision,
+      topK,
+      retrieveOpts,
+    );
   }
 
   private pack(
@@ -222,6 +356,7 @@ export class CbetaChatService {
     retrievalMs: number,
     totalMs: number,
     hitCount: number,
+    rewrite: CbetaQueryRewrite,
   ) {
     return {
       corpus: 'cbeta' as const,
@@ -236,27 +371,32 @@ export class CbetaChatService {
       worksScanned: retrieval.worksScanned ?? [],
       passes: retrieval.passes,
       citationPolicy: 'required' as const,
+      queryRewrite: rewrite,
     };
   }
 
   private intentBrief(
     decision: CbetaRouteDecision,
     retrieval: CbetaRetrieveResult,
+    rewrite: CbetaQueryRewrite,
   ): string {
     const lines = [
-      'CORPUS: CBETA (Hán tạng) — API riêng /api/cbeta; không dùng sách Việt Duy Lực.',
+      'CORPUS: CBETA only (/api/cbeta). Separate from tosuthien book RAG (/api/rag).',
+      'FORBIDDEN: cite or frame answers using HT Duy Lực Vietnamese books.',
       `PATH: ${decision.path}`,
-      decision.scopeNote,
-      'CITATION BẮT BUỘC: — (Tên thư, work_code, 卷/chunk) khớp dòng Trích dẫn.',
-      'Không có nguồn → nói chưa thấy; CẤM bịa tên / work_code.',
+      `SCOPE: ${decision.scopeNote}`,
+      `SEARCH_ZH: ${rewrite.searchZh}`,
+      'CITATION: — (title_zh, work_code, juan, p.ref) + CBETA url from block; never expose internal chunk index.',
+      'No hit → say not found in selected CBETA scope; never invent work_code.',
+      'I/O: user Vietnamese → PHẦN 1 = Vietnamese translation of CBETA Hán; PHẦN 2 = Vietnamese explanation.',
     ];
-    if (decision.path === 'deep') {
+    if (decision.path === 'deep' && decision.coverageMode) {
       lines.push(
-        'COVERAGE: ưu tiên khối [CBETA_ENTITY_LIST]; chỉ liệt kê tên có trong list; ghi rõ work đã quét.',
+        'COVERAGE: chỉ liệt kê tên có trong [CBETA_ENTITY_LIST]; phạm vi = WORKS_SCANNED thực tế.',
       );
-      if (retrieval.worksScanned?.length) {
-        lines.push(`WORKS_SCANNED: ${retrieval.worksScanned.join(', ')}`);
-      }
+    }
+    if (retrieval.worksScanned?.length) {
+      lines.push(`WORKS_SCANNED: ${retrieval.worksScanned.join(', ')}`);
     }
     if (decision.collections.length) {
       lines.push(`KHÓA COLLECTION: ${decision.collections.join(', ')}`);
@@ -277,9 +417,10 @@ export class CbetaChatService {
         juanLabel: h.juanLabel,
         chunkIndex: h.chunkIndex,
         label,
-        quote: h.contentZh.trim(),
+        quote: h.contentZh,
         score: h.score,
         cbetaRefStart: h.cbetaRefStart,
+        url: this.retrieve.cbetaOnlineUrl(h.workCode, h.cbetaRefStart),
       };
     });
   }

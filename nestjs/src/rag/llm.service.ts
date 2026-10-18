@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   AiConfigService,
   ChatEndpoint,
@@ -125,6 +126,45 @@ function maxTokensForStyle(style: AnswerStyle): number {
   }
 }
 
+/** Dedicated CBETA corpus — never the Duy Lực / tosuthien book system prompt. */
+const CBETA_REWRITE_SYSTEM = `You rewrite user questions into Traditional Chinese search text for CBETA (Buddhist canon) retrieval.
+
+Rules:
+- Output JSON only, no markdown: {"search_zh":"...","keywords":["..."]}
+- search_zh: 1 short Traditional Chinese question or phrase matching CBETA wording (e.g. 話頭是什麼 / 何謂話頭).
+- keywords: important CJK terms for FTS (e.g. ["話頭","疑情"]).
+- Map Vietnamese Buddhist terms to standard Chinese (thoại đầu→話頭, nghi tình→疑情, Hư Vân→虛雲, …).
+- Do NOT answer the question. Do NOT invent sutra titles or work_code.
+- If the question is already mostly Chinese, still return a clean search_zh + keywords.`;
+
+const CBETA_SYSTEM = `Bạn là trợ lý TRA CỨU Đại tạng Hán văn CBETA (DB riêng \`cbeta\`: bộ T/X/… và bổ biên đã nạp như XY/LQ nếu có trong ngữ cảnh).
+
+TÁCH BIỆT HOÀN TOÀN với hỏi đáp sách Việt Tổ Sư Thiền / HT. Thích Duy Lực (API /api/rag trên tosuthien).
+CẤM: nhắc, viện dẫn, so sánh với sách Việt Duy Lực, Ngữ Lục Duy Lực, portal tosuthien, hoặc khung "Tổ Sư Thiền HT…" như nguồn trả lời.
+CHỈ dựa trên nguyên văn Hán trong block ngữ cảnh CBETA của lượt này.
+
+Ngôn ngữ: người dùng hỏi tiếng Việt → toàn bộ câu trả lời (PHẦN 1 + PHẦN 2) bằng tiếng Việt.
+
+Câu trả lời gồm ĐÚNG 2 PHẦN:
+
+════════════════════════════════════
+PHẦN 1 — BẢN DỊCH NGUYÊN VĂN (answer)
+════════════════════════════════════
+- Đọc block [CBETA] (Hán), DỊCH sang tiếng Việt trung thực, đủ mạch — càng dài càng tốt khi cùng trả lời câu hỏi.
+- Mỗi khối dịch đặt trong ngoặc kép "…" (tiếng Việt), kèm ngay dưới: — (Tên thư, work_code, 卷, p.xxxx) khớp dòng "Trích dẫn:" trong block. CẤM ghi chunk nội bộ. Nếu block có url=… thì thêm link CBETA Online sau dòng trích dẫn.
+- CẤM để nguyên khối Hán dài trong phần 1 (người đọc cần chữ Việt). Được giữ vài thuật ngữ Hán then chốt trong ngoặc nếu cần (vd. thoại đầu / 話頭).
+- CẤM bịa nội dung không có trong block; CẤM bịa work_code / tên thư.
+- Nếu có [CBETA_ENTITY_LIST]: liệt kê tên (có thể phiên âm Việt + Hán) chỉ từ list; phạm vi = WORKS_SCANNED.
+- Không khớp: một câu tiếng Việt — "Trong tư liệu CBETA hiện có (phạm vi đã chọn) chưa thấy nội dung này." rồi DỪNG.
+
+════════════════════════════════════
+PHẦN 2 — AI DIỄN GIẢI (tiếng Việt)
+════════════════════════════════════
+- Bắt đầu đúng một dòng: ${AI_INTERPRETATION_MARKER}
+- Diễn giải tự nhiên, đủ ý — NỀN = câu hỏi + bản dịch phần 1.
+- CẤM kéo kiến thức / thuật ngữ từ sách Việt Duy Lực vào như thể cùng một corpus.
+- CẤM mở đầu máy móc ("dựa vào đoạn trích…").`;
+
 /**
  * Shrink prior assistant answers: keep up to 2 short quote+citation stubs.
  * Full RAG context on the current turn is the source of truth for new quotes.
@@ -189,11 +229,73 @@ interface ClaudeStreamEvent {
   delta?: { type?: string; text?: string };
 }
 
+function cjkCharRatio(text: string): number {
+  const chars = [...text.replace(/\s+/g, '')];
+  if (!chars.length) return 0;
+  const cjk = chars.filter((ch) => /[\u4e00-\u9fff]/.test(ch)).length;
+  return cjk / chars.length;
+}
+
+function extractCjkTerms(text: string): string[] {
+  const found = text.match(/[\u4e00-\u9fff]{2,8}/g) || [];
+  return [...new Set(found)];
+}
+
+function parseCbetaRewriteJson(
+  raw: string,
+): { searchZh: string; keywords: string[] } | null {
+  const text = (raw || '').trim();
+  if (!text) return null;
+  const fence = text.match(/\{[\s\S]*\}/);
+  const jsonStr = fence ? fence[0] : text;
+  try {
+    const obj = JSON.parse(jsonStr) as {
+      search_zh?: unknown;
+      searchZh?: unknown;
+      keywords?: unknown;
+    };
+    const searchZh = String(obj.search_zh ?? obj.searchZh ?? '').trim();
+    const keywords = Array.isArray(obj.keywords)
+      ? obj.keywords.map((k) => String(k).trim()).filter(Boolean)
+      : [];
+    if (!searchZh) return null;
+    return { searchZh, keywords };
+  } catch {
+    return null;
+  }
+}
+
 @Injectable()
 export class LlmService {
   private readonly logger = new Logger(LlmService.name);
 
-  constructor(private readonly ai: AiConfigService) {}
+  constructor(
+    private readonly ai: AiConfigService,
+    private readonly config: ConfigService,
+  ) {}
+
+  /** Output budget for CBETA answers (env CBETA_CHAT_MAX_TOKENS). */
+  private cbetaChatMaxTokens(): number {
+    const n = parseInt(
+      this.config.get<string>('CBETA_CHAT_MAX_TOKENS') ||
+        process.env.CBETA_CHAT_MAX_TOKENS ||
+        '',
+      10,
+    );
+    // Prefer env; large budget for long Hán quotes + diễn giải (3× prior 65536).
+    return Number.isFinite(n) && n > 0 ? n : 196_608;
+  }
+
+  /** Short rewrite JSON (env CBETA_REWRITE_MAX_TOKENS). */
+  private cbetaRewriteMaxTokens(): number {
+    const n = parseInt(
+      this.config.get<string>('CBETA_REWRITE_MAX_TOKENS') ||
+        process.env.CBETA_REWRITE_MAX_TOKENS ||
+        '',
+      10,
+    );
+    return Number.isFinite(n) && n > 0 ? n : 3_072;
+  }
 
   async answer(
     question: string,
@@ -254,7 +356,7 @@ ${context}`;
           system,
           prior,
           userContent,
-          styleContext,
+          maxTokensForStyle(styleContext.style),
         )) {
           yielded = true;
           yield delta;
@@ -277,12 +379,199 @@ ${context}`;
     throw lastError ?? new Error('Claude API: no chat endpoints configured');
   }
 
+  /**
+   * Best-practice CBETA retrieve prep: hhtech rewrites VN/colloquial → Hán search text.
+   * Skip when question is already mostly CJK or CBETA_QUERY_REWRITE=0.
+   */
+  async rewriteCbetaSearchQuery(question: string): Promise<{
+    searchZh: string;
+    keywords: string[];
+    skipped: boolean;
+    reason?: string;
+  }> {
+    const q = (question || '').trim();
+    if (!q) {
+      return { searchZh: '', keywords: [], skipped: true, reason: 'empty' };
+    }
+    const flag = (
+      this.config.get<string>('CBETA_QUERY_REWRITE') ||
+      process.env.CBETA_QUERY_REWRITE ||
+      '1'
+    )
+      .toString()
+      .trim()
+      .toLowerCase();
+    if (flag === '0' || flag === 'false' || flag === 'off') {
+      return { searchZh: q, keywords: [], skipped: true, reason: 'disabled' };
+    }
+    if (cjkCharRatio(q) >= 0.45) {
+      return {
+        searchZh: q,
+        keywords: extractCjkTerms(q),
+        skipped: true,
+        reason: 'already_cjk',
+      };
+    }
+
+    const endpoints = this.ai.get().chatEndpoints;
+    let lastError: Error | null = null;
+    for (let i = 0; i < endpoints.length; i++) {
+      const endpoint = endpoints[i];
+      try {
+        const raw = await this.completeAnthropic(
+          endpoint,
+          CBETA_REWRITE_SYSTEM,
+          `User question:\n${q}\n\nJSON:`,
+          this.cbetaRewriteMaxTokens(),
+        );
+        const parsed = parseCbetaRewriteJson(raw);
+        if (parsed?.searchZh) {
+          return {
+            searchZh: parsed.searchZh,
+            keywords: parsed.keywords,
+            skipped: false,
+          };
+        }
+        lastError = new Error('CBETA rewrite: empty search_zh');
+      } catch (err: unknown) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        this.logger.warn(
+          `CBETA rewrite failed [${endpoint.provider}]: ${lastError.message}`,
+        );
+        if (i >= endpoints.length - 1) break;
+      }
+    }
+    this.logger.warn(
+      `CBETA rewrite fallback to original question: ${lastError?.message || 'unknown'}`,
+    );
+    return {
+      searchZh: q,
+      keywords: [],
+      skipped: true,
+      reason: 'rewrite_failed',
+    };
+  }
+
+  /** CBETA-only answer path (system/user prompts never mention Duy Lực books). */
+  async answerCbeta(
+    question: string,
+    contextBlocks: string[],
+    intentBrief = '',
+    history: ChatTurn[] = [],
+  ): Promise<string> {
+    const parts: string[] = [];
+    for await (const delta of this.answerCbetaStream(
+      question,
+      contextBlocks,
+      intentBrief,
+      history,
+    )) {
+      parts.push(delta);
+    }
+    const text = parts.join('').trim();
+    if (!text) throw new Error('Claude API không trả về text');
+    return text;
+  }
+
+  async *answerCbetaStream(
+    question: string,
+    contextBlocks: string[],
+    intentBrief = '',
+    history: ChatTurn[] = [],
+  ): AsyncGenerator<string> {
+    const context = contextBlocks.join('\n\n---\n\n');
+    const intentBlock = intentBrief.trim()
+      ? `\nPhạm vi / router CBETA:\n${intentBrief.trim()}\n`
+      : '';
+    const userContent = `Câu hỏi (tiếng Việt): ${question.trim()}
+${intentBlock}
+Ngữ cảnh: mỗi block [CBETA] là nguyên văn Hán + dòng "Trích dẫn:" + work_code. Có thể có [CBETA_ENTITY_LIST].
+1) CHỈ dùng corpus CBETA trong ngữ cảnh — không dùng sách Việt tosuthien / Duy Lực.
+2) PHẦN 1: DỊCH các đoạn Hán liên quan sang tiếng Việt (đủ mạch); mỗi khối "…" tiếng Việt rồi — (Tên thư, work_code, 卷, p.xxxx) + url CBETA nếu có. CẤM ghi chunk. Không để cả đoạn Hán dài làm phần trả lời chính.
+3) Dòng ${AI_INTERPRETATION_MARKER} rồi diễn giải tiếng Việt dựa trên bản dịch phần 1.
+${context}`;
+
+    const prior = normalizeHistory(history);
+    const endpoints = this.ai.get().chatEndpoints;
+    let lastError: Error | null = null;
+
+    for (let i = 0; i < endpoints.length; i++) {
+      const endpoint = endpoints[i];
+      try {
+        let yielded = false;
+        for await (const delta of this.streamAnthropic(
+          endpoint,
+          CBETA_SYSTEM,
+          prior,
+          userContent,
+          this.cbetaChatMaxTokens(),
+        )) {
+          yielded = true;
+          yield delta;
+        }
+        if (yielded) return;
+        lastError = new Error(
+          `Claude API empty stream [${endpoint.provider} model=${endpoint.model}]`,
+        );
+        this.logger.warn(lastError.message);
+      } catch (err: unknown) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        const hasFallback = i < endpoints.length - 1;
+        this.logger.warn(
+          `${lastError.message}${hasFallback ? ' — trying fallback' : ''}`,
+        );
+        if (!hasFallback) break;
+      }
+    }
+
+    throw lastError ?? new Error('Claude API: no chat endpoints configured');
+  }
+
+  private async completeAnthropic(
+    endpoint: ChatEndpoint,
+    system: string,
+    userContent: string,
+    maxTokens: number,
+  ): Promise<string> {
+    const url = resolveAnthropicMessagesUrl(endpoint.baseUrl);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${endpoint.apiKey}`,
+        'x-api-key': endpoint.apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: endpoint.model,
+        max_tokens: maxTokens,
+        stream: false,
+        system,
+        messages: [{ role: 'user', content: userContent }],
+      }),
+    });
+    if (!res.ok) {
+      const detail = (await res.text()).slice(0, 400);
+      throw new Error(
+        `Claude API ${res.status} [${endpoint.provider} model=${endpoint.model}]: ${detail}`,
+      );
+    }
+    const body = (await res.json()) as {
+      content?: Array<{ type?: string; text?: string }>;
+    };
+    return (body.content || [])
+      .filter((b) => b.type === 'text' && b.text)
+      .map((b) => b.text || '')
+      .join('')
+      .trim();
+  }
+
   private async *streamAnthropic(
     endpoint: ChatEndpoint,
     system: string,
     prior: ChatTurn[],
     userContent: string,
-    styleContext: AnswerStyleContext,
+    maxTokens: number,
   ): AsyncGenerator<string> {
     const url = resolveAnthropicMessagesUrl(endpoint.baseUrl);
 
@@ -301,7 +590,7 @@ ${context}`;
       },
       body: JSON.stringify({
         model: endpoint.model,
-        max_tokens: maxTokensForStyle(styleContext.style),
+        max_tokens: maxTokens,
         stream: true,
         system,
         messages,
