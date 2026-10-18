@@ -386,13 +386,13 @@ export class CbetaChatService {
       `PATH: ${decision.path}`,
       `SCOPE: ${decision.scopeNote}`,
       `SEARCH_ZH: ${rewrite.searchZh}`,
-      'CITATION: — (title_zh, work_code, juan, p.ref) + CBETA url from block; never expose internal chunk index.',
+      'CITATION UI: sources listed by API under the answer — do not repeat — (title, work_code, juan, p.ref) or urls inside PHẦN 1 body; never expose internal chunk index.',
       'No hit → say not found in selected CBETA scope; never invent work_code.',
-      'I/O: user Vietnamese → PHẦN 1 = Vietnamese translation of CBETA Hán; PHẦN 2 = Vietnamese explanation.',
+      'I/O: user Vietnamese → PHẦN 1 = synthesized Vietnamese (dedupe, readable); PHẦN 2 = short notes only.',
     ];
     if (decision.path === 'deep' && decision.coverageMode) {
       lines.push(
-        'COVERAGE: chỉ liệt kê tên có trong [CBETA_ENTITY_LIST]; phạm vi = WORKS_SCANNED thực tế.',
+        'COVERAGE: chỉ liệt kê tên có trong [CBETA_ENTITY_LIST]; phạm vi = WORKS_SCANNED thực tế; gộp trùng, trình bày một bảng/danh sách mạch lạc.',
       );
     }
     if (retrieval.worksScanned?.length) {

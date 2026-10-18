@@ -12,10 +12,15 @@ import {
 const props = withDefaults(
   defineProps<{
     message: ChatMessage
-    /** Label above scripture/answer body (CBETA uses translation label). */
+    /** Label above scripture/answer body (CBETA uses synthesis label). */
     scriptureLabel?: string
+    /** Label above citation cards. */
+    citationsLabel?: string
   }>(),
-  { scriptureLabel: 'Nguyên văn kinh sách' },
+  {
+    scriptureLabel: 'Nguyên văn kinh sách',
+    citationsLabel: 'Kinh sách trích dẫn',
+  },
 )
 
 const openingKey = ref<string | null>(null)
@@ -97,7 +102,9 @@ function canOpen(c: ChatCitation): boolean {
           </template>
 
           <section v-if="citations.length" class="cites-section">
-            <h3 class="section-title">Kinh sách trích dẫn ({{ citations.length }})</h3>
+            <h3 class="section-title">
+              {{ citationsLabel }} ({{ citations.length }})
+            </h3>
             <ul class="cite-cards">
               <li v-for="(c, j) in citations" :key="c.passageId || j" class="cite-card">
                 <div class="cite-head">

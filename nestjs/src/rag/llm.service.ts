@@ -148,20 +148,21 @@ Ngôn ngữ: người dùng hỏi tiếng Việt → toàn bộ câu trả lời
 Câu trả lời gồm ĐÚNG 2 PHẦN:
 
 ════════════════════════════════════
-PHẦN 1 — BẢN DỊCH NGUYÊN VĂN (answer)
+PHẦN 1 — BẢN TỔNG HỢP DỊCH (answer) — MẠCH LẠC, DỄ ĐỌC
 ════════════════════════════════════
-- Đọc block [CBETA] (Hán), DỊCH sang tiếng Việt trung thực, đủ mạch — càng dài càng tốt khi cùng trả lời câu hỏi.
-- Mỗi khối dịch đặt trong ngoặc kép "…" (tiếng Việt), kèm ngay dưới: — (Tên thư, work_code, 卷, p.xxxx) khớp dòng "Trích dẫn:" trong block. CẤM ghi chunk nội bộ. Nếu block có url=… thì thêm link CBETA Online sau dòng trích dẫn.
-- CẤM để nguyên khối Hán dài trong phần 1 (người đọc cần chữ Việt). Được giữ vài thuật ngữ Hán then chốt trong ngoặc nếu cần (vd. thoại đầu / 話頭).
-- CẤM bịa nội dung không có trong block; CẤM bịa work_code / tên thư.
-- Nếu có [CBETA_ENTITY_LIST]: liệt kê tên (có thể phiên âm Việt + Hán) chỉ từ list; phạm vi = WORKS_SCANNED.
-- Không khớp: một câu tiếng Việt — "Trong tư liệu CBETA hiện có (phạm vi đã chọn) chưa thấy nội dung này." rồi DỪNG.
+- Đọc TOÀN BỘ block [CBETA] (Hán) được đưa lên. Gộp, loại trùng lặp, sắp xếp lại rồi DỊCH / diễn đạt thành một bài tiếng Việt mạch lạc trả lời đúng câu hỏi.
+- Ưu tiên: một văn bản liền mạch (có thể dùng tiêu đề phụ / danh sách đánh số nếu giúp đọc). CẤM kiểu nhiều khối trích "…" nối đuôi nhau với cùng ý lặp lại.
+- CẤM chèn dòng nguồn kiểu — (Tên thư, work_code, 卷, p.xxxx) hoặc url CBETA vào thân bài. Nguồn tham khảo do giao diện liệt kê riêng ở cuối — không nhắc lại trong phần 1.
+- CẤM để nguyên khối Hán dài. Được giữ vài thuật ngữ Hán then chốt trong ngoặc (vd. thoại đầu / 話頭).
+- Trung thực với nội dung có trong block: được diễn đạt gọn và gom trùng, CẤM bịa sự kiện / tên người / pháp số không có trong ngữ cảnh.
+- Nếu có [CBETA_ENTITY_LIST]: dùng list đó làm khung liệt kê (Việt + Hán khi cần); phạm vi = WORKS_SCANNED.
+- Không khớp: một câu — "Trong tư liệu CBETA hiện có (phạm vi đã chọn) chưa thấy nội dung này." rồi DỪNG.
 
 ════════════════════════════════════
-PHẦN 2 — AI DIỄN GIẢI (tiếng Việt)
+PHẦN 2 — GHI CHÚ NGẮN (tiếng Việt)
 ════════════════════════════════════
 - Bắt đầu đúng một dòng: ${AI_INTERPRETATION_MARKER}
-- Diễn giải tự nhiên, đủ ý — NỀN = câu hỏi + bản dịch phần 1.
+- Vài câu làm rõ điểm khó / dị thuyết / cách đọc bảng — KHÔNG lặp lại toàn bộ phần 1.
 - CẤM kéo kiến thức / thuật ngữ từ sách Việt Duy Lực vào như thể cùng một corpus.
 - CẤM mở đầu máy móc ("dựa vào đoạn trích…").`;
 
@@ -485,10 +486,10 @@ ${context}`;
       : '';
     const userContent = `Câu hỏi (tiếng Việt): ${question.trim()}
 ${intentBlock}
-Ngữ cảnh: mỗi block [CBETA] là nguyên văn Hán + dòng "Trích dẫn:" + work_code. Có thể có [CBETA_ENTITY_LIST].
+Ngữ cảnh: mỗi block [CBETA] là nguyên văn Hán (+ meta Trích dẫn / work_code / url). Có thể có [CBETA_ENTITY_LIST]. Các block thường trùng ý — hãy đọc hết rồi gộp.
 1) CHỈ dùng corpus CBETA trong ngữ cảnh — không dùng sách Việt tosuthien / Duy Lực.
-2) PHẦN 1: DỊCH các đoạn Hán liên quan sang tiếng Việt (đủ mạch); mỗi khối "…" tiếng Việt rồi — (Tên thư, work_code, 卷, p.xxxx) + url CBETA nếu có. CẤM ghi chunk. Không để cả đoạn Hán dài làm phần trả lời chính.
-3) Dòng ${AI_INTERPRETATION_MARKER} rồi diễn giải tiếng Việt dựa trên bản dịch phần 1.
+2) PHẦN 1: tổng hợp + dịch thành một bài tiếng Việt mạch lạc, dễ đọc; loại trùng; CẤM chuỗi trích đoạn "…" kèm nguồn trong thân bài (nguồn ở UI cuối).
+3) Dòng ${AI_INTERPRETATION_MARKER} rồi ghi chú ngắn (không lặp phần 1).
 ${context}`;
 
     const prior = normalizeHistory(history);
