@@ -10,6 +10,7 @@ import { routeCbetaQuery } from './cbeta-router';
 import { CbetaCollectionsService } from './cbeta-collections.service';
 import { CbetaDbService } from './cbeta-db.service';
 import { CbetaEntitiesService } from './cbeta-entities.service';
+import { enrichCbetaSearchZh } from './cbeta-preprocess.util';
 import { CbetaRetrieveService } from './cbeta-retrieve.service';
 import type {
   CbetaCitation,
@@ -248,13 +249,19 @@ export class CbetaChatService {
   private async prepareSearchQuery(question: string): Promise<CbetaQueryRewrite> {
     const t0 = Date.now();
     const r = await this.llm.rewriteCbetaSearchQuery(question);
-    const keywords = r.keywords || [];
-    const searchZh = [r.searchZh, ...keywords]
-      .map((s) => (s || '').trim())
-      .filter(Boolean)
-      .filter((s, i, arr) => arr.indexOf(s) === i)
-      .join(' ')
-      .trim() || question.trim();
+    const enriched = enrichCbetaSearchZh(
+      question,
+      r.searchZh || question,
+      r.keywords || [],
+    );
+    const keywords = enriched.keywords;
+    const searchZh =
+      [enriched.searchZh, ...keywords]
+        .map((s) => (s || '').trim())
+        .filter(Boolean)
+        .filter((s, i, arr) => arr.indexOf(s) === i)
+        .join(' ')
+        .trim() || question.trim();
     return {
       searchZh,
       keywords,

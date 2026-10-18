@@ -11,6 +11,11 @@ import {
   extractLexicalTerms,
   parseNgramSizes,
 } from './cbeta-lexical.util';
+import {
+  DEFAULT_CBETA_COVERAGE_TITLE_REGEX,
+  diversifyCbetaHits,
+  isPatriarchListIntent,
+} from './cbeta-preprocess.util';
 import type {
   CbetaChunkHit,
   CbetaDeepProgress,
@@ -39,12 +44,18 @@ export class CbetaRetrieveService {
   ) {}
 
   /**
-   * Optional Postgres regex for coverage seed titles (env CBETA_COVERAGE_TITLE_REGEX).
-   * When unset, coverage lists works by size/filter only — no invented title subset.
+   * Postgres regex for coverage seed titles.
+   * Env CBETA_COVERAGE_TITLE_REGEX wins; otherwise DEFAULT_CBETA_COVERAGE_TITLE_REGEX
+   * so list/enumerate intents still scan lamp/chronicle works.
    */
   private coverageTitleRegex(): string | null {
-    const re = (this.config.get<string>('CBETA_COVERAGE_TITLE_REGEX') || '').trim();
-    return re || null;
+    const fromEnv = (
+      this.config.get<string>('CBETA_COVERAGE_TITLE_REGEX') ||
+      process.env.CBETA_COVERAGE_TITLE_REGEX ||
+      ''
+    ).trim();
+    if (fromEnv) return fromEnv;
+    return DEFAULT_CBETA_COVERAGE_TITLE_REGEX;
   }
 
   private candidatePool(): number {
@@ -129,7 +140,7 @@ export class CbetaRetrieveService {
     }
 
     const rerankQ = [question, ...terms].join(' ');
-    hits = this.rerank(rerankQ, hits).slice(0, k);
+    hits = diversifyCbetaHits(this.rerank(rerankQ, hits)).slice(0, k);
     hits = await this.expandNeighbors(hits);
     return { hits, searchMode, embedError };
   }
@@ -153,13 +164,14 @@ export class CbetaRetrieveService {
       10,
     );
     const hasMaxWorks = Number.isFinite(maxWorksEnv) && maxWorksEnv > 0;
-    if (!this.coverageTitleRegex() && !hasMaxWorks) {
-      this.logger.warn(
-        'coverageMode needs CBETA_COVERAGE_TITLE_REGEX and/or CBETA_DEEP_MAX_WORKS; falling back to hybrid',
-      );
-      return this.retrieveFast(question, decision, topK);
-    }
     const works = await this.listCoverageWorks(decision.collections);
+    if (!works.length) {
+      this.logger.warn(
+        'coverageMode: no works matched title regex; falling back to hybrid',
+      );
+      return this.retrieveFast(question, decision, topK, options);
+    }
+    // Optional cap from env only — omit = scan all matching titles.
     const workList = hasMaxWorks ? works.slice(0, maxWorksEnv) : works;
 
     const acc = new Map<string, { count: number; works: Set<string> }>();
@@ -260,10 +272,9 @@ export class CbetaRetrieveService {
       topK,
       options,
     );
-    const merged = this.rerank(question, [
-      ...citationPool,
-      ...fast.hits,
-    ]);
+    const merged = diversifyCbetaHits(
+      this.rerank(question, [...citationPool, ...fast.hits]),
+    );
     const k = Math.max(1, topK ?? this.candidatePool());
     const hits = await this.expandNeighbors(merged.slice(0, k));
 
@@ -292,7 +303,9 @@ export class CbetaRetrieveService {
       blocks.push(entityBlock.trim());
       usedChars += entityBlock.length;
     }
-    const sorted = [...hits].sort((a, b) => b.score - a.score);
+    const sorted = diversifyCbetaHits(
+      [...hits].sort((a, b) => b.score - a.score),
+    );
 
     for (const h of sorted) {
       const label = this.citationLabel(h);
@@ -342,11 +355,18 @@ export class CbetaRetrieveService {
 
   /** Lexical rerank on top of RRF / vector scores. */
   private rerank(question: string, hits: CbetaChunkHit[]): CbetaChunkHit[] {
+    const lampBoost = isPatriarchListIntent(question);
+    const lampTitleRe = /傳燈|五燈|指月|宗統|佛祖統|佛祖歷代|正宗記|會元|燈錄/;
     return hits
       .map((h) => {
         const lex = lexicalOverlapScore(question, h.contentZh);
         const titleBoost = lexicalOverlapScore(question, h.titleZh || '') * 0.25;
-        return { ...h, score: h.score * 0.65 + lex * 0.3 + titleBoost };
+        const lineageBoost =
+          lampBoost && lampTitleRe.test(h.titleZh || '') ? 0.15 : 0;
+        return {
+          ...h,
+          score: h.score * 0.65 + lex * 0.3 + titleBoost + lineageBoost,
+        };
       })
       .sort((a, b) => b.score - a.score);
   }
