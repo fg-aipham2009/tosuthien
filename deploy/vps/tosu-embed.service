@@ -1,5 +1,5 @@
 [Unit]
-Description=Tosu Thien Embed Server (BGE-M3 CPU / sentence-transformers)
+Description=Tosu Thien Embed Server (BAAI/bge-m3 1024-d only)
 After=network.target
 
 [Service]
@@ -7,8 +7,11 @@ Type=simple
 User=root
 WorkingDirectory=/opt/tosu-thien
 Environment=PATH=/opt/tosu-thien/.venv/bin:/usr/bin
-EnvironmentFile=/opt/tosu-thien/.env
-ExecStart=/opt/tosu-thien/.venv/bin/python3 scripts/embed_server.py
+EnvironmentFile=-/opt/tosu-thien/.env
+# HARD-PIN after EnvironmentFile — stale MiniLM/384 in .env must never win.
+Environment=EMBEDDING_MODEL=BAAI/bge-m3
+Environment=EMBEDDING_DIM=1024
+ExecStart=/opt/tosu-thien/.venv/bin/python3 -u scripts/embed_server.py
 Restart=always
 RestartSec=5
 

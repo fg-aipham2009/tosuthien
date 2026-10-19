@@ -74,11 +74,17 @@ def _resolve_device() -> str:
 
 DEVICE = _resolve_device()
 
-if "bge-m3" not in MODEL_NAME.lower():
-    raise SystemExit(
-        f"Unsupported EMBEDDING_MODEL={MODEL_NAME!r}. "
-        "This server only serves BAAI/bge-m3 (MiniLM/fastembed removed)."
+# Never honor MiniLM/384 from a stale .env — CBETA vectors are BGE-M3 1024-d.
+if "bge-m3" not in MODEL_NAME.lower() or EXPECTED_DIM != 1024:
+    print(
+        f"WARNING: refusing EMBEDDING_MODEL={MODEL_NAME!r} dim={EXPECTED_DIM}; "
+        f"forcing BAAI/bge-m3 / 1024 (MiniLM permanently removed).",
+        flush=True,
     )
+    MODEL_NAME = "BAAI/bge-m3"
+    EXPECTED_DIM = 1024
+    os.environ["EMBEDDING_MODEL"] = MODEL_NAME
+    os.environ["EMBEDDING_DIM"] = "1024"
 
 print(
     f"Loading {MODEL_NAME} (sentence-transformers, device={DEVICE}, "
