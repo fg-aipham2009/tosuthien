@@ -31,6 +31,7 @@ function assert(c, m) { if (!c) { console.error('FAIL', m); process.exit(1); } }
 
 assert(CBETA_ANCHOR_EXPAND_HITS === 2, 'anchor=2');
 assert(cbetaExpandIndexRange(15,'anchor').from===14 && cbetaExpandIndexRange(15,'anchor').to===17, '[-1,+2]');
+assert(cbetaExpandIndexRange(15,'support').from===15 && cbetaExpandIndexRange(15,'support').to===15, 'support center-only');
 assert(needsCbetaDialogueBackshift('師曰：不可思量。')===true, 'backshift');
 assert(needsCbetaDialogueBackshift('僧問：如何是祖師西來意？')===false, 'no backshift');
 

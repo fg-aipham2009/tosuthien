@@ -33,8 +33,8 @@ export function cbetaExpandIndexRange(
     // Asymmetric: prior context + longer teaching tail (Test 1).
     return { from: Math.max(0, i - 1), to: i + 2 };
   }
-  // Support hits: light forward bias [0, +1] relative to center.
-  return { from: i, to: i + 1 };
+  // Support (Top 3+): center only — save tokens / keep Anchor deep.
+  return { from: i, to: i };
 }
 
 /**

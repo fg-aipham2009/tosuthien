@@ -13,6 +13,7 @@ import {
   toTraditionalZh,
   toTraditionalZhList,
 } from './cbeta/cbeta-opencc.util';
+import { LruCache } from './cbeta/cbeta-lru.util';
 
 /** Cap prior turns so retrieval context stays primary. */
 const MAX_HISTORY_MESSAGES = 6;
@@ -295,9 +296,17 @@ function parseCbetaRewriteJson(
   }
 }
 
+type CbetaRewriteResult = {
+  searchZh: string;
+  keywords: string[];
+  skipped: boolean;
+  reason?: string;
+};
+
 @Injectable()
 export class LlmService {
   private readonly logger = new Logger(LlmService.name);
+  private rewriteCache: LruCache<CbetaRewriteResult> | null = null;
 
   constructor(
     private readonly ai: AiConfigService,
@@ -325,6 +334,48 @@ export class LlmService {
       10,
     );
     return Number.isFinite(n) && n > 0 ? n : 3_072;
+  }
+
+  private rewriteCacheSize(): number {
+    const n = parseInt(
+      this.config.get<string>('CBETA_REWRITE_CACHE_SIZE') ||
+        process.env.CBETA_REWRITE_CACHE_SIZE ||
+        '',
+      10,
+    );
+    // 0 = disable cache; unset → modest in-memory LRU.
+    if (Number.isFinite(n) && n >= 0) return n;
+    return 256;
+  }
+
+  private getRewriteCache(): LruCache<CbetaRewriteResult> {
+    if (!this.rewriteCache) {
+      this.rewriteCache = new LruCache(this.rewriteCacheSize());
+    }
+    return this.rewriteCache;
+  }
+
+  /**
+   * Prefer a fast rewrite model (CBETA_REWRITE_MODEL / HHTECH_REWRITE_MODEL).
+   * Falls back to primary chat endpoint model if unset.
+   */
+  private rewriteEndpoints(): ChatEndpoint[] {
+    const cfg = this.ai.get();
+    const rewriteModel = (
+      this.config.get<string>('CBETA_REWRITE_MODEL') ||
+      this.config.get<string>('HHTECH_REWRITE_MODEL') ||
+      process.env.CBETA_REWRITE_MODEL ||
+      process.env.HHTECH_REWRITE_MODEL ||
+      ''
+    ).trim();
+    const primary = cfg.chatEndpoints[0];
+    if (!primary) return [];
+    if (!rewriteModel || rewriteModel === primary.model) {
+      return cfg.chatEndpoints;
+    }
+    const light: ChatEndpoint = { ...primary, model: rewriteModel };
+    // Try light model first, then full chat endpoints (same keys).
+    return [light, ...cfg.chatEndpoints];
   }
 
   async answer(
@@ -417,18 +468,18 @@ ${context}`;
   async rewriteCbetaSearchQuery(
     question: string,
     history: ChatTurn[] = [],
-  ): Promise<{
-    searchZh: string;
-    keywords: string[];
-    skipped: boolean;
-    reason?: string;
-  }> {
+  ): Promise<CbetaRewriteResult> {
     const q = (question || '').trim();
     if (!q) {
       return { searchZh: '', keywords: [], skipped: true, reason: 'empty' };
     }
     const preserved = extractPreservedCjk(q);
-    const finalize = (searchZh: string, keywords: string[], skipped: boolean, reason?: string) => {
+    const finalize = (
+      searchZh: string,
+      keywords: string[],
+      skipped: boolean,
+      reason?: string,
+    ): CbetaRewriteResult => {
       const kw = toTraditionalZhList([
         ...keywords,
         ...preserved,
@@ -445,6 +496,14 @@ ${context}`;
       };
     };
 
+    const prior = normalizeHistory(history).slice(-2);
+    const cacheKey = `${q}\n---\n${prior.map((t) => `${t.role}:${t.content}`).join('\n')}`;
+    const cache = this.getRewriteCache();
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return { ...cached, reason: cached.reason || 'cache_hit' };
+    }
+
     const flag = (
       this.config.get<string>('CBETA_QUERY_REWRITE') ||
       process.env.CBETA_QUERY_REWRITE ||
@@ -454,20 +513,24 @@ ${context}`;
       .trim()
       .toLowerCase();
     if (flag === '0' || flag === 'false' || flag === 'off') {
-      return finalize(q, extractCjkTerms(q), true, 'disabled');
+      const r = finalize(q, extractCjkTerms(q), true, 'disabled');
+      cache.set(cacheKey, r);
+      return r;
     }
     if (cjkCharRatio(q) >= 0.45) {
-      return finalize(q, extractCjkTerms(q), true, 'already_cjk');
+      const r = finalize(q, extractCjkTerms(q), true, 'already_cjk');
+      cache.set(cacheKey, r);
+      return r;
     }
 
-    const prior = normalizeHistory(history).slice(-2);
     const historyBlock = prior.length
       ? `Prior turns (resolve pronouns only; do not answer):\n${prior
           .map((t) => `${t.role}: ${t.content}`)
           .join('\n')}\n\n`
       : '';
 
-    const endpoints = this.ai.get().chatEndpoints;
+    // Prefer light rewrite model; never throw — fallback to raw query for embed/FTS.
+    const endpoints = this.rewriteEndpoints();
     let lastError: Error | null = null;
     for (let i = 0; i < endpoints.length; i++) {
       const endpoint = endpoints[i];
@@ -480,21 +543,25 @@ ${context}`;
         );
         const parsed = parseCbetaRewriteJson(raw);
         if (parsed?.searchZh) {
-          return finalize(parsed.searchZh, parsed.keywords, false);
+          const r = finalize(parsed.searchZh, parsed.keywords, false);
+          cache.set(cacheKey, r);
+          return r;
         }
         lastError = new Error('CBETA rewrite: empty search_zh');
       } catch (err: unknown) {
         lastError = err instanceof Error ? err : new Error(String(err));
         this.logger.warn(
-          `CBETA rewrite failed [${endpoint.provider}]: ${lastError.message}`,
+          `CBETA rewrite failed [${endpoint.provider} model=${endpoint.model}]: ${lastError.message}`,
         );
         if (i >= endpoints.length - 1) break;
       }
     }
     this.logger.warn(
-      `CBETA rewrite fallback to original question: ${lastError?.message || 'unknown'}`,
+      `CBETA rewrite fallback to original question (bge-m3/FTS still run): ${lastError?.message || 'unknown'}`,
     );
-    return finalize(q, extractCjkTerms(q), true, 'rewrite_failed');
+    const r = finalize(q, extractCjkTerms(q), true, 'rewrite_failed');
+    cache.set(cacheKey, r);
+    return r;
   }
 
   /** CBETA-only answer path (system/user prompts never mention Duy Lực books). */

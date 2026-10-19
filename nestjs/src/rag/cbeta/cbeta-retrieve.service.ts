@@ -686,16 +686,15 @@ export class CbetaRetrieveService {
   }
 
   /**
-   * Neighbor expand + stitch (A/B Test 1–2):
+   * Neighbor expand + stitch (parallel):
    * - Top CBETA_ANCHOR_EXPAND_HITS: asymmetric [-1, +2], then dialogue backshift
-   * - Remaining expand hits: light [0, +1]
-   * - Adjacent chunk texts are stitched (overlap stripped) into one hit body
+   * - Remaining expand hits: center only (Anchor+Support budget)
+   * - Adjacent chunk texts stitched with 【ref】 markers
    */
   private async expandNeighbors(
     hits: CbetaChunkHit[],
   ): Promise<CbetaChunkHit[]> {
     if (!hits.length) return hits;
-    const out: CbetaChunkHit[] = [];
     const seen = new Set<string>();
     const envN = parseInt(this.config.get<string>('CBETA_EXPAND_HITS') || '', 10);
     const expandN = Math.min(
@@ -703,55 +702,52 @@ export class CbetaRetrieveService {
       Number.isFinite(envN) && envN > 0 ? envN : LOOKUP_TOP_K,
     );
 
-    for (let i = 0; i < expandN; i++) {
-      const h = hits[i];
-      const role = i < CBETA_ANCHOR_EXPAND_HITS ? 'anchor' : 'support';
-      let { from, to } = cbetaExpandIndexRange(h.chunkIndex, role);
+    const expanded = await Promise.all(
+      hits.slice(0, expandN).map(async (h, i) => {
+        const role = i < CBETA_ANCHOR_EXPAND_HITS ? 'anchor' : 'support';
+        let { from, to } = cbetaExpandIndexRange(h.chunkIndex, role);
 
-      let rows = await this.fetchChunksByIndex(h.workCode, from, to);
-      if (
-        rows.length &&
-        needsCbetaDialogueBackshift(rows[0].content_zh) &&
-        from > 0
-      ) {
-        from -= 1;
-        rows = await this.fetchChunksByIndex(h.workCode, from, to);
-      }
-      if (!rows.length) {
-        if (!seen.has(h.id)) {
-          seen.add(h.id);
-          out.push(h);
+        let rows = await this.fetchChunksByIndex(h.workCode, from, to);
+        if (
+          role === 'anchor' &&
+          rows.length &&
+          needsCbetaDialogueBackshift(rows[0].content_zh) &&
+          from > 0
+        ) {
+          from -= 1;
+          rows = await this.fetchChunksByIndex(h.workCode, from, to);
         }
-        continue;
-      }
+        if (!rows.length) return h;
 
-      const stitched = stitchChunkParts(
-        rows.map((r) => ({
-          text: r.content_zh,
-          marker: r.cbeta_ref_start || `chunk:${r.chunk_index}`,
-        })),
-      );
-      const center =
-        rows.find((r) => r.chunk_index === h.chunkIndex) ?? rows[0];
-      // One window per original hit — avoid flooding diversify with overlap twins.
+        const stitched = stitchChunkParts(
+          rows.map((r) => ({
+            text: r.content_zh,
+            marker: r.cbeta_ref_start || `chunk:${r.chunk_index}`,
+          })),
+        );
+        const center =
+          rows.find((r) => r.chunk_index === h.chunkIndex) ?? rows[0];
+        return {
+          id: h.id,
+          workCode: center.work_code,
+          collection: center.collection,
+          titleZh: center.title_zh || h.titleZh,
+          juanNo: center.juan_no,
+          juanLabel: center.juan_label,
+          chunkIndex: h.chunkIndex,
+          contentZh: stitched || h.contentZh,
+          score: h.score,
+          cbetaRefStart: h.cbetaRefStart ?? center.cbeta_ref_start,
+        } satisfies CbetaChunkHit;
+      }),
+    );
+
+    const out: CbetaChunkHit[] = [];
+    for (const h of expanded) {
       if (seen.has(h.id)) continue;
       seen.add(h.id);
-      out.push({
-        id: h.id,
-        workCode: center.work_code,
-        collection: center.collection,
-        titleZh: center.title_zh || h.titleZh,
-        juanNo: center.juan_no,
-        juanLabel: center.juan_label,
-        chunkIndex: h.chunkIndex,
-        contentZh: stitched || h.contentZh,
-        score: h.score,
-        // Keep the original hit's linehead for citation UI (not neighbor tail).
-        cbetaRefStart: h.cbetaRefStart ?? center.cbeta_ref_start,
-      });
+      out.push(h);
     }
-
-    // Keep non-expanded tail hits (beyond expandN) for diversify / citations.
     for (const h of hits.slice(expandN)) {
       if (seen.has(h.id)) continue;
       seen.add(h.id);
