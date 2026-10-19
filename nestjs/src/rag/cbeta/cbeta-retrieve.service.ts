@@ -134,19 +134,37 @@ export class CbetaRetrieveService {
     const filter = this.filterSql({ ...decision, path: 'fast' });
     const terms = this.lexicalTerms(question, options);
 
+    // Overlap embed HTTP (:7997) with FTS/lexical SQL — then pgvector on the vec.
     let embedError: string | null = null;
-    let vectorHits: CbetaChunkHit[] = [];
-    try {
-      const vec = await this.embedding.embed(question);
-      vectorHits = await this.searchVector(vec, pool, filter);
-    } catch (err: unknown) {
-      embedError = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`CBETA embed failed: ${embedError}`);
-    }
+    const embedPromise = this.embedding
+      .embed(question)
+      .then((vec) => ({ ok: true as const, vec }))
+      .catch((err: unknown) => ({
+        ok: false as const,
+        err: err instanceof Error ? err.message : String(err),
+      }));
 
-    let ftsHits = await this.searchFts(question, terms, pool, filter, 'fast');
-    if (!ftsHits.length && terms.length) {
-      ftsHits = await this.searchLexical(terms, pool, filter);
+    const ftsPromise = (async () => {
+      let hits = await this.searchFts(question, terms, pool, filter, 'fast');
+      if (!hits.length && terms.length) {
+        hits = await this.searchLexical(terms, pool, filter);
+      }
+      return hits;
+    })();
+
+    const [embedRes, ftsHits] = await Promise.all([embedPromise, ftsPromise]);
+
+    let vectorHits: CbetaChunkHit[] = [];
+    if (embedRes.ok) {
+      try {
+        vectorHits = await this.searchVector(embedRes.vec, pool, filter);
+      } catch (err: unknown) {
+        embedError = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`CBETA vector search failed: ${embedError}`);
+      }
+    } else {
+      embedError = embedRes.err;
+      this.logger.warn(`CBETA embed failed: ${embedError}`);
     }
 
     let hits: CbetaChunkHit[];
