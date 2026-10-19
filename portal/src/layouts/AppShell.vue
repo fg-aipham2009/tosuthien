@@ -162,17 +162,21 @@ async function installApp() {
     </p>
 
     <main
-      class="min-h-0 flex-1 overflow-auto"
+      class="min-h-0 flex-1"
       :class="
         isChat
           ? 'flex w-full flex-col overflow-hidden p-0'
-          : 'w-full max-w-none px-4 py-4 sm:px-6 lg:px-8 lg:py-6 xl:px-10'
+          : 'w-full max-w-none overflow-auto px-4 py-4 sm:px-6 lg:px-8 lg:py-6 xl:px-10'
       "
     >
-      <RouterView />
+      <!-- Chat views need an explicit flex height chain or the dock overlays messages. -->
+      <RouterView v-slot="{ Component }">
+        <component :is="Component" :class="isChat ? 'min-h-0 flex-1' : undefined" />
+      </RouterView>
     </main>
 
     <footer
+      v-if="!isChat"
       class="z-20 shrink-0 border-t border-black/10 bg-surface px-4 py-2 text-center text-xs text-muted lg:px-8"
     >
       <RouterLink class="underline-offset-2 hover:text-brand hover:underline" to="/chinh-sach-bao-mat"

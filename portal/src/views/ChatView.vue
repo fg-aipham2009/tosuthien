@@ -165,8 +165,10 @@ function openSidebar() {
 <style scoped>
 .chat-root {
   display: flex;
+  flex: 1;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
   background: var(--c-surface);
 }
 
@@ -226,8 +228,11 @@ function openSidebar() {
 
 .dock {
   flex-shrink: 0;
-  background: linear-gradient(to top, #fff 70%, rgba(255, 255, 255, 0));
-  padding-top: 0.5rem;
+  position: relative;
+  z-index: 2;
+  background: var(--c-surface);
+  border-top: 1px solid var(--c-outline);
+  padding-top: 0.65rem;
 }
 
 .dock-inner {
