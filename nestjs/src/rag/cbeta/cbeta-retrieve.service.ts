@@ -15,7 +15,7 @@ import {
   CBETA_ANCHOR_EXPAND_HITS,
   cbetaExpandIndexRange,
   needsCbetaDialogueBackshift,
-  stitchChunkTexts,
+  stitchChunkParts,
 } from './cbeta-expand.util';
 import {
   DEFAULT_CBETA_COVERAGE_TITLE_REGEX,
@@ -32,6 +32,23 @@ import type {
 
 /** Classic RRF rank constant (Cormack et al.). */
 const RRF_K = 60;
+
+/** Soft lens for prompt: Giáo môn vs Tổ Sư Thiền (from title cues, not invented doctrine). */
+function corpusLensLabel(h: {
+  titleZh?: string | null;
+  collection?: string | null;
+}): string {
+  const title = h.titleZh || '';
+  if (/語錄|燈錄|公案|碧巖|無門|指月|禪林|宗門|傳燈|五燈|臨濟|曹洞|趙州|壇經/.test(title)) {
+    return 'Tổ_Sư_Thiền';
+  }
+  if (/經|論|律|阿含|般若|華嚴|法華|唯識|中觀/.test(title)) {
+    return 'Giáo_môn';
+  }
+  const col = (h.collection || '').toUpperCase();
+  if (col === 'X' || col === 'XY') return 'Tục_tạng';
+  return col ? `bộ_${col}` : 'CBETA';
+}
 
 export interface CbetaRetrieveOptions {
   /** Extra terms from VN→Hán rewrite keywords (for FTS OR / ILIKE). */
@@ -325,16 +342,18 @@ export class CbetaRetrieveService {
       const body = h.contentZh.trim();
       if (!body) continue;
       const url = this.cbetaOnlineUrl(h.workCode, h.cbetaRefStart);
+      const lens = corpusLensLabel(h);
       const meta = [
         `work_code=${h.workCode}`,
         `collection=${h.collection}`,
+        `góc_nhìn=${lens}`,
         h.juanLabel?.trim() || (h.juanNo != null ? `juan=${h.juanNo}` : null),
         h.cbetaRefStart ? `ref=${h.cbetaRefStart}` : null,
         url ? `url=${url}` : null,
       ]
         .filter(Boolean)
         .join(' ');
-      const block = `[CBETA]\nTrích dẫn: ${label}\n${meta}\n\n${body}`;
+      const block = `[CBETA][${lens}]\nTrích dẫn: ${label}\n${meta}\n\n${body}`;
       if (used.length && usedChars + block.length > budget) break;
       blocks.push(block);
       used.push(h);
@@ -422,6 +441,15 @@ export class CbetaRetrieveService {
     if (decision.workCodes.length) {
       params.push(decision.workCodes);
       parts.push(`c.work_code = ANY($${params.length}::text[])`);
+    }
+    if (decision.juanNo != null && decision.juanNo > 0) {
+      params.push(decision.juanNo);
+      parts.push(`c.juan_no = $${params.length}`);
+    }
+    if (decision.cbetaRefNeedle?.trim()) {
+      const needle = decision.cbetaRefNeedle.trim().replace(/^p/i, '');
+      params.push(`%${needle}%`);
+      parts.push(`c.cbeta_ref_start ILIKE $${params.length}`);
     }
     const titleRe = this.coverageTitleRegex();
     if (
@@ -697,7 +725,12 @@ export class CbetaRetrieveService {
         continue;
       }
 
-      const stitched = stitchChunkTexts(rows.map((r) => r.content_zh));
+      const stitched = stitchChunkParts(
+        rows.map((r) => ({
+          text: r.content_zh,
+          marker: r.cbeta_ref_start || `chunk:${r.chunk_index}`,
+        })),
+      );
       const center =
         rows.find((r) => r.chunk_index === h.chunkIndex) ?? rows[0];
       // One window per original hit — avoid flooding diversify with overlap twins.
@@ -713,7 +746,8 @@ export class CbetaRetrieveService {
         chunkIndex: h.chunkIndex,
         contentZh: stitched || h.contentZh,
         score: h.score,
-        cbetaRefStart: center.cbeta_ref_start ?? h.cbetaRefStart,
+        // Keep the original hit's linehead for citation UI (not neighbor tail).
+        cbetaRefStart: h.cbetaRefStart ?? center.cbeta_ref_start,
       });
     }
 

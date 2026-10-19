@@ -11,6 +11,7 @@ import { CbetaCollectionsService } from './cbeta-collections.service';
 import { CbetaDbService } from './cbeta-db.service';
 import { CbetaEntitiesService } from './cbeta-entities.service';
 import { enrichCbetaSearchZh } from './cbeta-preprocess.util';
+import { parseCbetaCitationHints } from './cbeta-query-parse.util';
 import { CbetaRetrieveService } from './cbeta-retrieve.service';
 import type {
   CbetaCitation,
@@ -19,6 +20,7 @@ import type {
   CbetaRetrieveResult,
   CbetaRouteDecision,
 } from './cbeta.types';
+import type { ChatTurn } from '../rag.types';
 
 @Injectable()
 export class CbetaChatService {
@@ -44,19 +46,21 @@ export class CbetaChatService {
     question: string,
     options: ChatOptions = {},
   ): Promise<CbetaRouteDecision & { queryRewrite: CbetaQueryRewrite }> {
-    const rewrite = await this.prepareSearchQuery(question);
-    const decision = await this.routeDecision(question, rewrite.searchZh, options);
+    const rewrite = await this.prepareSearchQuery(question, options.messages);
+    const decision = this.applyCitationHints(
+      await this.routeDecision(question, rewrite.searchZh, options),
+      question,
+    );
     return { ...decision, queryRewrite: rewrite };
   }
 
   async chat(question: string, options: ChatOptions = {}) {
     this.assertCanChat(question);
     const t0 = Date.now();
-    const rewrite = await this.prepareSearchQuery(question);
-    const decisionMerged = await this.routeDecision(
+    const rewrite = await this.prepareSearchQuery(question, options.messages);
+    const decisionMerged = this.applyCitationHints(
+      await this.routeDecision(question, rewrite.searchZh, options),
       question,
-      rewrite.searchZh,
-      options,
     );
     const retrieval = await this.runRetrieve(
       rewrite.searchZh,
@@ -132,11 +136,10 @@ export class CbetaChatService {
       phase: 'retrieving',
       message: 'Đang chuẩn hóa câu hỏi → Hán (hhtech)…',
     };
-    const rewrite = await this.prepareSearchQuery(question);
-    const decisionMerged = await this.routeDecision(
+    const rewrite = await this.prepareSearchQuery(question, options.messages);
+    const decisionMerged = this.applyCitationHints(
+      await this.routeDecision(question, rewrite.searchZh, options),
       question,
-      rewrite.searchZh,
-      options,
     );
 
     yield {
@@ -246,9 +249,12 @@ export class CbetaChatService {
     return this.mergeAliasFromSearch(decision, searchZh, options);
   }
 
-  private async prepareSearchQuery(question: string): Promise<CbetaQueryRewrite> {
+  private async prepareSearchQuery(
+    question: string,
+    history?: ChatTurn[],
+  ): Promise<CbetaQueryRewrite> {
     const t0 = Date.now();
-    const r = await this.llm.rewriteCbetaSearchQuery(question);
+    const r = await this.llm.rewriteCbetaSearchQuery(question, history || []);
     const enriched = enrichCbetaSearchZh(
       question,
       r.searchZh || question,
@@ -268,6 +274,49 @@ export class CbetaChatService {
       skipped: r.skipped,
       reason: r.reason,
       rewriteMs: Date.now() - t0,
+    };
+  }
+
+  /** Hard SQL filters from explicit work_code / juan / page in the question. */
+  private applyCitationHints(
+    decision: CbetaRouteDecision,
+    question: string,
+  ): CbetaRouteDecision {
+    const hints = parseCbetaCitationHints(question);
+    if (
+      !hints.workCodes.length &&
+      hints.juanNo == null &&
+      !hints.cbetaRefNeedle
+    ) {
+      return decision;
+    }
+    const seen = new Set(decision.workCodes);
+    const workCodes = [...decision.workCodes];
+    for (const w of hints.workCodes) {
+      if (!seen.has(w)) {
+        seen.add(w);
+        workCodes.push(w);
+      }
+    }
+    const juanNo = hints.juanNo ?? decision.juanNo;
+    const cbetaRefNeedle = hints.cbetaRefNeedle ?? decision.cbetaRefNeedle;
+    const scopeParts = [
+      `path=${decision.path}`,
+      decision.coverageMode ? 'mode=coverage' : null,
+      decision.collections.length
+        ? `collections=${decision.collections.join(',')}`
+        : 'collections=none',
+      workCodes.length ? `work_codes=${workCodes.join(',')}` : null,
+      juanNo != null ? `juan=${juanNo}` : null,
+      cbetaRefNeedle ? `ref~${cbetaRefNeedle}` : null,
+    ].filter(Boolean);
+    return {
+      ...decision,
+      workCodes,
+      juanNo,
+      cbetaRefNeedle,
+      scopeNote: scopeParts.join('; '),
+      reasons: [...decision.reasons, ...hints.reasons],
     };
   }
 

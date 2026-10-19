@@ -9,6 +9,10 @@ export interface CbetaRouteDecision {
   path: CbetaPath;
   collections: string[];
   workCodes: string[];
+  /** Hard juan filter from parsed question (卷N / quyển N). */
+  juanNo: number | null;
+  /** Hard linehead/page needle for cbeta_ref_start (e.g. p0292). */
+  cbetaRefNeedle: string | null;
   /**
    * True only when the question matches coverage/enumerate intent.
    * Deep retrieve then seeds from CBETA_COVERAGE_TITLE_REGEX / DEEP_MAX_WORKS.

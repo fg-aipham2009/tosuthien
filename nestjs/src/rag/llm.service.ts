@@ -8,6 +8,11 @@ import {
 import { AI_INTERPRETATION_MARKER } from './rag.constants';
 import { AnswerStyle, AnswerStyleContext } from './rag-answer-style';
 import type { ChatTurn } from './rag.types';
+import { extractPreservedCjk } from './cbeta/cbeta-query-parse.util';
+import {
+  toTraditionalZh,
+  toTraditionalZhList,
+} from './cbeta/cbeta-opencc.util';
 
 /** Cap prior turns so retrieval context stays primary. */
 const MAX_HISTORY_MESSAGES = 6;
@@ -127,22 +132,34 @@ function maxTokensForStyle(style: AnswerStyle): number {
 }
 
 /** Dedicated CBETA corpus — never the Duy Lực / tosuthien book system prompt. */
-const CBETA_REWRITE_SYSTEM = `You rewrite user questions into Traditional Chinese search text for CBETA (Buddhist canon) retrieval.
+const CBETA_REWRITE_SYSTEM = `You map user questions into CBETA retrieval cues (Traditional Chinese / 文言 Buddhist terms).
 
-Rules:
-- Output JSON only, no markdown: {"search_zh":"...","keywords":["..."]}
-- search_zh: Traditional Chinese phrase(s) that match CBETA wording. Prefer compact but COMPLETE retrieval cues (space-separated ok).
-- keywords: important CJK terms for FTS.
-- Map Vietnamese Buddhist terms to standard Chinese (thoại đầu→話頭, nghi tình→疑情, Hư Vân→虛雲, tổ sư→祖師, …).
-- LIST / ENUMERATE / "toàn bộ tổ sư" / ngũ gia thất tông: expand search_zh + keywords with lineage anchors such as 西天二十八祖、東土六祖、歷代祖師、傳法世系、景德傳燈錄、五燈會元、指月錄、宗統編年、佛祖統紀 (only as search terms — do NOT invent work_code).
-- Do NOT answer the question. Do NOT invent work_code.
-- If the question is already mostly Chinese, still return a clean search_zh + keywords.`;
+Output JSON only, no markdown:
+{"search_zh":"...","keywords_literal":["..."],"keywords_doctrine":["..."],"keywords":["..."]}
+
+Hard rules (3 bugs to avoid):
+1) CLASSICAL, NOT modern Mandarin: Do NOT write 白话 sentences like 佛陀對阿難說了關於心的什麼. Emit compact 文言 / CBETA-style terms (佛告阿難、徵心、妄心、真心、坐禪、昏沉…).
+2) KEEP LITERALS: keywords_literal = names, koan titles, exact phrases, any CJK already in the user text (e.g. 趙州洗鉢, 應無所住). Never drop user-provided Hanzi. keywords_doctrine = short doctrinal synonyms only (平常心、話頭…) — optional, few items.
+3) NO DOCTRINE ESSAY / NO ANSWER: terminology mapping & translation only. Do NOT explain the teaching, invent causes, or expand into a HyDE-style paragraph.
+
+Also:
+- search_zh: space-separated compact Traditional Chinese retrieval cues (prefer 文言).
+- keywords: union of literal + doctrine (optional convenience field).
+- Map Vietnamese → classical CBETA terms (thoại đầu→話頭, nghi tình→疑情, buồn ngủ khi ngồi thiền→坐禪 昏沉, …).
+- LIST / "toàn bộ tổ sư": add lineage anchors 西天二十八祖、東土六祖、景德傳燈錄、五燈會元… as search terms only — never invent work_code.
+- If prior turns are given, resolve pronouns ("ông ấy", "công án đó", "pháp này") into concrete nouns before mapping.
+- Do NOT invent work_code / juan / page.`;
 
 const CBETA_SYSTEM = `Bạn là trợ lý TRA CỨU Đại tạng Hán văn CBETA (DB riêng \`cbeta\`: bộ T/X/… và bổ biên đã nạp như XY/LQ nếu có trong ngữ cảnh).
 
 TÁCH BIỆT HOÀN TOÀN với hỏi đáp sách Việt Tổ Sư Thiền / HT. Thích Duy Lực (API /api/rag trên tosuthien).
 CẤM: nhắc, viện dẫn, so sánh với sách Việt Duy Lực, Ngữ Lục Duy Lực, portal tosuthien, hoặc khung "Tổ Sư Thiền HT…" như nguồn trả lời.
 CHỈ dựa trên nguyên văn Hán trong block ngữ cảnh CBETA của lượt này.
+
+Phân biệt góc nhìn trong block (nhãn [Tổ_Sư_Thiền] / [Giáo_môn] / [Tục_tạng] / …):
+- Giáo môn: Kinh/Luận/Luật theo thứ lớp giáo nghĩa.
+- Tổ Sư Thiền: ngữ lục, đèn lục, công án, trực chỉ — cách tu khác Giáo môn.
+CẤM gộp chung "cách tu" của hai dòng như thể một pháp duy nhất; nếu ngữ cảnh có cả hai, nêu rõ từng góc nhìn.
 
 Ngôn ngữ: người dùng hỏi tiếng Việt → toàn bộ câu trả lời (PHẦN 1 + PHẦN 2) bằng tiếng Việt.
 
@@ -155,10 +172,11 @@ PHẦN 1 — BẢN TỔNG HỢP DỊCH (answer) — RÕ, ĐỦ, DỄ ĐỌC
 - Câu hỏi kiểu liệt kê / truyền thừa: trình bày theo khung rõ (vd. A. Tây Thiên 1→28; B. Đông Độ 1→6; C. dị thuyết nếu có). Mỗi vị một dòng: số thứ tự — tên Việt (Hán). Đủ số lượng có trong ngữ cảnh; CẤM cắt giữa danh sách bằng "…".
 - Câu hỏi thường: văn xuôi có tiêu đề phụ ngắn; mỗi ý một lần — CẤM lặp cùng nội dung từ nhiều block.
 - CẤM chuỗi trích "…" và CẤM chèn — (thư, work_code, 卷, p.xxxx) / url trong thân bài (nguồn ở UI cuối).
+- Thẻ 【p….】 / 【chunk:N】 trong block là mốc dòng khi ghép neighbor — dùng để giữ mạch, không bịa citation mới.
 - CẤM để nguyên khối Hán dài; được giữ thuật ngữ Hán then chốt trong ngoặc.
 - Trung thực với ngữ cảnh; CẤM bịa tên / pháp số không có trong block.
 - Nếu có [CBETA_ENTITY_LIST]: ưu tiên làm xương sống danh sách (Việt + Hán).
-- Không khớp: một câu — "Trong tư liệu CBETA hiện có (phạm vi đã chọn) chưa thấy nội dung này." rồi DỪNG.
+- Nếu các block không trả lời được câu hỏi: một câu — "Trong tư liệu CBETA hiện có (phạm vi đã chọn) chưa thấy nội dung này." rồi DỪNG — tuyệt đối không suy diễn.
 
 ════════════════════════════════════
 PHẦN 2 — GHI CHÚ NGẮN (tiếng Việt)
@@ -167,7 +185,6 @@ PHẦN 2 — GHI CHÚ NGẮN (tiếng Việt)
 - Vài câu làm rõ điểm khó / dị thuyết / cách đọc bảng — KHÔNG lặp lại toàn bộ phần 1.
 - CẤM kéo kiến thức / thuật ngữ từ sách Việt Duy Lực vào như thể cùng một corpus.
 - CẤM mở đầu máy móc ("dựa vào đoạn trích…").`;
-
 /**
  * Shrink prior assistant answers: keep up to 2 short quote+citation stubs.
  * Full RAG context on the current turn is the source of truth for new quotes.
@@ -256,13 +273,23 @@ function parseCbetaRewriteJson(
       search_zh?: unknown;
       searchZh?: unknown;
       keywords?: unknown;
+      keywords_literal?: unknown;
+      keywords_doctrine?: unknown;
     };
     const searchZh = String(obj.search_zh ?? obj.searchZh ?? '').trim();
-    const keywords = Array.isArray(obj.keywords)
-      ? obj.keywords.map((k) => String(k).trim()).filter(Boolean)
-      : [];
-    if (!searchZh) return null;
-    return { searchZh, keywords };
+    const asList = (v: unknown): string[] =>
+      Array.isArray(v)
+        ? v.map((k) => String(k).trim()).filter(Boolean)
+        : [];
+    const literal = asList(obj.keywords_literal);
+    const doctrine = asList(obj.keywords_doctrine);
+    const plain = asList(obj.keywords);
+    const keywords = [...new Set([...literal, ...doctrine, ...plain])];
+    if (!searchZh && !keywords.length) return null;
+    return {
+      searchZh: searchZh || keywords.join(' '),
+      keywords,
+    };
   } catch {
     return null;
   }
@@ -383,10 +410,14 @@ ${context}`;
   }
 
   /**
-   * Best-practice CBETA retrieve prep: hhtech rewrites VN/colloquial → Hán search text.
-   * Skip when question is already mostly CJK or CBETA_QUERY_REWRITE=0.
+   * CBETA retrieve prep: terminology map VN/colloquial → classical Hán cues.
+   * Always OpenCC→Traditional; always re-attach CJK spans from the raw question.
+   * Optional prior turns (1–2) resolve pronouns before mapping.
    */
-  async rewriteCbetaSearchQuery(question: string): Promise<{
+  async rewriteCbetaSearchQuery(
+    question: string,
+    history: ChatTurn[] = [],
+  ): Promise<{
     searchZh: string;
     keywords: string[];
     skipped: boolean;
@@ -396,6 +427,24 @@ ${context}`;
     if (!q) {
       return { searchZh: '', keywords: [], skipped: true, reason: 'empty' };
     }
+    const preserved = extractPreservedCjk(q);
+    const finalize = (searchZh: string, keywords: string[], skipped: boolean, reason?: string) => {
+      const kw = toTraditionalZhList([
+        ...keywords,
+        ...preserved,
+        ...extractCjkTerms(searchZh),
+      ]);
+      const mergedSearch = toTraditionalZh(
+        [searchZh, ...preserved].filter(Boolean).join(' ').trim() || q,
+      );
+      return {
+        searchZh: mergedSearch,
+        keywords: kw,
+        skipped,
+        reason,
+      };
+    };
+
     const flag = (
       this.config.get<string>('CBETA_QUERY_REWRITE') ||
       process.env.CBETA_QUERY_REWRITE ||
@@ -405,16 +454,18 @@ ${context}`;
       .trim()
       .toLowerCase();
     if (flag === '0' || flag === 'false' || flag === 'off') {
-      return { searchZh: q, keywords: [], skipped: true, reason: 'disabled' };
+      return finalize(q, extractCjkTerms(q), true, 'disabled');
     }
     if (cjkCharRatio(q) >= 0.45) {
-      return {
-        searchZh: q,
-        keywords: extractCjkTerms(q),
-        skipped: true,
-        reason: 'already_cjk',
-      };
+      return finalize(q, extractCjkTerms(q), true, 'already_cjk');
     }
+
+    const prior = normalizeHistory(history).slice(-2);
+    const historyBlock = prior.length
+      ? `Prior turns (resolve pronouns only; do not answer):\n${prior
+          .map((t) => `${t.role}: ${t.content}`)
+          .join('\n')}\n\n`
+      : '';
 
     const endpoints = this.ai.get().chatEndpoints;
     let lastError: Error | null = null;
@@ -424,16 +475,12 @@ ${context}`;
         const raw = await this.completeAnthropic(
           endpoint,
           CBETA_REWRITE_SYSTEM,
-          `User question:\n${q}\n\nJSON:`,
+          `${historyBlock}User question:\n${q}\n\nJSON:`,
           this.cbetaRewriteMaxTokens(),
         );
         const parsed = parseCbetaRewriteJson(raw);
         if (parsed?.searchZh) {
-          return {
-            searchZh: parsed.searchZh,
-            keywords: parsed.keywords,
-            skipped: false,
-          };
+          return finalize(parsed.searchZh, parsed.keywords, false);
         }
         lastError = new Error('CBETA rewrite: empty search_zh');
       } catch (err: unknown) {
@@ -447,12 +494,7 @@ ${context}`;
     this.logger.warn(
       `CBETA rewrite fallback to original question: ${lastError?.message || 'unknown'}`,
     );
-    return {
-      searchZh: q,
-      keywords: [],
-      skipped: true,
-      reason: 'rewrite_failed',
-    };
+    return finalize(q, extractCjkTerms(q), true, 'rewrite_failed');
   }
 
   /** CBETA-only answer path (system/user prompts never mention Duy Lực books). */

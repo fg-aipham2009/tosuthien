@@ -55,31 +55,58 @@ export function needsVnDialogueBackshift(firstPageText: string): boolean {
   return VN_ANSWER_OPEN.test(head);
 }
 
+export interface StitchPart {
+  text: string;
+  /** CBETA linehead / page marker inserted before this part when joining. */
+  marker?: string | null;
+}
+
 /**
- * Concatenate ordered chunk texts and strip repeated overlap at boundaries
- * (ingest overlap prefix would otherwise appear twice for Claude).
+ * Concatenate ordered chunk texts, strip overlap at boundaries, and insert
+ * 【ref】 markers so Claude does not attribute the tail to the head's cite.
  */
-export function stitchChunkTexts(parts: string[]): string {
-  const cleaned = parts.map((p) => (p || '').trim()).filter(Boolean);
+export function stitchChunkParts(parts: StitchPart[]): string {
+  const cleaned = parts
+    .map((p) => ({
+      text: (p.text || '').trim(),
+      marker: (p.marker || '').trim() || null,
+    }))
+    .filter((p) => p.text);
   if (!cleaned.length) return '';
-  let out = cleaned[0];
+  let out = cleaned[0].text;
   for (let i = 1; i < cleaned.length; i++) {
-    out = appendWithoutOverlap(out, cleaned[i]);
+    const right = stripOverlapPrefix(out, cleaned[i].text);
+    if (!right) continue;
+    const tag = formatRefMarker(cleaned[i].marker);
+    out = tag ? `${out}\n${tag}\n${right}` : appendWithGap(out, right);
   }
   return out;
 }
 
-function appendWithoutOverlap(left: string, right: string): string {
+/** Back-compat: stitch plain strings (no markers). */
+export function stitchChunkTexts(parts: string[]): string {
+  return stitchChunkParts(parts.map((text) => ({ text })));
+}
+
+export function formatRefMarker(ref: string | null | undefined): string {
+  const r = (ref || '').trim().replace(/^【\s*|\s*】$/g, '');
+  if (!r) return '';
+  return `【${r}】`;
+}
+
+function stripOverlapPrefix(left: string, right: string): string {
   if (!left) return right;
-  if (!right) return left;
-  // Prefer longer overlap; floor 2 so short CJK tails (e.g. 師曰…) still dedupe.
+  if (!right) return '';
   const max = Math.min(left.length, right.length, 400);
   for (let n = max; n >= 2; n--) {
     if (left.endsWith(right.slice(0, n))) {
-      return left + right.slice(n);
+      return right.slice(n);
     }
   }
-  // No meaningful overlap — join with a single newline for readability.
+  return right;
+}
+
+function appendWithGap(left: string, right: string): string {
   const gap =
     left.endsWith('\n') || right.startsWith('\n') ? '' : '\n';
   return left + gap + right;

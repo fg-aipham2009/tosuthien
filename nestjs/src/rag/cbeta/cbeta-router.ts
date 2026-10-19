@@ -89,6 +89,8 @@ export function routeCbetaQuery(input: RouteInput): CbetaRouteDecision {
     path,
     collections,
     workCodes: [],
+    juanNo: null,
+    cbetaRefNeedle: null,
     coverageMode,
     scopeNote: scopeParts.join('; '),
     reasons,
