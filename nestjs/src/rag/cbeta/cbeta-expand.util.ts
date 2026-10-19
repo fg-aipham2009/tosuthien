@@ -72,9 +72,9 @@ export function stitchChunkTexts(parts: string[]): string {
 function appendWithoutOverlap(left: string, right: string): string {
   if (!left) return right;
   if (!right) return left;
-  // Prefer longer overlap; cap scan to avoid O(n²) on pathological sizes.
+  // Prefer longer overlap; floor 2 so short CJK tails (e.g. 師曰…) still dedupe.
   const max = Math.min(left.length, right.length, 400);
-  for (let n = max; n >= 8; n--) {
+  for (let n = max; n >= 2; n--) {
     if (left.endsWith(right.slice(0, n))) {
       return left + right.slice(n);
     }
