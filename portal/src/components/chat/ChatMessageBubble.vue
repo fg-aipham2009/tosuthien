@@ -83,7 +83,8 @@ function canOpen(c: ChatCitation): boolean {
           <img src="/logo-tosuthien.png" alt="" width="28" height="28" />
         </div>
         <div class="assistant-body">
-          <template v-if="scripture || message.streaming">
+          <!-- Do not show empty "…" bubble while retrieving — ChatLoadingRow covers that. -->
+          <template v-if="scripture">
             <div class="label-row">
               <span class="label scripture-label">{{ scriptureLabel }}</span>
               <button
@@ -97,7 +98,7 @@ function canOpen(c: ChatCitation): boolean {
               </button>
             </div>
             <div class="scripture">
-              {{ scripture || (message.streaming ? '…' : '') }}
+              {{ scripture }}
             </div>
           </template>
 

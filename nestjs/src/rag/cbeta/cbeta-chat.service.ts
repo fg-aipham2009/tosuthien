@@ -152,14 +152,17 @@ export class CbetaChatService {
       question,
     );
 
+    const retrieveMsg = decisionMerged.coverageMode
+      ? 'Đang quét coverage (theo work khớp cấu hình title)…'
+      : rewrite.skipped && rewrite.reason === 'rewrite_failed'
+        ? 'Chuẩn hóa Hán chậm/lỗi — đang tra CBETA bằng câu gốc…'
+        : rewrite.skipped
+          ? 'Đang tra cứu CBETA…'
+          : `Đang tra CBETA: ${rewrite.searchZh}`;
     yield {
       type: 'status',
       phase: 'retrieving',
-      message: decisionMerged.coverageMode
-        ? 'Đang quét coverage (theo work khớp cấu hình title)…'
-        : rewrite.skipped
-          ? undefined
-          : `Đang tra CBETA: ${rewrite.searchZh}`,
+      message: retrieveMsg,
     };
 
     const retrieval = await this.runRetrieve(

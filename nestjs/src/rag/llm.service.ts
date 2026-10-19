@@ -353,6 +353,20 @@ export class LlmService {
     return Number.isFinite(n) && n > 0 ? n : 3_072;
   }
 
+  /**
+   * Hard deadline for VN/EN→Hán rewrite. Without this, hhtech/Opus can hang
+   * forever and the SSE UI stays on "Đang chuẩn hóa câu hỏi…".
+   */
+  private cbetaRewriteTimeoutMs(): number {
+    const n = parseInt(
+      this.config.get<string>('CBETA_REWRITE_TIMEOUT_MS') ||
+        process.env.CBETA_REWRITE_TIMEOUT_MS ||
+        '',
+      10,
+    );
+    return Number.isFinite(n) && n > 0 ? n : 15_000;
+  }
+
   private rewriteCacheSize(): number {
     const n = parseInt(
       this.config.get<string>('CBETA_REWRITE_CACHE_SIZE') ||
@@ -374,7 +388,7 @@ export class LlmService {
 
   /**
    * Prefer a fast rewrite model (CBETA_REWRITE_MODEL / HHTECH_REWRITE_MODEL).
-   * Falls back to primary chat endpoint model if unset.
+   * At most two attempts — never walk the full chat fallback chain (each can hang).
    */
   private rewriteEndpoints(): ChatEndpoint[] {
     const cfg = this.ai.get();
@@ -388,11 +402,10 @@ export class LlmService {
     const primary = cfg.chatEndpoints[0];
     if (!primary) return [];
     if (!rewriteModel || rewriteModel === primary.model) {
-      return cfg.chatEndpoints;
+      return [primary];
     }
     const light: ChatEndpoint = { ...primary, model: rewriteModel };
-    // Try light model first, then full chat endpoints (same keys).
-    return [light, ...cfg.chatEndpoints];
+    return [light, primary];
   }
 
   async answer(
@@ -547,7 +560,9 @@ ${context}`;
       : '';
 
     // Prefer light rewrite model; never throw — fallback to raw query for embed/FTS.
+    // Each attempt has a hard timeout so SSE cannot stick on "chuẩn hóa…".
     const endpoints = this.rewriteEndpoints();
+    const timeoutMs = this.cbetaRewriteTimeoutMs();
     let lastError: Error | null = null;
     for (let i = 0; i < endpoints.length; i++) {
       const endpoint = endpoints[i];
@@ -557,6 +572,7 @@ ${context}`;
           CBETA_REWRITE_SYSTEM,
           `${historyBlock}User question:\n${q}\n\nJSON:`,
           this.cbetaRewriteMaxTokens(),
+          timeoutMs,
         );
         const parsed = parseCbetaRewriteJson(raw);
         if (parsed?.searchZh) {
@@ -568,7 +584,7 @@ ${context}`;
       } catch (err: unknown) {
         lastError = err instanceof Error ? err : new Error(String(err));
         this.logger.warn(
-          `CBETA rewrite failed [${endpoint.provider} model=${endpoint.model}]: ${lastError.message}`,
+          `CBETA rewrite failed [${endpoint.provider} model=${endpoint.model} timeoutMs=${timeoutMs}]: ${lastError.message}`,
         );
         if (i >= endpoints.length - 1) break;
       }
@@ -671,24 +687,44 @@ ${context}`;
     system: string,
     userContent: string,
     maxTokens: number,
+    timeoutMs?: number,
   ): Promise<string> {
     const url = resolveAnthropicMessagesUrl(endpoint.baseUrl);
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${endpoint.apiKey}`,
-        'x-api-key': endpoint.apiKey,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: endpoint.model,
-        max_tokens: maxTokens,
-        stream: false,
-        system,
-        messages: [{ role: 'user', content: userContent }],
-      }),
-    });
+    const ac = new AbortController();
+    const ms =
+      typeof timeoutMs === 'number' && timeoutMs > 0 ? timeoutMs : undefined;
+    const timer = ms
+      ? setTimeout(() => ac.abort(), ms)
+      : undefined;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${endpoint.apiKey}`,
+          'x-api-key': endpoint.apiKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: endpoint.model,
+          max_tokens: maxTokens,
+          stream: false,
+          system,
+          messages: [{ role: 'user', content: userContent }],
+        }),
+        signal: ac.signal,
+      });
+    } catch (err: unknown) {
+      if (ac.signal.aborted) {
+        throw new Error(
+          `Claude API timeout after ${ms}ms [${endpoint.provider} model=${endpoint.model}]`,
+        );
+      }
+      throw err instanceof Error ? err : new Error(String(err));
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
     if (!res.ok) {
       const detail = (await res.text()).slice(0, 400);
       throw new Error(

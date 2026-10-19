@@ -188,11 +188,13 @@ export function useCbetaChat(listEl: Ref<HTMLElement | null>) {
       if ((e as Error).name !== 'AbortError') {
         error.value = e instanceof Error ? e.message : 'Lỗi hỏi đáp CBETA'
         assistant.content = assistant.content || 'Xin lỗi, không nhận được câu trả lời.'
-        assistant.streaming = false
       }
+      assistant.streaming = false
     } finally {
       busy.value = false
       phase.value = ''
+      statusMessage.value = ''
+      assistant.streaming = false
       await scrollBottom()
     }
   }

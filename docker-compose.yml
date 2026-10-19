@@ -92,6 +92,7 @@ services:
       # Rewrite default = Opus 5.5 (same as answer). Override via CBETA_REWRITE_MODEL.
       CBETA_REWRITE_MODEL: ${CBETA_REWRITE_MODEL:-claude-opus-5-5}
       CBETA_REWRITE_CACHE_SIZE: ${CBETA_REWRITE_CACHE_SIZE:-256}
+      CBETA_REWRITE_TIMEOUT_MS: ${CBETA_REWRITE_TIMEOUT_MS:-15000}
       NEXUS_BASE_URL: ${NEXUS_BASE_URL:-https://api.nexusmmo.store/v1}
       NEXUS_CHAT_MODEL: claude-opus-5-5
     ports:
