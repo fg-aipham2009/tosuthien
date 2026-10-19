@@ -84,9 +84,9 @@ services:
       FLARE_BASE_URL: ${FLARE_BASE_URL:-https://9flare.com/api/v1}
       FLARE_CHAT_MODEL: pro/claude-opus-5-5-medium
       HHTECH_BASE_URL: ${HHTECH_BASE_URL:-https://hhtechapi.com/v1}
-      # Required for chat + CBETA rewrite — always pass through from host .env
-      # so recreate cannot drop a key that only lived in a stale shell.
-      HHTECH_API_KEY: ${HHTECH_API_KEY}
+      # HHTECH_API_KEY: only via env_file (.env). Do NOT set
+      # HHTECH_API_KEY: ${HHTECH_API_KEY} here — empty host shell overrides
+      # env_file with "" and breaks rewrite (401 Invalid API key).
       HHTECH_CHAT_MODEL: claude-opus-5-5
       # Fast model for VN→Hán rewrite only (answer path still uses Opus above).
       CBETA_REWRITE_MODEL: ${CBETA_REWRITE_MODEL:-claude-haiku-4.5}
