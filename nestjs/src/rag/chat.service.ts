@@ -40,6 +40,10 @@ import {
   type AnswerStyle,
   type AnswerStyleContext,
 } from './rag-answer-style';
+import {
+  needsVnDialogueBackshift,
+  stitchChunkTexts,
+} from './cbeta/cbeta-expand.util';
 
 /** Cap LLM context — room for many long neighbor windows. */
 const MAX_CONTEXT_CHARS = 100_000;
@@ -1491,35 +1495,57 @@ export class ChatService {
   }
 
   /**
-   * Expand each hit with neighboring OCR pages (±2) from the same source file.
-   * Page-turn narratives (e.g. Pháp Bảo Đàn tr.14→15) need the lead-in on the prior page.
+   * Expand each hit with neighboring OCR pages (asymmetric -1 / +2).
+   * If the window opens on Đáp:/Sư bảo without Hỏi:, backshift one more page (Test 2).
    */
   private async expandHitsWithNeighborPages(
     hits: PassageHit[],
   ): Promise<PassageHit[]> {
     return Promise.all(
-      hits.map(async (hit) => {
+      hits.map(async (hit, hitIndex) => {
         if (hit.pageNum == null) return hit;
 
         const center = hit.pageNum;
-        const radius = 2;
-        const pageStart = Math.max(1, center - radius);
-        const pageEnd = center + radius;
-        const neighbors = await this.fetchPagesAround(
+        // Top 2 hits: wider forward window; others same bias (teaching often trails).
+        const back = 1;
+        const forward = hitIndex < 2 ? 2 : 1;
+        let pageStart = Math.max(1, center - back);
+        let pageEnd = center + forward;
+
+        let neighbors = await this.fetchPagesAround(
           hit.sourceFile,
           pageStart,
           pageEnd,
         );
 
-        if (!neighbors.length) return hit;
-
         const byPage = new Map<number, string[]>();
-        for (const row of neighbors) {
-          if (row.pageNum == null) continue;
-          const list = byPage.get(row.pageNum) ?? [];
-          list.push(row.content);
-          byPage.set(row.pageNum, list);
+        const ingest = (rows: PassageHit[]) => {
+          for (const row of rows) {
+            if (row.pageNum == null) continue;
+            const list = byPage.get(row.pageNum) ?? [];
+            list.push(row.content);
+            byPage.set(row.pageNum, list);
+          }
+        };
+        ingest(neighbors);
+
+        const firstPage = Math.min(...(byPage.size ? byPage.keys() : [center]));
+        const firstBody = (byPage.get(firstPage) ?? []).join('\n\n');
+        if (
+          needsVnDialogueBackshift(firstBody) &&
+          pageStart > 1
+        ) {
+          pageStart -= 1;
+          neighbors = await this.fetchPagesAround(
+            hit.sourceFile,
+            pageStart,
+            pageEnd,
+          );
+          byPage.clear();
+          ingest(neighbors);
         }
+
+        if (!byPage.size) return hit;
 
         // Always include the original hit content for its page.
         const hitPageParts = byPage.get(center) ?? [];
@@ -1530,20 +1556,19 @@ export class ChatService {
 
         const pages = [...byPage.keys()].sort((a, b) => a - b);
         const offset = printedPageOffset(hit.sourceFile);
-        const mergedParts: string[] = [];
+        const pageBodies: string[] = [];
         for (const page of pages) {
-          const body = (byPage.get(page) ?? []).join('\n\n').trim();
+          const body = stitchChunkTexts(byPage.get(page) ?? []);
           if (!body) continue;
-          // Label with printed page so the LLM cites the number readers see in the book.
-          mergedParts.push(`[Trang ${page + offset}]\n${body}`);
+          pageBodies.push(`[Trang ${page + offset}]\n${body}`);
         }
 
-        if (!mergedParts.length) return hit;
+        if (!pageBodies.length) return hit;
 
         // Neighbor window is only for LLM context. Cite/open the hit page itself.
         return {
           ...hit,
-          content: mergedParts.join('\n\n'),
+          content: pageBodies.join('\n\n'),
           pageNum: center,
           pageStart: center,
           pageEnd: center,

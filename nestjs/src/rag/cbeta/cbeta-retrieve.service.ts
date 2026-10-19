@@ -12,6 +12,12 @@ import {
   parseNgramSizes,
 } from './cbeta-lexical.util';
 import {
+  CBETA_ANCHOR_EXPAND_HITS,
+  cbetaExpandIndexRange,
+  needsCbetaDialogueBackshift,
+  stitchChunkTexts,
+} from './cbeta-expand.util';
+import {
   DEFAULT_CBETA_COVERAGE_TITLE_REGEX,
   diversifyCbetaHits,
   isPatriarchListIntent,
@@ -303,9 +309,16 @@ export class CbetaRetrieveService {
       blocks.push(entityBlock.trim());
       usedChars += entityBlock.length;
     }
-    const sorted = diversifyCbetaHits(
+    // Diversify by score, then pack in document order so Claude reads
+    // consecutive passages within a work instead of score-shuffled jumps.
+    const diversified = diversifyCbetaHits(
       [...hits].sort((a, b) => b.score - a.score),
     );
+    const sorted = [...diversified].sort((a, b) => {
+      const w = (a.workCode || '').localeCompare(b.workCode || '', 'zh');
+      if (w !== 0) return w;
+      return a.chunkIndex - b.chunkIndex;
+    });
 
     for (const h of sorted) {
       const label = this.citationLabel(h);
@@ -644,63 +657,110 @@ export class CbetaRetrieveService {
       });
   }
 
-  /** Expand ±1 chunk on the same work for top hits (continuity). */
+  /**
+   * Neighbor expand + stitch (A/B Test 1–2):
+   * - Top CBETA_ANCHOR_EXPAND_HITS: asymmetric [-1, +2], then dialogue backshift
+   * - Remaining expand hits: light [0, +1]
+   * - Adjacent chunk texts are stitched (overlap stripped) into one hit body
+   */
   private async expandNeighbors(
     hits: CbetaChunkHit[],
   ): Promise<CbetaChunkHit[]> {
     if (!hits.length) return hits;
     const out: CbetaChunkHit[] = [];
     const seen = new Set<string>();
-    // Expand only the strongest hits to keep latency low on large corpora.
     const envN = parseInt(this.config.get<string>('CBETA_EXPAND_HITS') || '', 10);
     const expandN = Math.min(
       hits.length,
       Number.isFinite(envN) && envN > 0 ? envN : LOOKUP_TOP_K,
     );
-    for (const h of hits.slice(0, expandN)) {
-      const idxs = [h.chunkIndex - 1, h.chunkIndex, h.chunkIndex + 1].filter(
-        (n) => n >= 0,
-      );
-      const rows = await this.db.query<{
-        id: string;
-        work_code: string;
-        collection: string;
-        title_zh: string;
-        juan_no: number | null;
-        juan_label: string | null;
-        chunk_index: number;
-        content_zh: string;
-        cbeta_ref_start: string | null;
-      }>(
-        `
-        SELECT
-          c.id, c.work_code, c.collection,
-          COALESCE(c.title_zh, '') AS title_zh,
-          c.juan_no, c.juan_label, c.chunk_index, c.content_zh, c.cbeta_ref_start
-        FROM chunks c
-        WHERE c.work_code = $1 AND c.chunk_index = ANY($2::int[])
-        ORDER BY c.chunk_index
-        `,
-        [h.workCode, idxs],
-      );
-      for (const r of rows) {
-        if (seen.has(r.id)) continue;
-        seen.add(r.id);
-        out.push({
-          id: r.id,
-          workCode: r.work_code,
-          collection: r.collection,
-          titleZh: r.title_zh || h.titleZh,
-          juanNo: r.juan_no,
-          juanLabel: r.juan_label,
-          chunkIndex: r.chunk_index,
-          contentZh: r.content_zh,
-          score: r.id === h.id ? h.score : h.score * 0.85,
-          cbetaRefStart: r.cbeta_ref_start,
-        });
+
+    for (let i = 0; i < expandN; i++) {
+      const h = hits[i];
+      const role = i < CBETA_ANCHOR_EXPAND_HITS ? 'anchor' : 'support';
+      let { from, to } = cbetaExpandIndexRange(h.chunkIndex, role);
+
+      let rows = await this.fetchChunksByIndex(h.workCode, from, to);
+      if (
+        rows.length &&
+        needsCbetaDialogueBackshift(rows[0].content_zh) &&
+        from > 0
+      ) {
+        from -= 1;
+        rows = await this.fetchChunksByIndex(h.workCode, from, to);
       }
+      if (!rows.length) {
+        if (!seen.has(h.id)) {
+          seen.add(h.id);
+          out.push(h);
+        }
+        continue;
+      }
+
+      const stitched = stitchChunkTexts(rows.map((r) => r.content_zh));
+      const center =
+        rows.find((r) => r.chunk_index === h.chunkIndex) ?? rows[0];
+      // One window per original hit — avoid flooding diversify with overlap twins.
+      if (seen.has(h.id)) continue;
+      seen.add(h.id);
+      out.push({
+        id: h.id,
+        workCode: center.work_code,
+        collection: center.collection,
+        titleZh: center.title_zh || h.titleZh,
+        juanNo: center.juan_no,
+        juanLabel: center.juan_label,
+        chunkIndex: h.chunkIndex,
+        contentZh: stitched || h.contentZh,
+        score: h.score,
+        cbetaRefStart: center.cbeta_ref_start ?? h.cbetaRefStart,
+      });
     }
+
+    // Keep non-expanded tail hits (beyond expandN) for diversify / citations.
+    for (const h of hits.slice(expandN)) {
+      if (seen.has(h.id)) continue;
+      seen.add(h.id);
+      out.push(h);
+    }
+
     return out.sort((a, b) => b.score - a.score);
+  }
+
+  private async fetchChunksByIndex(
+    workCode: string,
+    from: number,
+    to: number,
+  ): Promise<
+    {
+      id: string;
+      work_code: string;
+      collection: string;
+      title_zh: string;
+      juan_no: number | null;
+      juan_label: string | null;
+      chunk_index: number;
+      content_zh: string;
+      cbeta_ref_start: string | null;
+    }[]
+  > {
+    const lo = Math.max(0, from);
+    const hi = Math.max(lo, to);
+    const idxs: number[] = [];
+    for (let n = lo; n <= hi; n++) idxs.push(n);
+    if (!idxs.length) return [];
+    return this.db.query(
+      `
+      SELECT
+        c.id, c.work_code, c.collection,
+        COALESCE(c.title_zh, '') AS title_zh,
+        c.juan_no, c.juan_label, c.chunk_index, c.content_zh, c.cbeta_ref_start
+      FROM chunks c
+      WHERE c.work_code = $1 AND c.chunk_index = ANY($2::int[])
+      ORDER BY c.chunk_index
+      `,
+      [workCode, idxs],
+    );
   }
 
   private toHit(r: {
