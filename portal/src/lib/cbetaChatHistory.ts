@@ -22,7 +22,23 @@ export function loadCbetaConversations(): CbetaConversation[] {
 }
 
 export function saveCbetaConversations(items: CbetaConversation[]) {
-  localStorage.setItem(KEY, JSON.stringify(items))
+  try {
+    // Drop quote/excerpt — CBETA UI only needs labels + links; full text blows quota.
+    const slim = items.map((c) => ({
+      ...c,
+      messages: c.messages.map((m) => ({
+        ...m,
+        citations: m.citations?.map((cite) => ({
+          ...cite,
+          quote: undefined,
+          excerpt: undefined,
+        })),
+      })),
+    }))
+    localStorage.setItem(KEY, JSON.stringify(slim))
+  } catch {
+    // QuotaExceeded or private mode — keep session in memory only.
+  }
 }
 
 export function newCbetaConversationId(): string {

@@ -11,7 +11,12 @@ import { CbetaCollectionsService } from './cbeta-collections.service';
 import { CbetaDbService } from './cbeta-db.service';
 import { CbetaEntitiesService } from './cbeta-entities.service';
 import { enrichCbetaSearchZh } from './cbeta-preprocess.util';
-import { isCbetaBriefQuestion } from './cbeta-intent.util';
+import {
+  cbetaAnswerLangBrief,
+  cbetaEmptyHitMessage,
+  detectCbetaAnswerLang,
+  isCbetaBriefQuestion,
+} from './cbeta-intent.util';
 import { parseCbetaCitationHints } from './cbeta-query-parse.util';
 import { CbetaRetrieveService } from './cbeta-retrieve.service';
 import type {
@@ -75,8 +80,7 @@ export class CbetaChatService {
 
     if (!blocks.length && !retrieval.entities?.length) {
       return {
-        answer:
-          'Trong tư liệu CBETA hiện có (phạm vi đã chọn) chưa thấy nội dung này.',
+        answer: cbetaEmptyHitMessage(question),
         aiInterpretation: '',
         citations: [],
         entities: [],
@@ -114,7 +118,7 @@ export class CbetaChatService {
     return {
       answer,
       aiInterpretation,
-      citations,
+      citations: this.toUiCitations(citations),
       entities: retrieval.entities ?? [],
       meta: {
         ...this.metaBase(
@@ -170,6 +174,10 @@ export class CbetaChatService {
 
     const { blocks, used, citations } = this.pack(retrieval, decisionMerged);
 
+    // UI citations are labels + CBETA Online links only — omit full Hán text
+    // (LLM still gets full blocks). Huge quote payloads stall SSE / browsers.
+    const uiCitations = this.toUiCitations(citations);
+
     yield {
       type: 'meta',
       meta: {
@@ -188,11 +196,9 @@ export class CbetaChatService {
       },
     };
 
-    yield { type: 'citations', citations };
-
     if (!blocks.length && !retrieval.entities?.length) {
-      const msg =
-        'Trong tư liệu CBETA hiện có (phạm vi đã chọn) chưa thấy nội dung này.';
+      const msg = cbetaEmptyHitMessage(question);
+      yield { type: 'citations', citations: [] };
       yield { type: 'delta', text: msg };
       yield {
         type: 'done',
@@ -209,7 +215,12 @@ export class CbetaChatService {
       return;
     }
 
+    // Emit generating before citations so the client leaves "retrieving"
+    // while the LLM request is in flight (citations are small now, but
+    // TTFT can still be tens of seconds).
     yield { type: 'status', phase: 'generating' };
+    yield { type: 'citations', citations: uiCitations };
+
     const intentBrief = this.intentBrief(
       question,
       decisionMerged,
@@ -232,7 +243,7 @@ export class CbetaChatService {
       type: 'done',
       answer,
       aiInterpretation,
-      citations,
+      citations: uiCitations,
       meta: {
         corpus: 'cbeta',
         path: decisionMerged.path,
@@ -448,6 +459,7 @@ export class CbetaChatService {
     retrieval: CbetaRetrieveResult,
     rewrite: CbetaQueryRewrite,
   ): string {
+    const answerLang = detectCbetaAnswerLang(question);
     const lines = [
       'CORPUS: CBETA only (/api/cbeta). Separate from tosuthien book RAG (/api/rag).',
       'FORBIDDEN: cite or frame answers using HT Duy Lực Vietnamese books.',
@@ -455,12 +467,13 @@ export class CbetaChatService {
       `SCOPE: ${decision.scopeNote}`,
       `SEARCH_ZH: ${rewrite.searchZh}`,
       'CITATION UI: sources listed by API under the answer — do not repeat — (title, work_code, juan, p.ref) or urls inside PHẦN 1 body; never expose internal chunk index.',
-      'No hit → say not found in selected CBETA scope; never invent work_code.',
-      'I/O: user Vietnamese → PHẦN 1 = synthesized Vietnamese (dedupe, readable); PHẦN 2 = short notes only.',
+      'No hit → say not found in selected CBETA scope, in the same language as the question; never invent work_code.',
+      'I/O pipeline: any input language → rewrite/search in Hán → PHẦN 1+2 answer in the INPUT language (VI→VI, EN→EN from Hán with zero Vietnamese, ZH→ZH).',
+      cbetaAnswerLangBrief(answerLang),
     ];
     if (isCbetaBriefQuestion(question)) {
       lines.push(
-        'BRIEF: user asked tóm gọn / yếu chỉ — keep PHẦN 1 short (≈8–12 sentences), PHẦN 2 2–3 sentences.',
+        'BRIEF: user asked tóm gọn / yếu chỉ / 簡要 / briefly — keep PHẦN 1 short (≈8–12 sentences), PHẦN 2 2–3 sentences, same language as the question.',
       );
     }
     if (decision.path === 'deep' && decision.coverageMode) {
@@ -496,6 +509,11 @@ export class CbetaChatService {
         url: this.retrieve.cbetaOnlineUrl(h.workCode, h.cbetaRefStart),
       };
     });
+  }
+
+  /** Drop full-text quotes for SSE / localStorage — UI only shows labels + links. */
+  private toUiCitations(citations: CbetaCitation[]): CbetaCitation[] {
+    return citations.map((c) => ({ ...c, quote: '' }));
   }
 
   private splitAnswer(raw: string): {

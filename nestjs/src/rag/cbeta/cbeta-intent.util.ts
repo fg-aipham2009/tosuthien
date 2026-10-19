@@ -13,10 +13,63 @@ const TOAN_BO_LINEAGE_RE =
 
 /** User wants a short answer — do not deep-scan. */
 export const CBETA_BRIEF_RE =
-  /tóm\s*gọn|tóm\s*lược|tóm\s*tắt|ngắn\s*gọn|nói\s*ngắn|vài\s*câu|yếu\s*chỉ|đại\s*ý|cốt\s*lõi|cương\s*yếu/i;
+  /tóm\s*gọn|tóm\s*lược|tóm\s*tắt|ngắn\s*gọn|nói\s*ngắn|vài\s*câu|yếu\s*chỉ|đại\s*ý|cốt\s*lõi|cương\s*yếu|簡要|简要|略說|略说|要義|要义|in\s*brief|briefly|summarize|summary|in\s*short|key\s*point/i;
 
 export function isCbetaBriefQuestion(question: string): boolean {
   return CBETA_BRIEF_RE.test((question || '').trim());
+}
+
+const CJK_RE = /[\u3400-\u9fff\uf900-\ufaff]/g;
+const LATIN_LETTER_RE = /[A-Za-zÀ-ỹ]/g;
+/** Vietnamese-specific letters (diacritics + đ) — distinguishes VI from EN. */
+const VI_MARK_RE =
+  /[àáạảãăằắặẳẵâầấậẩẫèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃĂẰẮẶẲẴÂẦẤẬẨẪÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]/g;
+
+export type CbetaAnswerLang = 'vi' | 'zh' | 'en';
+
+/**
+ * Detect answer language from the user question.
+ * Pipeline: any input → rewrite to Hán for retrieval → answer in this language.
+ */
+export function detectCbetaAnswerLang(question: string): CbetaAnswerLang {
+  const q = (question || '').trim();
+  if (!q) return 'vi';
+  const cjk = (q.match(CJK_RE) || []).length;
+  const latin = (q.match(LATIN_LETTER_RE) || []).length;
+  const viMarks = (q.match(VI_MARK_RE) || []).length;
+  if (cjk > 0 && cjk >= latin) return 'zh';
+  if (latin > 0 && viMarks === 0 && cjk === 0) return 'en';
+  if (viMarks > 0) return 'vi';
+  // Mixed Latin without VI marks but some CJK → prefer dominant script.
+  if (latin > cjk) return 'en';
+  if (cjk > 0) return 'zh';
+  return 'vi';
+}
+
+export function isCbetaMostlyChineseQuestion(question: string): boolean {
+  return detectCbetaAnswerLang(question) === 'zh';
+}
+
+export function cbetaEmptyHitMessage(question: string): string {
+  switch (detectCbetaAnswerLang(question)) {
+    case 'zh':
+      return '在目前已選的 CBETA 資料範圍內，未見相關內容。';
+    case 'en':
+      return 'No matching content was found in the selected CBETA scope.';
+    default:
+      return 'Trong tư liệu CBETA hiện có (phạm vi đã chọn) chưa thấy nội dung này.';
+  }
+}
+
+export function cbetaAnswerLangBrief(lang: CbetaAnswerLang): string {
+  switch (lang) {
+    case 'zh':
+      return 'ANSWER_LANG=zh — write PHẦN 1 + PHẦN 2 entirely in Chinese (same script as the question). Do not use Vietnamese.';
+    case 'en':
+      return 'ANSWER_LANG=en — write PHẦN 1 + PHẦN 2 entirely in English, synthesizing/translating from CBETA Hán context. Do NOT use Vietnamese at all; keep key Classical Chinese terms in parentheses when helpful.';
+    default:
+      return 'ANSWER_LANG=vi — write PHẦN 1 + PHẦN 2 in Vietnamese; Classical Chinese terms may appear in parentheses.';
+  }
 }
 
 /**

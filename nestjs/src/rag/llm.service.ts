@@ -163,25 +163,31 @@ Phân biệt góc nhìn trong block (nhãn [Tổ_Sư_Thiền] / [Giáo_môn] / [
 - Tổ Sư Thiền: ngữ lục, đèn lục, công án, trực chỉ — cách tu khác Giáo môn.
 CẤM gộp chung "cách tu" của hai dòng như thể một pháp duy nhất; nếu ngữ cảnh có cả hai, nêu rõ từng góc nhìn.
 
-Ngôn ngữ: người dùng hỏi tiếng Việt → toàn bộ câu trả lời (PHẦN 1 + PHẦN 2) bằng tiếng Việt.
+Ngôn ngữ trả lời (BẮT BUỘC — khớp ngôn ngữ câu hỏi; pipe: mọi câu hỏi → tra Hán CBETA → trả lời đúng ngôn ngữ đầu vào):
+- Hỏi tiếng Việt → PHẦN 1 + PHẦN 2 bằng tiếng Việt (thuật ngữ Hán then chốt được giữ trong ngoặc).
+- Hỏi tiếng Anh → PHẦN 1 + PHẦN 2 hoàn toàn bằng tiếng Anh; tổng hợp / dịch nghĩa từ ngữ cảnh Hán CBETA. CẤM tiếng Việt trong câu trả lời. Thuật ngữ Hán then chốt được giữ trong ngoặc (vd. Chan / 禪).
+- Hỏi tiếng Trung / Hán văn (简体或繁體) → PHẦN 1 + PHẦN 2 bằng tiếng Trung cùng hệ chữ với câu hỏi; không dịch sang Việt hay Anh.
+- Hỏi ngôn ngữ khác → trả lời đúng ngôn ngữ đó; thuật ngữ kinh điển Hán được giữ khi cần.
+- Không đổi ngôn ngữ giữa hai phần; không mặc định tiếng Việt khi người dùng hỏi Hán hoặc Anh.
+- Nếu intent brief có ANSWER_LANG=en|zh|vi — tuân thủ dòng đó tuyệt đối.
 
 Câu trả lời gồm ĐÚNG 2 PHẦN:
 
 ════════════════════════════════════
-PHẦN 1 — BẢN TỔNG HỢP DỊCH (answer) — RÕ, ĐỦ, DỄ ĐỌC
+PHẦN 1 — BẢN TỔNG HỢP (answer) — RÕ, ĐỦ, DỄ ĐỌC
 ════════════════════════════════════
-- Đọc TOÀN BỘ block [CBETA] (+ entity list nếu có). Gộp trùng, sắp xếp logic, rồi viết một bài tiếng Việt mạch lạc.
-- Câu hỏi kiểu liệt kê / truyền thừa: trình bày theo khung rõ (vd. A. Tây Thiên 1→28; B. Đông Độ 1→6; C. dị thuyết nếu có). Mỗi vị một dòng: số thứ tự — tên Việt (Hán). Đủ số lượng có trong ngữ cảnh; CẤM cắt giữa danh sách bằng "…".
+- Đọc TOÀN BỘ block [CBETA] (+ entity list nếu có). Gộp trùng, sắp xếp logic, rồi viết một bài mạch lạc đúng ngôn ngữ câu hỏi.
+- Câu hỏi kiểu liệt kê / truyền thừa: trình bày theo khung rõ (vd. A. Tây Thiên / 西天 1→28; B. Đông Độ / 東土 1→6; C. dị thuyết nếu có). Mỗi vị một dòng: số thứ tự — tên theo ngôn ngữ trả lời (kèm Hán nếu hữu ích). Đủ số lượng có trong ngữ cảnh; CẤM cắt giữa danh sách bằng "…".
 - Câu hỏi thường: văn xuôi có tiêu đề phụ ngắn; mỗi ý một lần — CẤM lặp cùng nội dung từ nhiều block.
 - CẤM chuỗi trích "…" và CẤM chèn — (thư, work_code, 卷, p.xxxx) / url trong thân bài (nguồn ở UI cuối).
 - Thẻ 【p….】 / 【chunk:N】 trong block là mốc dòng khi ghép neighbor — dùng để giữ mạch, không bịa citation mới.
-- CẤM để nguyên khối Hán dài; được giữ thuật ngữ Hán then chốt trong ngoặc.
+- Khi trả lời tiếng Việt / Anh: tổng hợp từ Hán trong ngữ cảnh; CẤM để nguyên khối Hán dài; được giữ thuật ngữ Hán then chốt trong ngoặc. Khi trả lời tiếng Trung: viết bằng Hán, trích ngắn thuật ngữ then chốt nếu cần — không nhồi nguyên khối dài không cần thiết. Khi ANSWER_LANG=en: toàn bộ bài bằng English, zero Vietnamese.
 - Trung thực với ngữ cảnh; CẤM bịa tên / pháp số không có trong block.
-- Nếu có [CBETA_ENTITY_LIST]: ưu tiên làm xương sống danh sách (Việt + Hán).
-- Nếu các block không trả lời được câu hỏi: một câu — "Trong tư liệu CBETA hiện có (phạm vi đã chọn) chưa thấy nội dung này." rồi DỪNG — tuyệt đối không suy diễn.
+- Nếu có [CBETA_ENTITY_LIST]: ưu tiên làm xương sống danh sách (tên theo ngôn ngữ trả lời + Hán).
+- Nếu các block không trả lời được câu hỏi: một câu thông báo "không thấy trong phạm vi CBETA đã chọn" đúng ngôn ngữ câu hỏi rồi DỪNG — tuyệt đối không suy diễn.
 
 ════════════════════════════════════
-PHẦN 2 — GHI CHÚ NGẮN (tiếng Việt)
+PHẦN 2 — GHI CHÚ NGẮN (cùng ngôn ngữ câu hỏi)
 ════════════════════════════════════
 - Bắt đầu đúng một dòng: ${AI_INTERPRETATION_MARKER}
 - Vài câu làm rõ điểm khó / dị thuyết / cách đọc bảng — KHÔNG lặp lại toàn bộ phần 1.
@@ -609,18 +615,18 @@ ${context}`;
       : '';
     const briefRules = brief
       ? `
-CHẾ ĐỘ TÓM GỌN (bắt buộc vì người dùng xin tóm gọn / yếu chỉ / đại ý):
-- PHẦN 1: tối đa khoảng 8–12 câu tiếng Việt; nêu đúng cốt lõi (vd. một kệ / một công thức), không dàn trải nhiều kinh.
-- PHẦN 2 (${AI_INTERPRETATION_MARKER}): 2–3 câu thôi.
+CHẾ ĐỘ TÓM GỌN (bắt buộc vì người dùng xin tóm gọn / yếu chỉ / đại ý / 簡要):
+- PHẦN 1: tối đa khoảng 8–12 câu đúng ngôn ngữ câu hỏi; nêu đúng cốt lõi (vd. một kệ / một công thức), không dàn trải nhiều kinh.
+- PHẦN 2 (${AI_INTERPRETATION_MARKER}): 2–3 câu thôi, cùng ngôn ngữ.
 - Ưu tiên một luận điểm chính khớp ngữ cảnh; bỏ liệt kê dài.
 `
       : '';
-    const userContent = `Câu hỏi (tiếng Việt): ${question.trim()}
+    const userContent = `Câu hỏi người dùng (INPUT language = OUTPUT language: VI→VI, EN→EN, ZH→ZH; retrieve from Hán CBETA then answer in INPUT language): ${question.trim()}
 ${intentBlock}${briefRules}
 Ngữ cảnh: mỗi block [CBETA] là nguyên văn Hán (+ meta Trích dẫn / work_code / url). Có thể có [CBETA_ENTITY_LIST]. Các block thường trùng ý — hãy đọc hết rồi gộp.
 1) CHỈ dùng corpus CBETA trong ngữ cảnh — không dùng sách Việt tosuthien / Duy Lực.
-2) PHẦN 1: tổng hợp + dịch thành một bài tiếng Việt mạch lạc, dễ đọc; loại trùng; CẤM chuỗi trích đoạn "…" kèm nguồn trong thân bài (nguồn ở UI cuối).
-3) Dòng ${AI_INTERPRETATION_MARKER} rồi ghi chú ngắn (không lặp phần 1).
+2) PHẦN 1: tổng hợp / dịch nghĩa từ Hán thành một bài mạch lạc ĐÚNG ngôn ngữ câu hỏi (EN = English only, no Vietnamese); loại trùng; CẤM chuỗi trích đoạn "…" kèm nguồn trong thân bài (nguồn ở UI cuối).
+3) Dòng ${AI_INTERPRETATION_MARKER} rồi ghi chú ngắn cùng ngôn ngữ (không lặp phần 1).
 ${context}`;
 
     const prior = normalizeHistory(history);

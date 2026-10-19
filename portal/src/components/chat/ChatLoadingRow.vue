@@ -1,6 +1,7 @@
 <script setup lang="ts">
 defineProps<{
   phase: string
+  detail?: string
 }>()
 </script>
 
@@ -13,8 +14,11 @@ defineProps<{
         </div>
         <div class="body">
           <span class="chat-spinner" />
-          <span>
-            {{ phase === 'generating' ? 'Đang soạn câu trả lời…' : 'Đang tra cứu kinh sách…' }}
+          <span class="copy">
+            <span>
+              {{ phase === 'generating' ? 'Đang soạn câu trả lời…' : 'Đang tra cứu kinh sách…' }}
+            </span>
+            <span v-if="detail && phase !== 'generating'" class="detail">{{ detail }}</span>
           </span>
         </div>
       </div>
@@ -63,5 +67,21 @@ defineProps<{
   color: var(--c-muted);
   font-size: 0.92rem;
   padding-top: 0.3rem;
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.detail {
+  font-size: 0.8rem;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(100%, 36rem);
 }
 </style>

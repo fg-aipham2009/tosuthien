@@ -155,7 +155,7 @@ function openSidebar() {
           <div class="hero">
             <img src="/logo-tosuthien.png" alt="" width="56" height="56" class="logo" />
             <h2>Hỏi đáp Đại tạng CBETA</h2>
-            <p>Hỏi tiếng Việt — tra CBETA, tổng hợp dịch mạch lạc; nguồn ở cuối…</p>
+            <p>Hỏi Việt / Anh / Hán — tra CBETA (Hán), trả lời đúng ngôn ngữ câu hỏi; nguồn ở cuối…</p>
           </div>
           <div class="chips">
             <button
@@ -178,7 +178,11 @@ function openSidebar() {
               scripture-label="Bản tổng hợp dịch"
               citations-label="Nguồn tham khảo"
             />
-            <ChatLoadingRow v-if="busy || phase" :phase="statusMessage || phase" />
+            <ChatLoadingRow
+              v-if="busy || phase"
+              :phase="phase"
+              :detail="statusMessage || undefined"
+            />
           </div>
         </template>
       </div>

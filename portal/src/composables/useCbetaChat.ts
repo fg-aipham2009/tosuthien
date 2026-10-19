@@ -162,7 +162,8 @@ export function useCbetaChat(listEl: Ref<HTMLElement | null>) {
         {
           onStatus: (p, msg) => {
             phase.value = p
-            if (msg) statusMessage.value = msg
+            // Clear prior retrieve copy when entering generating (no message).
+            statusMessage.value = typeof msg === 'string' ? msg : ''
           },
           onDelta: (t) => {
             assistant.content += t
