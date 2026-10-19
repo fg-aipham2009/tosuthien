@@ -62,10 +62,13 @@ export function buildOrTsQuery(terms: string[]): string | null {
   const parts: string[] = [];
   const seen = new Set<string>();
   for (const term of terms) {
-    const esc = escapeTsQueryTerm(term);
-    if (!esc || seen.has(esc)) continue;
-    seen.add(esc);
-    parts.push(esc);
+    // Split on whitespace — "諸惡莫作 眾善奉行" must not become one tsquery token.
+    for (const piece of (term || '').split(/\s+/)) {
+      const esc = escapeTsQueryTerm(piece);
+      if (!esc || seen.has(esc)) continue;
+      seen.add(esc);
+      parts.push(esc);
+    }
   }
   if (!parts.length) return null;
   return parts.join(' | ');

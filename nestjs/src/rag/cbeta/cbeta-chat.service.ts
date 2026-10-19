@@ -11,6 +11,7 @@ import { CbetaCollectionsService } from './cbeta-collections.service';
 import { CbetaDbService } from './cbeta-db.service';
 import { CbetaEntitiesService } from './cbeta-entities.service';
 import { enrichCbetaSearchZh } from './cbeta-preprocess.util';
+import { isCbetaBriefQuestion } from './cbeta-intent.util';
 import { parseCbetaCitationHints } from './cbeta-query-parse.util';
 import { CbetaRetrieveService } from './cbeta-retrieve.service';
 import type {
@@ -92,7 +93,12 @@ export class CbetaChatService {
       };
     }
 
-    const intentBrief = this.intentBrief(decisionMerged, retrieval, rewrite);
+    const intentBrief = this.intentBrief(
+      question,
+      decisionMerged,
+      retrieval,
+      rewrite,
+    );
     const tLlm = Date.now();
     const raw = await this.llm.answerCbeta(
       question,
@@ -204,7 +210,12 @@ export class CbetaChatService {
     }
 
     yield { type: 'status', phase: 'generating' };
-    const intentBrief = this.intentBrief(decisionMerged, retrieval, rewrite);
+    const intentBrief = this.intentBrief(
+      question,
+      decisionMerged,
+      retrieval,
+      rewrite,
+    );
     const parts: string[] = [];
     for await (const delta of this.llm.answerCbetaStream(
       question,
@@ -432,6 +443,7 @@ export class CbetaChatService {
   }
 
   private intentBrief(
+    question: string,
     decision: CbetaRouteDecision,
     retrieval: CbetaRetrieveResult,
     rewrite: CbetaQueryRewrite,
@@ -446,6 +458,11 @@ export class CbetaChatService {
       'No hit → say not found in selected CBETA scope; never invent work_code.',
       'I/O: user Vietnamese → PHẦN 1 = synthesized Vietnamese (dedupe, readable); PHẦN 2 = short notes only.',
     ];
+    if (isCbetaBriefQuestion(question)) {
+      lines.push(
+        'BRIEF: user asked tóm gọn / yếu chỉ — keep PHẦN 1 short (≈8–12 sentences), PHẦN 2 2–3 sentences.',
+      );
+    }
     if (decision.path === 'deep' && decision.coverageMode) {
       lines.push(
         'COVERAGE: chỉ liệt kê tên có trong [CBETA_ENTITY_LIST]; phạm vi = WORKS_SCANNED thực tế; gộp trùng, trình bày một bảng/danh sách mạch lạc.',

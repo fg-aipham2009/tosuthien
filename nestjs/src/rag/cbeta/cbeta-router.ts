@@ -1,7 +1,5 @@
+import { isCbetaCoverageIntent } from './cbeta-intent.util';
 import type { CbetaCorpus, CbetaPath, CbetaRouteDecision } from './cbeta.types';
-
-const COVERAGE_RE =
-  /liệt\s*kê|toàn\s*bộ|danh\s*sách|các\s*vị\s*tổ|những\s*vị\s*tổ|ngũ\s*gia|thất\s*tông|truyền\s*thừa.*(liệt|danh)|enumerate|list\s+all/i;
 
 export interface CbetaCollectionAlias {
   code: string;
@@ -41,7 +39,8 @@ export function aliasMatchesQuestion(question: string, alias: string): boolean {
 export function routeCbetaQuery(input: RouteInput): CbetaRouteDecision {
   const q = (input.question || '').trim();
   const reasons: string[] = ['api=cbeta'];
-  const coverage = COVERAGE_RE.test(q);
+  // Not bare "toàn bộ kinh sách" — that is essence/summary, not list coverage.
+  const coverage = isCbetaCoverageIntent(q);
 
   const collections: string[] = [];
   const seen = new Set<string>();

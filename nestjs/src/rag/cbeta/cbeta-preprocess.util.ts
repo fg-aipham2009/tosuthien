@@ -3,9 +3,9 @@
  * diversify packed hits so the answer LLM sees less duplicate noise.
  */
 
-/** Same intent family as cbeta-router COVERAGE_RE (keep in sync). */
-export const CBETA_COVERAGE_INTENT_RE =
-  /liệt\s*kê|toàn\s*bộ|danh\s*sách|các\s*vị\s*tổ|những\s*vị\s*tổ|ngũ\s*gia|thất\s*tông|truyền\s*thừa.*(liệt|danh)|enumerate|list\s+all|西天.*祖|東土.*祖|二十八祖|歷代祖師/i;
+import { isCbetaCoverageIntent as coverageIntent } from './cbeta-intent.util';
+
+export { isCbetaCoverageIntent } from './cbeta-intent.util';
 
 /** Default lamp/chronicle title regex when env CBETA_COVERAGE_TITLE_REGEX is unset. */
 export const DEFAULT_CBETA_COVERAGE_TITLE_REGEX =
@@ -28,15 +28,11 @@ const PATRIARCH_LIST_TERMS = [
   '傳法正宗記',
 ];
 
-export function isCbetaCoverageIntent(question: string): boolean {
-  return CBETA_COVERAGE_INTENT_RE.test((question || '').trim());
-}
-
 export function isPatriarchListIntent(question: string): boolean {
   const q = (question || '').trim();
   if (!q) return false;
   if (/tổ\s*sư|祖師|二十八祖|西天|東土|傳燈|ngũ\s*gia|thất\s*tông/i.test(q)) {
-    return isCbetaCoverageIntent(q) || /tổ\s*sư|祖師|二十八|西天|東土/i.test(q);
+    return coverageIntent(q) || /tổ\s*sư|祖師|二十八|西天|東土/i.test(q);
   }
   return false;
 }
@@ -51,7 +47,7 @@ export function enrichCbetaSearchZh(
 ): { searchZh: string; keywords: string[] } {
   const base = (searchZh || question || '').trim();
   const kw = [...keywords];
-  if (!isPatriarchListIntent(question) && !isCbetaCoverageIntent(question)) {
+  if (!isPatriarchListIntent(question) && !coverageIntent(question)) {
     return { searchZh: base, keywords: kw };
   }
 

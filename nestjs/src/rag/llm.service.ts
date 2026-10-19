@@ -14,6 +14,7 @@ import {
   toTraditionalZhList,
 } from './cbeta/cbeta-opencc.util';
 import { LruCache } from './cbeta/cbeta-lru.util';
+import { isCbetaBriefQuestion } from './cbeta/cbeta-intent.util';
 
 /** Cap prior turns so retrieval context stays primary. */
 const MAX_HISTORY_MESSAGES = 6;
@@ -314,7 +315,17 @@ export class LlmService {
   ) {}
 
   /** Output budget for CBETA answers (env CBETA_CHAT_MAX_TOKENS). */
-  private cbetaChatMaxTokens(): number {
+  private cbetaChatMaxTokens(brief = false): number {
+    if (brief) {
+      const b = parseInt(
+        this.config.get<string>('CBETA_BRIEF_MAX_TOKENS') ||
+          process.env.CBETA_BRIEF_MAX_TOKENS ||
+          '',
+        10,
+      );
+      // Brief/summary questions — keep answer short for latency.
+      return Number.isFinite(b) && b > 0 ? b : 6_144;
+    }
     const n = parseInt(
       this.config.get<string>('CBETA_CHAT_MAX_TOKENS') ||
         process.env.CBETA_CHAT_MAX_TOKENS ||
@@ -591,12 +602,21 @@ ${context}`;
     intentBrief = '',
     history: ChatTurn[] = [],
   ): AsyncGenerator<string> {
+    const brief = isCbetaBriefQuestion(question);
     const context = contextBlocks.join('\n\n---\n\n');
     const intentBlock = intentBrief.trim()
       ? `\nPhạm vi / router CBETA:\n${intentBrief.trim()}\n`
       : '';
+    const briefRules = brief
+      ? `
+CHẾ ĐỘ TÓM GỌN (bắt buộc vì người dùng xin tóm gọn / yếu chỉ / đại ý):
+- PHẦN 1: tối đa khoảng 8–12 câu tiếng Việt; nêu đúng cốt lõi (vd. một kệ / một công thức), không dàn trải nhiều kinh.
+- PHẦN 2 (${AI_INTERPRETATION_MARKER}): 2–3 câu thôi.
+- Ưu tiên một luận điểm chính khớp ngữ cảnh; bỏ liệt kê dài.
+`
+      : '';
     const userContent = `Câu hỏi (tiếng Việt): ${question.trim()}
-${intentBlock}
+${intentBlock}${briefRules}
 Ngữ cảnh: mỗi block [CBETA] là nguyên văn Hán (+ meta Trích dẫn / work_code / url). Có thể có [CBETA_ENTITY_LIST]. Các block thường trùng ý — hãy đọc hết rồi gộp.
 1) CHỈ dùng corpus CBETA trong ngữ cảnh — không dùng sách Việt tosuthien / Duy Lực.
 2) PHẦN 1: tổng hợp + dịch thành một bài tiếng Việt mạch lạc, dễ đọc; loại trùng; CẤM chuỗi trích đoạn "…" kèm nguồn trong thân bài (nguồn ở UI cuối).
@@ -606,6 +626,7 @@ ${context}`;
     const prior = normalizeHistory(history);
     const endpoints = this.ai.get().chatEndpoints;
     let lastError: Error | null = null;
+    const maxTokens = this.cbetaChatMaxTokens(brief);
 
     for (let i = 0; i < endpoints.length; i++) {
       const endpoint = endpoints[i];
@@ -616,7 +637,7 @@ ${context}`;
           CBETA_SYSTEM,
           prior,
           userContent,
-          this.cbetaChatMaxTokens(),
+          maxTokens,
         )) {
           yielded = true;
           yield delta;
