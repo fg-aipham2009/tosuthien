@@ -37,6 +37,11 @@ describe('detectCbetaAnswerLang', () => {
     assert.equal(detectCbetaAnswerLang(''), 'vi');
     assert.equal(detectCbetaAnswerLang('   '), 'vi');
   });
+
+  it('prefers Vietnamese when VI mixes with English tokens', () => {
+    assert.equal(detectCbetaAnswerLang('thiền là gì in English terms'), 'vi');
+    assert.equal(detectCbetaAnswerLang('What is thiền?'), 'vi');
+  });
 });
 
 describe('cbetaEmptyHitMessage', () => {

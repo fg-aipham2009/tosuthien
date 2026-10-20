@@ -15,31 +15,15 @@ import {
 } from './cbeta/cbeta-opencc.util';
 import { LruCache } from './cbeta/cbeta-lru.util';
 import {
+  cbetaAnswerPrefill,
+  shouldBufferCbetaHead,
+  stripLeadingMetaPlanning,
+} from './cbeta/cbeta-answer-quality.util';
+import {
   detectCbetaAnswerLang,
   isCbetaBriefQuestion,
   isCbetaCoverageIntent,
-  type CbetaAnswerLang,
 } from './cbeta/cbeta-intent.util';
-
-/** Anthropic assistant prefill — forces first tokens into the answer language. */
-function cbetaAnswerPrefill(
-  lang: CbetaAnswerLang,
-  coverageList: boolean,
-): string {
-  if (lang === 'zh') {
-    return coverageList
-      ? '第一部分\n\n以下依已掃範圍列出祖師：\n\n'
-      : '第一部分\n\n';
-  }
-  if (lang === 'en') {
-    return coverageList
-      ? 'PART 1\n\nPatriarchs in the scanned scope:\n\n'
-      : 'PART 1\n\n';
-  }
-  return coverageList
-    ? 'PHẦN 1\n\nDưới đây là các vị tổ trong phạm vi đã quét:\n\n'
-    : 'PHẦN 1\n\n';
-}
 
 /** Cap prior turns so retrieval context stays primary. */
 const MAX_HISTORY_MESSAGES = 6;
@@ -665,7 +649,7 @@ CHẾ ĐỘ TÓM GỌN (bắt buộc vì người dùng xin tóm gọn / yếu c
     const answerLang = detectCbetaAnswerLang(question);
     const coverageList = isCbetaCoverageIntent(question);
     const assistantPrefill = cbetaAnswerPrefill(answerLang, coverageList);
-    const userContent = `OUTPUT LANGUAGE LOCK: ANSWER_LANG=${answerLang} is absolute from the first continuation token after the assistant prefill. ANSWER_LANG=vi → Vietnamese only (FORBIDDEN openers: "I'm…", "I need…", "The entity…", "Looking…"). ANSWER_LANG=zh → Chinese only. ANSWER_LANG=en → English only. Continue PHẦN 1 immediately — no English planning.
+    const userContent = `OUTPUT LANGUAGE LOCK: ANSWER_LANG=${answerLang} is absolute from the first continuation token after the assistant prefill. ANSWER_LANG=vi → Vietnamese only (FORBIDDEN openers: "I'm…", "I need…", "Tôi cần…", "The entity…", "Looking…"). ANSWER_LANG=zh → Chinese only. ANSWER_LANG=en → English only. Continue the article immediately — no planning sentences.
 Câu hỏi: ${question.trim()}
 ${intentBlock}${briefRules}
 Ngữ cảnh: mỗi block [CBETA] là nguyên văn Hán (+ meta Trích dẫn / work_code / url). Có thể có [CBETA_ENTITY_LIST]. Các block thường trùng ý — hãy đọc hết rồi gộp.
@@ -686,6 +670,9 @@ ${context}`;
         // Prefill is part of the visible answer (API does not echo it).
         yield assistantPrefill;
         yielded = true;
+        // Buffer early tokens and drop LLM meta-planning openers before UI sees them.
+        let headBuf = '';
+        let headFlushed = false;
         for await (const delta of this.streamAnthropic(
           endpoint,
           CBETA_SYSTEM,
@@ -694,7 +681,20 @@ ${context}`;
           maxTokens,
           assistantPrefill,
         )) {
+          if (!headFlushed) {
+            headBuf += delta;
+            if (shouldBufferCbetaHead(headBuf, answerLang)) continue;
+            const cleaned = stripLeadingMetaPlanning(headBuf, answerLang);
+            headFlushed = true;
+            headBuf = '';
+            if (cleaned) yield cleaned;
+            continue;
+          }
           yield delta;
+        }
+        if (!headFlushed && headBuf) {
+          const cleaned = stripLeadingMetaPlanning(headBuf, answerLang);
+          if (cleaned) yield cleaned;
         }
         if (yielded) return;
         lastError = new Error(

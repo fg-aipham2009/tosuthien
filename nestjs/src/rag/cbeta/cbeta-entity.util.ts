@@ -1,5 +1,5 @@
 /** Names that are almost always false positives in lamp/biographical prose. */
-const NAME_STOP = new Set([
+export const NAME_STOP = new Set([
   '諸佛',
   '一切',
   '比丘',
@@ -42,14 +42,47 @@ export function extractMasterNames(text: string): string[] {
   MASTER_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = MASTER_RE.exec(text)) !== null) {
-    const name = (m[1] || '').trim();
-    if (!name || NAME_STOP.has(name)) continue;
-    if (/^[一二三四五六七八九十百千]+$/.test(name)) continue;
+    let name = (m[1] || '').trim();
+    // Strip narrative prefixes glued into the capture (時有玄奘禪師 → 玄奘).
+    name = name.replace(/^(時有|乃有|復有|又有|即有|遂有|有)/, '');
+    if (name.length > 4) name = name.slice(-4);
+    if (!isPlausibleMasterName(name)) continue;
     if (seen.has(name)) continue;
     seen.add(name);
     found.push(name);
   }
   return found;
+}
+
+/** Plausible master / patriarch name for coverage lists. */
+export function isPlausibleMasterName(name: string): boolean {
+  const n = (name || '').trim();
+  if (!n) return false;
+  if (NAME_STOP.has(n)) return false;
+  if (!/^[\u4e00-\u9fff]{2,8}$/.test(n)) return false;
+  if (/^[一二三四五六七八九十百千]+$/.test(n)) return false;
+  return true;
+}
+
+export type CoverageEntity = {
+  nameZh: string;
+  count: number;
+  works: string[];
+};
+
+/**
+ * Drop stop-name noise; keep highest-count plausible names.
+ * Does not invent a fixed row cap — callers apply char budgets.
+ */
+export function filterCoverageEntities(
+  entities: CoverageEntity[],
+): CoverageEntity[] {
+  return [...entities]
+    .filter((e) => isPlausibleMasterName(e.nameZh))
+    .sort(
+      (a, b) =>
+        b.count - a.count || a.nameZh.localeCompare(b.nameZh, 'zh'),
+    );
 }
 
 /** Overlap score between query and passage (CJK chars / bigrams). */

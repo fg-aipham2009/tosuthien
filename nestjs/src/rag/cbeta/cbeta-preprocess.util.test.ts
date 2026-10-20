@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   coverageTitleHintRegex,
+  diversifyCbetaHits,
+  enrichCbetaSearchZh,
   isPatriarchListIntent,
 } from './cbeta-preprocess.util';
 
@@ -62,5 +64,35 @@ describe('title hint filters work list like retrieveDeep', () => {
     ];
     const kept = titles.filter((t) => re.test(t));
     assert.deepEqual(kept, ['景德傳燈錄']);
+  });
+});
+
+describe('enrichCbetaSearchZh', () => {
+  it('appends Jingde / lineage anchors for patriarch list questions', () => {
+    const { searchZh, keywords } = enrichCbetaSearchZh(
+      'Liệt kê các vị tổ trong truyền đăng lục',
+      '傳燈',
+      [],
+    );
+    assert.match(searchZh, /景德傳燈錄/);
+    assert.ok(keywords.some((k) => k.includes('景德') || k.includes('西天')));
+  });
+
+  it('leaves ordinary questions unchanged', () => {
+    const { searchZh } = enrichCbetaSearchZh('thiền là gì', '禪 靜慮', []);
+    assert.equal(searchZh, '禪 靜慮');
+  });
+});
+
+describe('diversifyCbetaHits', () => {
+  it('drops near-duplicate bodies and keeps score order across works', () => {
+    const hits = diversifyCbetaHits([
+      { workCode: 'A', contentZh: 'abc same body here', score: 1 },
+      { workCode: 'B', contentZh: 'abc same body here', score: 9 },
+      { workCode: 'A', contentZh: 'different passage text', score: 5 },
+    ]);
+    assert.equal(hits.length, 2);
+    assert.equal(hits[0].workCode, 'B');
+    assert.ok(hits.some((h) => h.contentZh.includes('different')));
   });
 });
