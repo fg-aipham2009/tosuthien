@@ -115,19 +115,39 @@ export class CbetaEntitiesService {
     }
   }
 
+  /**
+   * Build entity list for the answer LLM. When maxChars is set, keep highest-count
+   * names only until the budget is filled (full scan of 3000+ names blew the prompt
+   * and models started answering in English meta-prose).
+   */
   formatEntityListBlock(
     entities: Array<{ nameZh: string; count: number; works: string[] }>,
     worksScanned: string[],
+    maxChars?: number,
   ): string {
-    const lines = entities.map(
-      (e, i) =>
-        `${i + 1}. ${e.nameZh}（提及≈${e.count}；見 ${e.works.join('、')}）`,
-    );
-    return [
+    const head = [
       '[CBETA_ENTITY_LIST]',
       `Phạm vi đã quét work_code: ${worksScanned.join(', ') || '(trống)'}`,
       'Danh sách tên (extract từ nguyên văn; CẤM thêm tên ngoài list):',
-      ...lines,
-    ].join('\n');
+    ];
+    let used = head.join('\n').length;
+    const lines: string[] = [];
+    for (let i = 0; i < entities.length; i++) {
+      const e = entities[i];
+      const line = `${i + 1}. ${e.nameZh}（提及≈${e.count}；見 ${e.works.join('、')}）`;
+      if (
+        typeof maxChars === 'number' &&
+        maxChars > 0 &&
+        used + 1 + line.length > maxChars
+      ) {
+        lines.push(
+          `… (còn ${entities.length - i} tên theo count — đã đủ ngân sách ngữ cảnh)`,
+        );
+        break;
+      }
+      lines.push(line);
+      used += 1 + line.length;
+    }
+    return [...head, ...lines].join('\n');
   }
 }

@@ -11,6 +11,7 @@ import { CbetaCollectionsService } from './cbeta-collections.service';
 import { CbetaDbService } from './cbeta-db.service';
 import { CbetaEntitiesService } from './cbeta-entities.service';
 import { enrichCbetaSearchZh } from './cbeta-preprocess.util';
+import { formatCbetaCoverageListAnswer } from './cbeta-coverage-answer.util';
 import {
   cbetaAnswerLangBrief,
   cbetaEmptyHitMessage,
@@ -94,6 +95,38 @@ export class CbetaChatService {
             0,
             rewrite,
           ),
+        },
+      };
+    }
+
+    if (
+      decisionMerged.coverageMode &&
+      retrieval.entities?.length &&
+      retrieval.worksScanned?.length
+    ) {
+      const raw = formatCbetaCoverageListAnswer(
+        question,
+        retrieval.entities,
+        retrieval.worksScanned,
+        this.retrieve.contextCharBudget(),
+      );
+      const { answer, aiInterpretation } = this.splitAnswer(raw);
+      return {
+        answer,
+        aiInterpretation,
+        citations: this.toUiCitations(citations),
+        entities: retrieval.entities,
+        meta: {
+          ...this.metaBase(
+            decisionMerged,
+            retrieval,
+            retrievalMs,
+            Date.now() - t0,
+            used.length,
+            rewrite,
+          ),
+          llmMs: 0,
+          coverageAnswer: 'deterministic',
         },
       };
     }
@@ -251,23 +284,39 @@ export class CbetaChatService {
     yield { type: 'status', phase: 'generating' };
     yield { type: 'citations', citations: uiCitations };
 
-    const intentBrief = this.intentBrief(
-      question,
-      decisionMerged,
-      retrieval,
-      rewrite,
-    );
-    const parts: string[] = [];
-    for await (const delta of this.llm.answerCbetaStream(
-      question,
-      blocks.length ? blocks : ['[CBETA] (chỉ có danh sách entity)'],
-      intentBrief,
-      options.messages,
-    )) {
-      parts.push(delta);
-      yield { type: 'delta', text: delta };
+    let raw: string;
+    if (
+      decisionMerged.coverageMode &&
+      retrieval.entities?.length &&
+      retrieval.worksScanned?.length
+    ) {
+      // List/coverage: format from entity scan — LLM CoT kept answering in English.
+      raw = formatCbetaCoverageListAnswer(
+        question,
+        retrieval.entities,
+        retrieval.worksScanned,
+        this.retrieve.contextCharBudget(),
+      );
+      yield { type: 'delta', text: raw };
+    } else {
+      const intentBrief = this.intentBrief(
+        question,
+        decisionMerged,
+        retrieval,
+        rewrite,
+      );
+      const parts: string[] = [];
+      for await (const delta of this.llm.answerCbetaStream(
+        question,
+        blocks.length ? blocks : ['[CBETA] (chỉ có danh sách entity)'],
+        intentBrief,
+        options.messages,
+      )) {
+        parts.push(delta);
+        yield { type: 'delta', text: delta };
+      }
+      raw = parts.join('');
     }
-    const raw = parts.join('');
     const { answer, aiInterpretation } = this.splitAnswer(raw);
     yield {
       type: 'done',
@@ -447,13 +496,36 @@ export class CbetaChatService {
 
   private pack(
     retrieval: CbetaRetrieveResult,
-    _decision: CbetaRouteDecision,
+    decision: CbetaRouteDecision,
   ): { blocks: string[]; used: CbetaChunkHit[]; citations: CbetaCitation[] } {
+    // Coverage list: entity list is the spine. Drop hybrid passage hits —
+    // one unrelated chunk primed English meta ("The context block is unrelated…").
+    if (
+      decision.coverageMode &&
+      retrieval.entities?.length &&
+      retrieval.worksScanned?.length
+    ) {
+      const entityBudget = this.retrieve.contextCharBudget();
+      const entityBlock = this.entities.formatEntityListBlock(
+        retrieval.entities,
+        retrieval.worksScanned,
+        entityBudget,
+      );
+      // Keep hybrid hits only for UI citations; answer text comes from entities.
+      return {
+        blocks: [entityBlock],
+        used: retrieval.hits,
+        citations: this.toCitations(retrieval.hits),
+      };
+    }
+    // Share of context budget for entity list (rest reserved for passage blocks).
+    const entityBudget = Math.floor(this.retrieve.contextCharBudget() / 2);
     const entityBlock =
       retrieval.entities?.length && retrieval.worksScanned
         ? this.entities.formatEntityListBlock(
             retrieval.entities,
             retrieval.worksScanned,
+            entityBudget,
           )
         : undefined;
     const { blocks, used } = this.retrieve.buildContextBlocks(
@@ -513,7 +585,7 @@ export class CbetaChatService {
     }
     if (decision.path === 'deep' && decision.coverageMode) {
       lines.push(
-        'COVERAGE: chỉ liệt kê tên có trong [CBETA_ENTITY_LIST]; phạm vi = WORKS_SCANNED thực tế; gộp trùng, trình bày một bảng/danh sách mạch lạc.',
+        'COVERAGE: chỉ liệt kê tên có trong [CBETA_ENTITY_LIST]; phạm vi = WORKS_SCANNED; gộp trùng thành bảng (Tây Thiên / Đông Độ / …). Viết ngay danh sách tiếng Việt — CẤM English meta về “context / entity list / noisy”.',
       );
     }
     if (retrieval.worksScanned?.length) {

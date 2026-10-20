@@ -92,7 +92,8 @@ export class CbetaRetrieveService {
     return Number.isFinite(n) && n > 0 ? n : CANDIDATE_POOL;
   }
 
-  private contextCharBudget(): number {
+  /** Public for chat pack (entity-list budget share). */
+  contextCharBudget(): number {
     const n = parseInt(
       this.config.get<string>('CBETA_MAX_CONTEXT_CHARS') || '',
       10,

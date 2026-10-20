@@ -14,7 +14,32 @@ import {
   toTraditionalZhList,
 } from './cbeta/cbeta-opencc.util';
 import { LruCache } from './cbeta/cbeta-lru.util';
-import { isCbetaBriefQuestion } from './cbeta/cbeta-intent.util';
+import {
+  detectCbetaAnswerLang,
+  isCbetaBriefQuestion,
+  isCbetaCoverageIntent,
+  type CbetaAnswerLang,
+} from './cbeta/cbeta-intent.util';
+
+/** Anthropic assistant prefill — forces first tokens into the answer language. */
+function cbetaAnswerPrefill(
+  lang: CbetaAnswerLang,
+  coverageList: boolean,
+): string {
+  if (lang === 'zh') {
+    return coverageList
+      ? '第一部分\n\n以下依已掃範圍列出祖師：\n\n'
+      : '第一部分\n\n';
+  }
+  if (lang === 'en') {
+    return coverageList
+      ? 'PART 1\n\nPatriarchs in the scanned scope:\n\n'
+      : 'PART 1\n\n';
+  }
+  return coverageList
+    ? 'PHẦN 1\n\nDưới đây là các vị tổ trong phạm vi đã quét:\n\n'
+    : 'PHẦN 1\n\n';
+}
 
 /** Cap prior turns so retrieval context stays primary. */
 const MAX_HISTORY_MESSAGES = 6;
@@ -169,6 +194,7 @@ Ngôn ngữ trả lời (BẮT BUỘC — pipe: mọi câu hỏi → tra Hán CB
 - Câu hỏi tiếng Anh thuần → PHẦN 1 + PHẦN 2 bằng tiếng Anh (tổng hợp từ Hán). CẤM Việt.
 - Dòng ANSWER_LANG=vi|zh|en trong intent brief là TỐI THƯỢNG — tuân thủ tuyệt đối, kể cả khi ngữ cảnh Hán hoặc hội thoại trước khác ngôn ngữ.
 - Không đổi ngôn ngữ giữa hai phần. Không “nghĩ bằng English rồi trả lời” khi ANSWER_LANG=vi.
+- CẤM mọi English meta / planning ở đầu bài: "I'm noting…", "I need…", "The entity list…", "Looking at…", "First I…". Viết thẳng nội dung PHẦN 1.
 
 Câu trả lời gồm ĐÚNG 2 PHẦN:
 
@@ -636,12 +662,15 @@ CHẾ ĐỘ TÓM GỌN (bắt buộc vì người dùng xin tóm gọn / yếu c
 - Ưu tiên một luận điểm chính khớp ngữ cảnh; bỏ liệt kê dài.
 `
       : '';
-    const userContent = `Câu hỏi: ${question.trim()}
+    const answerLang = detectCbetaAnswerLang(question);
+    const coverageList = isCbetaCoverageIntent(question);
+    const assistantPrefill = cbetaAnswerPrefill(answerLang, coverageList);
+    const userContent = `OUTPUT LANGUAGE LOCK: ANSWER_LANG=${answerLang} is absolute from the first continuation token after the assistant prefill. ANSWER_LANG=vi → Vietnamese only (FORBIDDEN openers: "I'm…", "I need…", "The entity…", "Looking…"). ANSWER_LANG=zh → Chinese only. ANSWER_LANG=en → English only. Continue PHẦN 1 immediately — no English planning.
+Câu hỏi: ${question.trim()}
 ${intentBlock}${briefRules}
-OUTPUT RULE: Follow ANSWER_LANG in the intent brief above. If ANSWER_LANG=vi → Vietnamese only (never English). If ANSWER_LANG=zh → Chinese only. If ANSWER_LANG=en → English only.
 Ngữ cảnh: mỗi block [CBETA] là nguyên văn Hán (+ meta Trích dẫn / work_code / url). Có thể có [CBETA_ENTITY_LIST]. Các block thường trùng ý — hãy đọc hết rồi gộp.
 1) CHỈ dùng corpus CBETA trong ngữ cảnh — không dùng sách Việt tosuthien / Duy Lực.
-2) PHẦN 1: tổng hợp / dịch nghĩa từ Hán thành một bài mạch lạc đúng ANSWER_LANG; loại trùng; CẤM chuỗi trích đoạn "…" kèm nguồn trong thân bài (nguồn ở UI cuối).
+2) PHẦN 1: tổng hợp / dịch nghĩa từ Hán thành một bài mạch lạc đúng ANSWER_LANG; loại trùng; CẤM chuỗi trích đoạn "…" kèm nguồn trong thân bài (nguồn ở UI cuối). Nếu có ENTITY_LIST: liệt kê tên Việt (kèm Hán) theo list — không viết English planning.
 3) Dòng ${AI_INTERPRETATION_MARKER} rồi ghi chú ngắn cùng ANSWER_LANG (không lặp phần 1).
 ${context}`;
 
@@ -654,14 +683,17 @@ ${context}`;
       const endpoint = endpoints[i];
       try {
         let yielded = false;
+        // Prefill is part of the visible answer (API does not echo it).
+        yield assistantPrefill;
+        yielded = true;
         for await (const delta of this.streamAnthropic(
           endpoint,
           CBETA_SYSTEM,
           prior,
           userContent,
           maxTokens,
+          assistantPrefill,
         )) {
-          yielded = true;
           yield delta;
         }
         if (yielded) return;
@@ -747,13 +779,20 @@ ${context}`;
     prior: ChatTurn[],
     userContent: string,
     maxTokens: number,
+    assistantPrefill?: string,
   ): AsyncGenerator<string> {
     const url = resolveAnthropicMessagesUrl(endpoint.baseUrl);
 
-    const messages = [
+    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
       ...prior.map((m) => ({ role: m.role, content: m.content })),
       { role: 'user' as const, content: userContent },
     ];
+    if (assistantPrefill?.trim()) {
+      messages.push({
+        role: 'assistant',
+        content: assistantPrefill,
+      });
+    }
 
     const res = await fetch(url, {
       method: 'POST',

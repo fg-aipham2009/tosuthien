@@ -69,7 +69,15 @@ async function streamEvents(question, timeoutMs) {
         }
         const type = payload.type || event;
         events.push({ type, at: Date.now() - t0, payload });
-        if (type === 'delta' || type === 'error' || type === 'done') {
+        const deltaChars = events
+          .filter((e) => e.type === 'delta')
+          .reduce((n, e) => n + String(e.payload.text || '').length, 0);
+        // Collect enough answer text to judge language (first token is not enough).
+        if (
+          type === 'error' ||
+          type === 'done' ||
+          (type === 'delta' && deltaChars >= 120)
+        ) {
           clearTimeout(timer);
           await reader.cancel().catch(() => undefined);
           return events;
@@ -177,17 +185,35 @@ async function main() {
       .filter((e) => e.type === 'delta')
       .map((e) => e.payload.text || '')
       .join('');
-    if (c.expectViDelta && deltaText.length > 20) {
-      const hasVi =
-        /[àáạảãăằắặẳẵâầấậẩẫèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(
-          deltaText,
-        ) || /PHẦN|Thiền|thiền|là|của|trong|các|vị|tổ/.test(deltaText);
-      const mostlyEnEarly = /^(The |I need |Here |According )/i.test(
-        deltaText.trim(),
-      );
+    if (c.expectViDelta) {
       assert.ok(
-        hasVi && !mostlyEnEarly,
-        `${c.name}: expected Vietnamese answer, got head=${JSON.stringify(deltaText.slice(0, 80))}`,
+        deltaText.length >= 40,
+        `${c.name}: too little answer text (${deltaText.length})`,
+      );
+      // Ignore known Vietnamese prefills when judging language of model tokens.
+      const body = deltaText
+        .replace(/^PHẦN\s*1\s*/i, '')
+        .replace(
+          /^Dưới đây là các vị tổ trong phạm vi đã quét:\s*/i,
+          '',
+        )
+        .trim();
+      const head = body.slice(0, 160);
+      // Require real Vietnamese diacritics — bare "Tổ" inside English prose must not pass.
+      const hasViMarks =
+        /[àáạảãăằắặẳẵâầấậẩẫèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(
+          body,
+        );
+      const mostlyEnEarly =
+        /^(The |I['’ ]|I'm |I am |Here |According |In the |This |Looking |Based |Note |Let me|First )/i.test(
+          head,
+        ) ||
+        /\b(I'm noting|I need to|entity list|noisy and full|context block|unrelated)\b/i.test(
+          head,
+        );
+      assert.ok(
+        hasViMarks && !mostlyEnEarly,
+        `${c.name}: expected Vietnamese answer, got head=${JSON.stringify(head)}`,
       );
     }
     console.log(`OK ${c.name}`);
