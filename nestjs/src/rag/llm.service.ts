@@ -163,13 +163,12 @@ Phân biệt góc nhìn trong block (nhãn [Tổ_Sư_Thiền] / [Giáo_môn] / [
 - Tổ Sư Thiền: ngữ lục, đèn lục, công án, trực chỉ — cách tu khác Giáo môn.
 CẤM gộp chung "cách tu" của hai dòng như thể một pháp duy nhất; nếu ngữ cảnh có cả hai, nêu rõ từng góc nhìn.
 
-Ngôn ngữ trả lời (BẮT BUỘC — khớp ngôn ngữ câu hỏi; pipe: mọi câu hỏi → tra Hán CBETA → trả lời đúng ngôn ngữ đầu vào):
-- Hỏi tiếng Việt → PHẦN 1 + PHẦN 2 bằng tiếng Việt (thuật ngữ Hán then chốt được giữ trong ngoặc).
-- Hỏi tiếng Anh → PHẦN 1 + PHẦN 2 hoàn toàn bằng tiếng Anh; tổng hợp / dịch nghĩa từ ngữ cảnh Hán CBETA. CẤM tiếng Việt trong câu trả lời. Thuật ngữ Hán then chốt được giữ trong ngoặc (vd. Chan / 禪).
-- Hỏi tiếng Trung / Hán văn (简体或繁體) → PHẦN 1 + PHẦN 2 bằng tiếng Trung cùng hệ chữ với câu hỏi; không dịch sang Việt hay Anh.
-- Hỏi ngôn ngữ khác → trả lời đúng ngôn ngữ đó; thuật ngữ kinh điển Hán được giữ khi cần.
-- Không đổi ngôn ngữ giữa hai phần; không mặc định tiếng Việt khi người dùng hỏi Hán hoặc Anh.
-- Nếu intent brief có ANSWER_LANG=en|zh|vi — tuân thủ dòng đó tuyệt đối.
+Ngôn ngữ trả lời (BẮT BUỘC — pipe: mọi câu hỏi → tra Hán CBETA → trả lời đúng ngôn ngữ đầu vào):
+- ƯU TIÊN: câu hỏi có tiếng Việt (kể cả không dấu) → PHẦN 1 + PHẦN 2 bằng tiếng Việt. CẤM trả lời tiếng Anh.
+- Câu hỏi tiếng Trung / Hán (简体或繁體, không lẫn Việt) → PHẦN 1 + PHẦN 2 bằng tiếng Trung cùng hệ chữ. CẤM Việt / Anh.
+- Câu hỏi tiếng Anh thuần → PHẦN 1 + PHẦN 2 bằng tiếng Anh (tổng hợp từ Hán). CẤM Việt.
+- Dòng ANSWER_LANG=vi|zh|en trong intent brief là TỐI THƯỢNG — tuân thủ tuyệt đối, kể cả khi ngữ cảnh Hán hoặc hội thoại trước khác ngôn ngữ.
+- Không đổi ngôn ngữ giữa hai phần. Không “nghĩ bằng English rồi trả lời” khi ANSWER_LANG=vi.
 
 Câu trả lời gồm ĐÚNG 2 PHẦN:
 
@@ -637,12 +636,13 @@ CHẾ ĐỘ TÓM GỌN (bắt buộc vì người dùng xin tóm gọn / yếu c
 - Ưu tiên một luận điểm chính khớp ngữ cảnh; bỏ liệt kê dài.
 `
       : '';
-    const userContent = `Câu hỏi người dùng (INPUT language = OUTPUT language: VI→VI, EN→EN, ZH→ZH; retrieve from Hán CBETA then answer in INPUT language): ${question.trim()}
+    const userContent = `Câu hỏi: ${question.trim()}
 ${intentBlock}${briefRules}
+OUTPUT RULE: Follow ANSWER_LANG in the intent brief above. If ANSWER_LANG=vi → Vietnamese only (never English). If ANSWER_LANG=zh → Chinese only. If ANSWER_LANG=en → English only.
 Ngữ cảnh: mỗi block [CBETA] là nguyên văn Hán (+ meta Trích dẫn / work_code / url). Có thể có [CBETA_ENTITY_LIST]. Các block thường trùng ý — hãy đọc hết rồi gộp.
 1) CHỈ dùng corpus CBETA trong ngữ cảnh — không dùng sách Việt tosuthien / Duy Lực.
-2) PHẦN 1: tổng hợp / dịch nghĩa từ Hán thành một bài mạch lạc ĐÚNG ngôn ngữ câu hỏi (EN = English only, no Vietnamese); loại trùng; CẤM chuỗi trích đoạn "…" kèm nguồn trong thân bài (nguồn ở UI cuối).
-3) Dòng ${AI_INTERPRETATION_MARKER} rồi ghi chú ngắn cùng ngôn ngữ (không lặp phần 1).
+2) PHẦN 1: tổng hợp / dịch nghĩa từ Hán thành một bài mạch lạc đúng ANSWER_LANG; loại trùng; CẤM chuỗi trích đoạn "…" kèm nguồn trong thân bài (nguồn ở UI cuối).
+3) Dòng ${AI_INTERPRETATION_MARKER} rồi ghi chú ngắn cùng ANSWER_LANG (không lặp phần 1).
 ${context}`;
 
     const prior = normalizeHistory(history);

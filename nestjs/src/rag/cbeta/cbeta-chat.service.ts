@@ -471,7 +471,7 @@ export class CbetaChatService {
       `SEARCH_ZH: ${rewrite.searchZh}`,
       'CITATION UI: sources listed by API under the answer — do not repeat — (title, work_code, juan, p.ref) or urls inside PHẦN 1 body; never expose internal chunk index.',
       'No hit → say not found in selected CBETA scope, in the same language as the question; never invent work_code.',
-      'I/O pipeline: any input language → rewrite/search in Hán → PHẦN 1+2 answer in the INPUT language (VI→VI, EN→EN from Hán with zero Vietnamese, ZH→ZH).',
+      'I/O: rewrite/search in Hán → answer in ANSWER_LANG. Priority: Vietnamese signal→vi, CJK→zh, clear English→en, else vi.',
       cbetaAnswerLangBrief(answerLang),
     ];
     if (isCbetaBriefQuestion(question)) {

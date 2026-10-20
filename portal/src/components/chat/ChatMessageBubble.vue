@@ -16,10 +16,16 @@ const props = withDefaults(
     scriptureLabel?: string
     /** Label above citation cards. */
     citationsLabel?: string
+    /**
+     * CBETA only: hide empty "…" while retrieving (ChatLoadingRow covers it).
+     * Tổ Sư Thiền book chat keeps the classic streaming placeholder.
+     */
+    hideEmptyStreaming?: boolean
   }>(),
   {
     scriptureLabel: 'Nguyên văn kinh sách',
     citationsLabel: 'Kinh sách trích dẫn',
+    hideEmptyStreaming: false,
   },
 )
 
@@ -30,6 +36,11 @@ const scripture = computed(() => scriptureOnly(props.message.content || ''))
 const aiText = computed(() => props.message.aiInterpretation?.trim() || '')
 const citations = computed(() =>
   mergeCitationsByBook(props.message.citations ?? []),
+)
+const showScriptureBlock = computed(
+  () =>
+    !!scripture.value ||
+    (!!props.message.streaming && !props.hideEmptyStreaming),
 )
 
 function copyText(text: string) {
@@ -83,8 +94,7 @@ function canOpen(c: ChatCitation): boolean {
           <img src="/logo-tosuthien.png" alt="" width="28" height="28" />
         </div>
         <div class="assistant-body">
-          <!-- Do not show empty "…" bubble while retrieving — ChatLoadingRow covers that. -->
-          <template v-if="scripture">
+          <template v-if="showScriptureBlock">
             <div class="label-row">
               <span class="label scripture-label">{{ scriptureLabel }}</span>
               <button
@@ -98,7 +108,7 @@ function canOpen(c: ChatCitation): boolean {
               </button>
             </div>
             <div class="scripture">
-              {{ scripture }}
+              {{ scripture || (message.streaming ? '…' : '') }}
             </div>
           </template>
 

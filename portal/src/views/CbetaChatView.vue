@@ -177,6 +177,7 @@ function openSidebar() {
               :message="m"
               scripture-label="Bản tổng hợp dịch"
               citations-label="Nguồn tham khảo"
+              hide-empty-streaming
             />
             <ChatLoadingRow
               v-if="busy || phase"
