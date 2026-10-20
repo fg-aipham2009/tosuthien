@@ -18,6 +18,7 @@ import {
   stitchChunkParts,
 } from './cbeta-expand.util';
 import {
+  coverageTitleHintRegex,
   DEFAULT_CBETA_COVERAGE_TITLE_REGEX,
   diversifyCbetaHits,
   isPatriarchListIntent,
@@ -53,6 +54,8 @@ function corpusLensLabel(h: {
 export interface CbetaRetrieveOptions {
   /** Extra terms from VN→Hán rewrite keywords (for FTS OR / ILIKE). */
   lexicalKeywords?: string[];
+  /** Raw user question — used to narrow coverage when a specific work is named. */
+  originalQuestion?: string;
 }
 
 @Injectable()
@@ -205,7 +208,23 @@ export class CbetaRetrieveService {
       10,
     );
     const hasMaxWorks = Number.isFinite(maxWorksEnv) && maxWorksEnv > 0;
-    const works = await this.listCoverageWorks(decision.collections);
+    let works = await this.listCoverageWorks(decision.collections);
+    // User named a specific denglu/chronicle → scan only matching titles.
+    // Prefer originalQuestion: rewrite/enrich may inject many lamp titles.
+    const titleHint = coverageTitleHintRegex(
+      options?.originalQuestion || question,
+    );
+    if (titleHint && works.length) {
+      const narrowed = works.filter((w) =>
+        new RegExp(titleHint, 'u').test(w.title_zh || ''),
+      );
+      if (narrowed.length) {
+        this.logger.log(
+          `coverageMode: title hint ${titleHint} → ${narrowed.length}/${works.length} works`,
+        );
+        works = narrowed;
+      }
+    }
     if (!works.length) {
       this.logger.warn(
         'coverageMode: no works matched title regex; falling back to hybrid',
@@ -224,6 +243,15 @@ export class CbetaRetrieveService {
     );
     const pageSize =
       Number.isFinite(pageEnv) && pageEnv > 0 ? pageEnv : CANDIDATE_POOL;
+
+    // Patriarch / lineage lists: only pull chunks that look like master/lineage
+    // prose — full work scan (e.g. 420 chunks × 景德傳燈錄) hung the SSE UI.
+    const patriarchScan = isPatriarchListIntent(
+      options?.originalQuestion || question,
+    );
+    const lineageSql = patriarchScan
+      ? `AND c.content_zh ~ '禪師|和尚|大師|西天|東土|付法|祖'`
+      : '';
 
     for (let i = 0; i < workList.length; i++) {
       const w = workList[i];
@@ -251,6 +279,7 @@ export class CbetaRetrieveService {
             c.juan_no, c.juan_label, c.chunk_index, c.content_zh, c.cbeta_ref_start
           FROM chunks c
           WHERE c.work_code = $2
+          ${lineageSql}
           ORDER BY c.chunk_index
           OFFSET $3 LIMIT $4
           `,
@@ -262,12 +291,6 @@ export class CbetaRetrieveService {
           const names = this.entities.extractFromText(r.content_zh);
           if (names.length) {
             this.entities.mergePassEntities(acc, names, r.work_code);
-            await this.entities.upsertMentions(names, {
-              workCode: r.work_code,
-              collection: r.collection,
-              chunkId: r.id,
-              juanNo: r.juan_no,
-            });
             if (names.length > bestNames) {
               bestNames = names.length;
               bestForWork = {

@@ -74,6 +74,7 @@ export class CbetaChatService {
       options.topK,
       undefined,
       rewrite.keywords,
+      question,
     );
     const { blocks, used, citations } = this.pack(retrieval, decisionMerged);
     const retrievalMs = Date.now() - t0;
@@ -165,15 +166,41 @@ export class CbetaChatService {
       message: retrieveMsg,
     };
 
-    const retrieval = await this.runRetrieve(
+    const progressQueue: Array<{
+      pass: number;
+      totalPasses: number;
+      workCode: string;
+      titleZh: string;
+      entityCount: number;
+    }> = [];
+    let retrieveDone = false;
+    const retrievalPromise = this.runRetrieve(
       rewrite.searchZh,
       decisionMerged,
       options.topK,
       (p) => {
-        void p;
+        progressQueue.push(p);
       },
       rewrite.keywords,
-    );
+      question,
+    ).finally(() => {
+      retrieveDone = true;
+    });
+
+    while (!retrieveDone || progressQueue.length) {
+      while (progressQueue.length) {
+        const p = progressQueue.shift()!;
+        yield {
+          type: 'status',
+          phase: 'retrieving',
+          message: `Đang quét ${p.pass}/${p.totalPasses}: ${p.titleZh || p.workCode} (≈${p.entityCount} tên)…`,
+        };
+      }
+      if (!retrieveDone) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    }
+    const retrieval = await retrievalPromise;
 
     const { blocks, used, citations } = this.pack(retrieval, decisionMerged);
 
@@ -394,8 +421,13 @@ export class CbetaChatService {
     topK?: number,
     onProgress?: Parameters<CbetaRetrieveService['retrieveDeep']>[3],
     lexicalKeywords?: string[],
+    originalQuestion?: string,
   ): Promise<CbetaRetrieveResult> {
-    const retrieveOpts = { lexicalKeywords: lexicalKeywords || [] };
+    const retrieveOpts = {
+      lexicalKeywords: lexicalKeywords || [],
+      // Narrow coverage by the raw user wording (e.g. "truyền đăng lục").
+      originalQuestion: originalQuestion || searchQuestion,
+    };
     if (decision.path === 'deep' && decision.coverageMode) {
       return this.retrieve.retrieveDeep(
         searchQuestion,

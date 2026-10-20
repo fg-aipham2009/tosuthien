@@ -31,10 +31,61 @@ const PATRIARCH_LIST_TERMS = [
 export function isPatriarchListIntent(question: string): boolean {
   const q = (question || '').trim();
   if (!q) return false;
-  if (/tổ\s*sư|祖師|二十八祖|西天|東土|傳燈|ngũ\s*gia|thất\s*tông/i.test(q)) {
-    return coverageIntent(q) || /tổ\s*sư|祖師|二十八|西天|東土/i.test(q);
+  // Include "các vị tổ", "truyền đăng" (VI) — not only "tổ sư" / 傳燈.
+  if (
+    /tổ\s*sư|các\s*vị\s*tổ|những\s*vị\s*tổ|truyền\s*đăng|truyen\s*dang|祖師|二十八祖|西天|東土|傳燈|ngũ\s*gia|thất\s*tông/i.test(
+      q,
+    )
+  ) {
+    return (
+      coverageIntent(q) ||
+      /tổ\s*sư|các\s*vị\s*tổ|những\s*vị\s*tổ|祖師|二十八|西天|東土|傳燈|truyền\s*đăng/i.test(
+        q,
+      )
+    );
   }
   return false;
+}
+
+/**
+ * When the user names a specific lamp/chronicle (e.g. "truyền đăng lục"),
+ * return a Postgres/JS title regex to narrow deep coverage — avoid scanning
+ * every 傳燈|五燈|… work (can hang for minutes).
+ */
+export function coverageTitleHintRegex(question: string): string | null {
+  const q = (question || '').normalize('NFC');
+  if (!q.trim()) return null;
+  // More specific first.
+  if (/續\s*傳燈|tục\s*truyền\s*đăng|續傳燈錄/i.test(q)) {
+    return '續傳燈';
+  }
+  // Bare "truyền đăng lục" / 傳燈錄 → Jingde (not every *傳燈* title).
+  if (
+    /景德\s*傳燈|jingde|cảnh\s*đức\s*truyền\s*đăng|truyền\s*đăng\s*lục|truyen\s*dang\s*luc|傳燈\s*錄|傳燈錄/i.test(
+      q,
+    )
+  ) {
+    return '景德傳燈';
+  }
+  if (/truyền\s*đăng|truyen\s*dang|chuandeng/i.test(q)) {
+    return '傳燈';
+  }
+  if (/ngũ\s*đăng|ngu\s*dang|五燈\s*會元|五燈會元|五燈/i.test(q)) {
+    return '五燈';
+  }
+  if (/chỉ\s*nguyệt|chi\s*nguyet|指月/i.test(q)) {
+    return '指月';
+  }
+  if (/tổ\s*thống|宗統/i.test(q)) {
+    return '宗統';
+  }
+  if (/phật\s*tổ\s*thống|佛祖統/i.test(q)) {
+    return '佛祖統';
+  }
+  if (/cao\s*tăng\s*truyện|高僧傳/i.test(q)) {
+    return '高僧傳';
+  }
+  return null;
 }
 
 /**
