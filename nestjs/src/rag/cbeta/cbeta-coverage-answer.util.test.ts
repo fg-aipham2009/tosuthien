@@ -85,4 +85,29 @@ describe('formatCbetaCoverageListAnswer', () => {
     assert.doesNotMatch(text, /慧能/);
     assert.match(text, /趙州/);
   });
+
+  it('dedupes 摩訶迦葉 / 迦葉 and keeps appendix for non-lineage names', () => {
+    const text = formatCbetaCoverageListAnswer(
+      'Liệt kê các vị tổ trong truyền đăng lục',
+      [
+        { nameZh: '摩訶迦葉', count: 5, works: ['T51n2076'] },
+        { nameZh: '迦葉', count: 9, works: ['T51n2076'] },
+        { nameZh: '趙州', count: 4, works: ['T51n2076'] },
+        { nameZh: '諸佛', count: 99, works: ['T51n2076'] },
+      ],
+      ['T51n2076'],
+      50_000,
+    );
+    assert.match(text, /Tây Thiên/);
+    assert.match(text, /Phụ lục/);
+    assert.match(text, /趙州/);
+    assert.doesNotMatch(text, /諸佛/);
+    // Both aliases may appear only once each in order; 摩訶迦葉 before 迦葉 if both present.
+    const xitianBlock = text.slice(
+      text.indexOf('A. Tây Thiên'),
+      text.indexOf('C. Phụ lục'),
+    );
+    assert.match(xitianBlock, /摩訶迦葉/);
+    assert.match(xitianBlock, /迦葉/);
+  });
 });

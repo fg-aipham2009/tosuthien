@@ -195,12 +195,17 @@ async function main() {
         (Number(meta.retrievalMs) || 0) < 60_000,
         `retrieval too slow: ${meta.retrievalMs}ms`,
       );
-      // Quality: filtered list should not open with stop-name dump only.
+      // Quality: filtered deterministic list — no stop-name lead, has structure.
       const deltaText = events
         .filter((e) => e.type === 'delta')
         .map((e) => String(e.payload.text || ''))
         .join('');
       assert.doesNotMatch(deltaText.slice(0, 400), /1\. 諸佛/);
+      assert.doesNotMatch(deltaText.slice(0, 400), /1\. 比丘/);
+      assert.match(
+        deltaText,
+        /Tây Thiên|Đông Độ|Phụ lục|Các tên trong phạm vi/,
+      );
     }
 
     const deltaText = events

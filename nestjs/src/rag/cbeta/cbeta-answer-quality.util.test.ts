@@ -4,6 +4,7 @@ import {
   assertCbetaAnswerLang,
   cbetaAnswerPrefill,
   isMetaPlanningOpener,
+  shouldBufferCbetaHead,
   stripCbetaAnswerPrefill,
   stripLeadingMetaPlanning,
 } from './cbeta-answer-quality.util';
@@ -70,11 +71,48 @@ describe('assertCbetaAnswerLang', () => {
     assert.equal(r.ok, false);
   });
 
+  it('rejects English lead-in buried before late Vietnamese', () => {
+    const text =
+      "PHẦN 1\n\nThiền (禪), theo ngữ cảnh CBETA dưới đây, I also want to weave ideas forever without a period or Vietnamese early";
+    const r = assertCbetaAnswerLang(text, 'vi');
+    assert.equal(r.ok, false);
+  });
+
   it('accepts English content after PART 1 prefill', () => {
     const text =
       'PART 1\n\nChan (禪), according to the CBETA passages below, means dhyāna as stillness and deliberation.';
     const r = assertCbetaAnswerLang(text, 'en');
     assert.equal(r.ok, true, r.reason);
+  });
+
+  it('accepts VI content after stripping meta scaffolding', () => {
+    const text =
+      'PHẦN 1\n\nThiền (禪), theo ngữ cảnh CBETA dưới đây, Tôi cần trả lời bằng tiếng Việt: định nghĩa Thiền Na là tĩnh lự theo kinh luận.';
+    const r = assertCbetaAnswerLang(text, 'vi');
+    assert.equal(r.ok, true, r.reason);
+  });
+});
+
+describe('shouldBufferCbetaHead', () => {
+  it('buffers short or English-meta heads for VI', () => {
+    assert.equal(shouldBufferCbetaHead('short', 'vi'), true);
+    assert.equal(
+      shouldBufferCbetaHead(
+        "I also want to weave in Thần Hội without finishing the English clause yet and still no Vietnamese diacritics here at all",
+        'vi',
+      ),
+      true,
+    );
+  });
+
+  it('stops buffering once Vietnamese content is ready', () => {
+    assert.equal(
+      shouldBufferCbetaHead(
+        'định nghĩa Giáo môn về Thiền Na (靜慮) là tĩnh lự gồm tư duy và diệt trừ theo kinh luận CBETA trong ngữ cảnh đã chọn.',
+        'vi',
+      ),
+      false,
+    );
   });
 });
 
@@ -153,5 +191,26 @@ describe('stripLeadingMetaPlanning', () => {
       'en',
     );
     assert.equal(gate.ok, true, gate.reason);
+  });
+
+  it('drops I\'ll-structure planning for EN answers', () => {
+    const cleaned = stripLeadingMetaPlanning(
+      "I'll structure my answer in two parts: first covering the doctrinal school perspective on Chan as 靜慮.",
+      'en',
+    );
+    assert.match(cleaned, /^first covering/i);
+    const gate = assertCbetaAnswerLang(
+      'PART 1\n\nChan (禪), according to the CBETA passages below, ' + cleaned,
+      'en',
+    );
+    assert.equal(gate.ok, true, gate.reason);
+  });
+
+  it('does not strip content that merely starts with lowercase first', () => {
+    const cleaned = stripLeadingMetaPlanning(
+      'first covering the doctrinal school perspective on Chan as stillness.',
+      'en',
+    );
+    assert.match(cleaned, /^first covering/i);
   });
 });

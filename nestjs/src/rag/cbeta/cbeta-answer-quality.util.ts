@@ -42,10 +42,12 @@ export function stripLeadingMetaPlanning(
       .replace(/^Trả lời bằng tiếng[^.\n]*?[.:：]\s*/i, '')
       .replace(/^I (?:need to|also want to|want to|am going to|will)[\s\S]{0,500}?(?:—|–|:|\.\s+)/i, '')
       .replace(/^I'm (?:noting|starting|outlining|looking|thinking|going)[\s\S]{0,500}?(?:—|–|:|\.\s+)/i, '')
+      .replace(/^I'll[\s\S]{0,500}?(?:—|–|:|\.\s+)/i, '')
       .replace(/^Next I'm[\s\S]{0,400}?(?:—|–|:|\.\s+)/i, '')
       .replace(/^Let me[\s\S]{0,400}?(?:—|–|:|\.\s+)/i, '')
       .replace(/^Looking at[\s\S]{0,400}?(?:—|–|:|\.\s+)/i, '')
-      .replace(/^First[, ][\s\S]{0,400}?(?:—|–|:|\.\s+)/i, '');
+      .replace(/^First,\s+[\s\S]{0,400}?(?:—|–|:|\.\s+)/i, '')
+      .replace(/^First (?:I|I'll|I'm|let|we)\b[\s\S]{0,400}?(?:—|–|:|\.\s+)/i, '');
     if (next === t) break;
     t = next;
   }
@@ -53,9 +55,15 @@ export function stripLeadingMetaPlanning(
   if (lang === 'en') {
     // Drop first-person planning sentences until a content noun phrase.
     for (let i = 0; i < 4; i++) {
-      if (!/^(I'm |I |Next I'm )/i.test(t)) break;
+      if (!/^(I'm |I'll |I |Next I'm )/i.test(t)) break;
       const cut = t.search(/[.?!]\s+/);
-      if (cut < 0 || cut > 500) break;
+      if (cut < 0 || cut > 500) {
+        // "I'll … parts: content" — strip through first colon.
+        const viaColon = t.replace(/^I(?:'ll|'m)[\s\S]{0,400}?:\s*/i, '');
+        if (viaColon === t) break;
+        t = viaColon.replace(/^\s+/, '');
+        continue;
+      }
       t = t.slice(cut + 1).replace(/^\s+/, '');
     }
   }
@@ -94,7 +102,7 @@ export function shouldBufferCbetaHead(
       return headBuf.length < 700;
     }
   }
-  if (lang === 'en' && /^(I'm |I need |Next I'm )/i.test(cleaned)) {
+  if (lang === 'en' && /^(I'm |I'll |I need |Next I'm )/i.test(cleaned)) {
     return headBuf.length < 700;
   }
   return false;
@@ -109,7 +117,7 @@ export function isMetaPlanningOpener(text: string): boolean {
   if (!head) return false;
   // Do not treat lowercase "the …" (continuation after prefill) as meta.
   if (
-    /^(The (question|context|entity|user|answer|passage|list)\b|I['’ ]|I'm |I am |Here |According to|In the |This question|Looking |Based on|Note that|Let me|First[, ])/i.test(
+    /^(The (question|context|entity|user|answer|passage|list)\b|I['’ ]|I'm |I'll |I am |Here |According to|In the |This question|Looking |Based on|Note that|Let me|First, |First (?:I|I'll|I'm)\b)/i.test(
       head,
     )
   ) {
@@ -141,23 +149,32 @@ export type AssertCbetaAnswerLangResult = {
 
 /**
  * Quality gate for streamed / deterministic answers.
- * Does not invent length caps — only language + anti-CoT checks.
+ * Applies the same meta-strip as the stream path, then checks language.
+ * Does not invent length caps.
  */
 export function assertCbetaAnswerLang(
   text: string,
   lang: CbetaAnswerLang,
 ): AssertCbetaAnswerLangResult {
-  const body = stripCbetaAnswerPrefill(text);
+  const strippedPrefill = stripCbetaAnswerPrefill(text);
+  const body = stripLeadingMetaPlanning(strippedPrefill, lang);
   const head = body.slice(0, 160);
   if (body.length < 20) {
     return { ok: false, reason: 'too_short', head };
   }
-  if (isMetaPlanningOpener(text)) {
-    return { ok: false, reason: 'meta_planning', head };
+  if (isMetaPlanningOpener(body) || isMetaPlanningOpener(text)) {
+    // Re-check after strip: leftover CoT still fails.
+    if (isMetaPlanningOpener(body)) {
+      return { ok: false, reason: 'meta_planning', head };
+    }
   }
   if (lang === 'vi') {
-    if (!VI_MARK_RE.test(body)) {
+    // Require Vietnamese signal near the start (not buried after English CoT).
+    if (!VI_MARK_RE.test(body.slice(0, 160))) {
       return { ok: false, reason: 'missing_vi_marks', head };
+    }
+    if (/^[A-Za-z]/.test(body.trim()) && !VI_MARK_RE.test(body.slice(0, 40))) {
+      return { ok: false, reason: 'en_lead_in_vi', head };
     }
     return { ok: true, head };
   }
@@ -176,6 +193,9 @@ export function assertCbetaAnswerLang(
   }
   if (!/[A-Za-z]{3,}/.test(body)) {
     return { ok: false, reason: 'missing_en', head };
+  }
+  if (/^(I'm |I'll |I need |Next I'm )/i.test(body.trim())) {
+    return { ok: false, reason: 'meta_planning', head };
   }
   return { ok: true, head };
 }
