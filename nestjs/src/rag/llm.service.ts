@@ -15,6 +15,7 @@ import {
 } from './cbeta/cbeta-opencc.util';
 import { LruCache } from './cbeta/cbeta-lru.util';
 import {
+  assertCbetaAnswerLang,
   cbetaAnswerPrefill,
   shouldBufferCbetaHead,
   stripLeadingMetaPlanning,
@@ -376,6 +377,21 @@ export class LlmService {
     return Number.isFinite(n) && n > 0 ? n : 15_000;
   }
 
+  /**
+   * Hard deadline for CBETA answer streams (connect + body). Without this,
+   * a stuck hhtech SSE leaves the UI on prefill-only forever.
+   */
+  private cbetaChatTimeoutMs(): number {
+    const n = parseInt(
+      this.config.get<string>('CBETA_CHAT_TIMEOUT_MS') ||
+        process.env.CBETA_CHAT_TIMEOUT_MS ||
+        '',
+      10,
+    );
+    // Fail over to the next chat endpoint quickly when hhtech hangs.
+    return Number.isFinite(n) && n > 0 ? n : 60_000;
+  }
+
   private rewriteCacheSize(): number {
     const n = parseInt(
       this.config.get<string>('CBETA_REWRITE_CACHE_SIZE') ||
@@ -464,7 +480,7 @@ Ngữ cảnh: mỗi block có [KINH]/[NGỮ LỤC] và dòng "Trích dẫn: …"
 ${context}`;
 
     const prior = normalizeHistory(history);
-    const endpoints = this.ai.get().chatEndpoints;
+    const endpoints = this.ai.orderedChatEndpoints();
     let lastError: Error | null = null;
 
     for (let i = 0; i < endpoints.length; i++) {
@@ -649,7 +665,7 @@ CHẾ ĐỘ TÓM GỌN (bắt buộc vì người dùng xin tóm gọn / yếu c
     const answerLang = detectCbetaAnswerLang(question);
     const coverageList = isCbetaCoverageIntent(question);
     const assistantPrefill = cbetaAnswerPrefill(answerLang, coverageList);
-    const userContent = `OUTPUT LANGUAGE LOCK: ANSWER_LANG=${answerLang} is absolute from the first continuation token after the assistant prefill. ANSWER_LANG=vi → Vietnamese only (FORBIDDEN openers: "I'm…", "I need…", "Tôi cần…", "The entity…", "Looking…"). ANSWER_LANG=zh → Chinese only. ANSWER_LANG=en → English only. Continue the article immediately — no planning sentences.
+    const baseUser = `OUTPUT LANGUAGE LOCK: ANSWER_LANG=${answerLang} is absolute from the first continuation token after the assistant prefill. ANSWER_LANG=vi → Vietnamese prose only from the first token (FORBIDDEN: English "the doctrinal…", "I'm…", "I need…", "Người dùng hỏi…", "Tôi cần…"). ANSWER_LANG=zh → Chinese only. ANSWER_LANG=en → English only — FORBIDDEN any Vietnamese diacritics or labels (Giáo môn, Tổ Sư Thiền…); write "doctrinal school" / "patriarch Chan" instead. Continue the article immediately — no planning / "synthesis section" / "AI interpretation section" / "English answer with two parts" / "first a synthesis" scaffolding.
 Câu hỏi: ${question.trim()}
 ${intentBlock}${briefRules}
 Ngữ cảnh: mỗi block [CBETA] là nguyên văn Hán (+ meta Trích dẫn / work_code / url). Có thể có [CBETA_ENTITY_LIST]. Các block thường trùng ý — hãy đọc hết rồi gộp.
@@ -657,57 +673,104 @@ Ngữ cảnh: mỗi block [CBETA] là nguyên văn Hán (+ meta Trích dẫn / w
 2) PHẦN 1: tổng hợp / dịch nghĩa từ Hán thành một bài mạch lạc đúng ANSWER_LANG; loại trùng; CẤM chuỗi trích đoạn "…" kèm nguồn trong thân bài (nguồn ở UI cuối). Nếu có ENTITY_LIST: liệt kê tên Việt (kèm Hán) theo list — không viết English planning.
 3) Dòng ${AI_INTERPRETATION_MARKER} rồi ghi chú ngắn cùng ANSWER_LANG (không lặp phần 1).
 ${context}`;
+    const strictRetryExtra = `
+STRICT RETRY: Previous draft failed the language/quality gate. Write ONLY answer prose in ANSWER_LANG=${answerLang}. First sentence must be content (definition / list), never meta about sections, language, or the user question.`;
 
     const prior = normalizeHistory(history);
-    const endpoints = this.ai.get().chatEndpoints;
     let lastError: Error | null = null;
     const maxTokens = this.cbetaChatMaxTokens(brief);
+    const chatTimeoutMs = this.cbetaChatTimeoutMs();
 
-    for (let i = 0; i < endpoints.length; i++) {
-      const endpoint = endpoints[i];
-      try {
-        let yielded = false;
-        // Prefill is part of the visible answer (API does not echo it).
-        yield assistantPrefill;
-        yielded = true;
-        // Buffer early tokens and drop LLM meta-planning openers before UI sees them.
-        let headBuf = '';
-        let headFlushed = false;
-        for await (const delta of this.streamAnthropic(
-          endpoint,
-          CBETA_SYSTEM,
-          prior,
-          userContent,
-          maxTokens,
-          assistantPrefill,
-        )) {
-          if (!headFlushed) {
-            headBuf += delta;
-            if (shouldBufferCbetaHead(headBuf, answerLang)) continue;
-            const cleaned = stripLeadingMetaPlanning(headBuf, answerLang);
-            headFlushed = true;
-            headBuf = '';
-            if (cleaned) yield cleaned;
-            continue;
+    // Up to 2 prompt attempts × N endpoints (HHTECH keys round-robin).
+    // Do not yield until head passes gate so a bad CoT draft can be discarded.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const userContent =
+        attempt === 0 ? baseUser : `${baseUser}${strictRetryExtra}`;
+      // Fresh rotation each attempt so retries don't stick on a spent key.
+      const endpoints = this.ai.orderedChatEndpoints();
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+        try {
+          let headBuf = '';
+          let headFlushed = false;
+          let yielded = false;
+          for await (const delta of this.streamAnthropic(
+            endpoint,
+            CBETA_SYSTEM,
+            prior,
+            userContent,
+            maxTokens,
+            assistantPrefill,
+            chatTimeoutMs,
+          )) {
+            if (!headFlushed) {
+              headBuf += delta;
+              if (shouldBufferCbetaHead(headBuf, answerLang, coverageList)) {
+                continue;
+              }
+              const cleaned = stripLeadingMetaPlanning(headBuf, answerLang);
+              const gate = assertCbetaAnswerLang(
+                assistantPrefill + cleaned,
+                answerLang,
+              );
+              if (!gate.ok && headBuf.length < 1100) {
+                // Keep buffering a bit more before deciding.
+                continue;
+              }
+              if (!gate.ok) {
+                // Head still bad at ceiling — abort this attempt (no UI yield).
+                throw new Error(
+                  `CBETA quality gate failed (${gate.reason}) [${endpoint.provider}]`,
+                );
+              }
+              headFlushed = true;
+              yield assistantPrefill;
+              if (cleaned) yield cleaned;
+              yielded = true;
+              continue;
+            }
+            if (!yielded) {
+              yield assistantPrefill;
+              yielded = true;
+            }
+              yield delta;
           }
-          yield delta;
+          if (!headFlushed && headBuf) {
+            const cleaned = stripLeadingMetaPlanning(headBuf, answerLang);
+            const gate = assertCbetaAnswerLang(
+              assistantPrefill + cleaned,
+              answerLang,
+            );
+            if (!gate.ok) {
+              throw new Error(
+                `CBETA quality gate failed (${gate.reason}) [${endpoint.provider}]`,
+              );
+            }
+            yield assistantPrefill;
+            if (cleaned) yield cleaned;
+            yielded = true;
+          }
+          if (yielded) return;
+          lastError = new Error(
+            `Claude API empty stream [${endpoint.provider} model=${endpoint.model}]`,
+          );
+          this.logger.warn(lastError.message);
+        } catch (err: unknown) {
+          lastError = err instanceof Error ? err : new Error(String(err));
+          const hasEndpointFallback = i < endpoints.length - 1;
+          const willRetryPrompt = attempt === 0;
+          this.logger.warn(
+            `${lastError.message}${
+              hasEndpointFallback
+                ? ' — trying fallback endpoint'
+                : willRetryPrompt
+                  ? ' — strict retry'
+                  : ''
+            }`,
+          );
+          if (hasEndpointFallback) continue;
+          break;
         }
-        if (!headFlushed && headBuf) {
-          const cleaned = stripLeadingMetaPlanning(headBuf, answerLang);
-          if (cleaned) yield cleaned;
-        }
-        if (yielded) return;
-        lastError = new Error(
-          `Claude API empty stream [${endpoint.provider} model=${endpoint.model}]`,
-        );
-        this.logger.warn(lastError.message);
-      } catch (err: unknown) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        const hasFallback = i < endpoints.length - 1;
-        this.logger.warn(
-          `${lastError.message}${hasFallback ? ' — trying fallback' : ''}`,
-        );
-        if (!hasFallback) break;
       }
     }
 
@@ -780,6 +843,7 @@ ${context}`;
     userContent: string,
     maxTokens: number,
     assistantPrefill?: string,
+    timeoutMs?: number,
   ): AsyncGenerator<string> {
     const url = resolveAnthropicMessagesUrl(endpoint.baseUrl);
 
@@ -794,66 +858,89 @@ ${context}`;
       });
     }
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${endpoint.apiKey}`,
-        'x-api-key': endpoint.apiKey,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: endpoint.model,
-        max_tokens: maxTokens,
-        stream: true,
-        system,
-        messages,
-      }),
-    });
+    const ac = new AbortController();
+    const ms =
+      typeof timeoutMs === 'number' && timeoutMs > 0 ? timeoutMs : undefined;
+    const timer = ms
+      ? setTimeout(() => ac.abort(), ms)
+      : undefined;
 
-    if (!res.ok) {
-      const detail = (await res.text()).slice(0, 400);
-      throw new Error(
-        `Claude API ${res.status} [${endpoint.provider} model=${endpoint.model} url=${url}]: ${detail}`,
-      );
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${endpoint.apiKey}`,
+          'x-api-key': endpoint.apiKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: endpoint.model,
+          max_tokens: maxTokens,
+          stream: true,
+          system,
+          messages,
+        }),
+        signal: ac.signal,
+      });
+    } catch (err: unknown) {
+      if (timer) clearTimeout(timer);
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error(
+          `Claude API stream timeout after ${ms}ms [${endpoint.provider} model=${endpoint.model}]`,
+        );
+      }
+      throw err;
     }
 
-    if (!res.body) {
-      throw new Error(
-        `Claude API stream: empty body [${endpoint.provider}]`,
-      );
-    }
+    try {
+      if (!res.ok) {
+        const detail = (await res.text()).slice(0, 400);
+        throw new Error(
+          `Claude API ${res.status} [${endpoint.provider} model=${endpoint.model} url=${url}]: ${detail}`,
+        );
+      }
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
+      if (!res.body) {
+        throw new Error(
+          `Claude API stream: empty body [${endpoint.provider}]`,
+        );
+      }
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith('data:')) continue;
-        const payload = trimmed.slice(5).trim();
-        if (!payload || payload === '[DONE]') continue;
-        try {
-          const evt = JSON.parse(payload) as ClaudeStreamEvent;
-          if (
-            evt.type === 'content_block_delta' &&
-            evt.delta?.type === 'text_delta' &&
-            evt.delta.text
-          ) {
-            yield evt.delta.text;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const payload = trimmed.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          try {
+            const evt = JSON.parse(payload) as ClaudeStreamEvent;
+            if (
+              evt.type === 'content_block_delta' &&
+              evt.delta?.type === 'text_delta' &&
+              evt.delta.text
+            ) {
+              yield evt.delta.text;
+            }
+          } catch {
+            // ignore malformed SSE chunks
           }
-        } catch {
-          // ignore malformed SSE chunks
         }
       }
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
 }

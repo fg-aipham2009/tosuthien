@@ -108,7 +108,7 @@ export class CbetaChatService {
         question,
         retrieval.entities,
         retrieval.worksScanned,
-        this.retrieve.contextCharBudget(),
+        this.retrieve.coverageListCharBudget(),
       );
       const { answer, aiInterpretation } = this.splitAnswer(raw);
       return {
@@ -295,7 +295,7 @@ export class CbetaChatService {
         question,
         retrieval.entities,
         retrieval.worksScanned,
-        this.retrieve.contextCharBudget(),
+        this.retrieve.coverageListCharBudget(),
       );
       yield { type: 'delta', text: raw };
     } else {

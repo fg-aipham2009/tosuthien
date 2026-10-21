@@ -1,6 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CbetaDbService } from './cbeta-db.service';
-import { extractMasterNames } from './cbeta-entity.util';
+import {
+  DONGDU_PATRIARCHS,
+  XITIAN_PATRIARCHS,
+} from './cbeta-coverage-answer.util';
+import {
+  extractLiteralNameMentions,
+  extractMasterNames,
+} from './cbeta-entity.util';
 
 export interface CbetaEntityRow {
   nameZh: string;
@@ -18,7 +25,21 @@ export class CbetaEntitiesService {
   constructor(private readonly db: CbetaDbService) {}
 
   extractFromText(text: string): string[] {
-    return extractMasterNames(text);
+    const titled = extractMasterNames(text);
+    // Lamp prose often names 西天/東土 patriarchs without 禪師|和尚|大師.
+    const known = extractLiteralNameMentions(text, [
+      ...XITIAN_PATRIARCHS,
+      ...DONGDU_PATRIARCHS,
+    ]);
+    if (!known.length) return titled;
+    const seen = new Set(titled);
+    const out = [...titled];
+    for (const n of known) {
+      if (seen.has(n)) continue;
+      seen.add(n);
+      out.push(n);
+    }
+    return out;
   }
 
   async upsertMentions(

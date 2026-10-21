@@ -23,6 +23,12 @@ export function stripCbetaAnswerPrefill(text: string): string {
     .trim();
 }
 
+const EN_PLAN_OPENER_RE =
+  /^(I'm |I'll |I |Next I'm |a synthesis|an? ["']?AI|then an? |distinguishing doctrinal|Note that|English answer|English[, ]|English\b|first\s+a\s+synthesis|First,\s|pulling together)/i;
+
+const EN_PLAN_INLINE_RE =
+  /\b(synthesis section|AI interpretation|two[- ]part|structure my answer|drawing together|pulling together the etymology|without citations)\b/i;
+
 /**
  * Remove leading LLM scaffolding so the visible answer starts with content.
  * When lang=vi, also drop leading English CoT sentences until Vietnamese appears.
@@ -40,6 +46,7 @@ export function stripLeadingMetaPlanning(
       .replace(/^Mình cần[^.\n]*?[.:：]\s*/i, '')
       .replace(/^Để trả lời[^.\n]*?[.:：]\s*/i, '')
       .replace(/^Trả lời bằng tiếng[^.\n]*?[.:：]\s*/i, '')
+      .replace(/^Người dùng hỏi[^.\n]*?[.:：]\s*/i, '')
       .replace(/^I (?:need to|also want to|want to|am going to|will)[\s\S]{0,500}?(?:—|–|:|\.\s+)/i, '')
       .replace(/^I'm (?:noting|starting|outlining|looking|thinking|going)[\s\S]{0,500}?(?:—|–|:|\.\s+)/i, '')
       .replace(/^I'll[\s\S]{0,500}?(?:—|–|:|\.\s+)/i, '')
@@ -47,77 +54,109 @@ export function stripLeadingMetaPlanning(
       .replace(/^Let me[\s\S]{0,400}?(?:—|–|:|\.\s+)/i, '')
       .replace(/^Looking at[\s\S]{0,400}?(?:—|–|:|\.\s+)/i, '')
       .replace(/^First,\s+[\s\S]{0,400}?(?:—|–|:|\.\s+)/i, '')
-      .replace(/^First (?:I|I'll|I'm|let|we)\b[\s\S]{0,400}?(?:—|–|:|\.\s+)/i, '');
+      .replace(/^First (?:I|I'll|I'm|let|we|a)\b[\s\S]{0,400}?(?:—|–|:|\.\s+)/i, '');
     if (next === t) break;
     t = next;
   }
   t = t.replace(/^\s+/, '');
   if (lang === 'en') {
-    // Drop first-person planning sentences until a content noun phrase.
-    for (let i = 0; i < 4; i++) {
-      if (!/^(I'm |I'll |I |Next I'm )/i.test(t)) break;
+    for (let i = 0; i < 8; i++) {
+      const lead = t.slice(0, 160);
+      const isPlan =
+        EN_PLAN_OPENER_RE.test(t) || EN_PLAN_INLINE_RE.test(lead);
+      if (!isPlan && !VI_MARK_RE.test(lead)) break;
+      const cue = t.search(
+        /\b(?:Chan means|Chan is|Chan—|Dhyāna|Dhyana|Zen means|According to CBETA|In the CBETA)\b/,
+      );
+      if (cue > 0 && cue < 800) {
+        t = t.slice(cue).replace(/^\s+/, '');
+        continue;
+      }
       const cut = t.search(/[.?!]\s+/);
-      if (cut < 0 || cut > 500) {
-        // "I'll … parts: content" — strip through first colon.
-        const viaColon = t.replace(/^I(?:'ll|'m)[\s\S]{0,400}?:\s*/i, '');
-        if (viaColon === t) break;
+      if (cut >= 0 && cut <= 600) {
+        t = t.slice(cut + 1).replace(/^\s+/, '');
+        continue;
+      }
+      const viaColon = t.replace(
+        /^(?:I(?:'ll|'m| should| also| want| need)|a synthesis|then an?|Note that|English(?: answer)?|first\s+(?:a\s+)?synthesis)[\s\S]{0,500}?(?:—|–|:|\.\s+)/i,
+        '',
+      );
+      if (viaColon !== t) {
         t = viaColon.replace(/^\s+/, '');
         continue;
       }
-      t = t.slice(cut + 1).replace(/^\s+/, '');
+      if (VI_MARK_RE.test(lead) || isPlan) {
+        const next = t.replace(/^[\s\S]{0,360}?(?=[A-Z][a-z]{2,})/, '');
+        if (next === t || !next) break;
+        t = next.replace(/^\s+/, '');
+        continue;
+      }
+      break;
     }
+    t = t
+      .replace(/\bGiáo môn\b/g, 'doctrinal school')
+      .replace(/\bTổ [Ss]ư [Tt]hiền\b/g, 'patriarch Chan')
+      .replace(/\bTổ sư thiền\b/gi, 'patriarch Chan');
   }
   if (lang === 'vi') {
-    // Drop pure-English lead-in until a Vietnamese diacritic shows up.
-    for (let i = 0; i < 4; i++) {
-      if (!t || VI_MARK_RE.test(t.slice(0, 48))) break;
-      if (!/^[A-Za-zI]/.test(t)) break;
-      const cut = t.search(/[.?!。]\s+/);
-      if (cut < 0 || cut > 500) {
-        const dropped = t.replace(
-          /^I [\s\S]{0,500}?(?=[A-ZÀ-ỹ]|Thiền|Theo|Trong|Định)/,
-          '',
-        );
-        if (dropped === t) break;
-        t = dropped.replace(/^\s+/, '');
-      } else {
-        t = t.slice(cut + 1).replace(/^\s+/, '');
+    for (let i = 0; i < 6; i++) {
+      if (!t) break;
+      const leadPlain = t.slice(0, 80).replace(/\([^)]*\)/g, '');
+      const enLead =
+        /^(I'm |I'll |I |The |A |An |This |That |In the |According to|Looking |Based on|Here |Note that|Người dùng hỏi)/i.test(
+          t,
+        ) ||
+        (/^(the|a|an|this|that|in|according|looking|based|here|note)\b/i.test(
+          t,
+        ) &&
+          !VI_MARK_RE.test(leadPlain));
+      if (!enLead) break;
+      const cue = t.search(
+        /(?:^|[.?!。]\s+)(?=Thiền\s*\(|Theo |Trong |Định nghĩa|Các tên|Dưới đây|là |giải thích)/,
+      );
+      if (cue >= 0 && cue < 700) {
+        t = t.slice(cue).replace(/^[.?!。]\s+/, '').replace(/^\s+/, '');
+        continue;
       }
+      const cut = t.search(/[.?!。]\s+/);
+      if (cut >= 0 && cut <= 500) {
+        t = t.slice(cut + 1).replace(/^\s+/, '');
+        continue;
+      }
+      break;
     }
   }
   return t;
 }
 
-/** Whether the stream head buffer should keep collecting before first yield. */
+/**
+ * Keep buffering the stream head until language gate would pass,
+ * or the buffer hits a soft ceiling (then flush best-effort cleaned text).
+ */
 export function shouldBufferCbetaHead(
   headBuf: string,
   lang: CbetaAnswerLang,
+  coverageList = false,
 ): boolean {
-  if (headBuf.length < 80) return true;
-  const cleaned = stripLeadingMetaPlanning(headBuf, lang);
-  if (isMetaPlanningOpener(cleaned)) return headBuf.length < 600;
-  if (lang === 'vi') {
-    const h = cleaned.slice(0, 80);
-    if (/^[A-Za-z]/.test(h) && !VI_MARK_RE.test(h)) {
-      return headBuf.length < 700;
-    }
-  }
-  if (lang === 'en' && /^(I'm |I'll |I need |Next I'm )/i.test(cleaned)) {
-    return headBuf.length < 700;
-  }
-  return false;
+  if (headBuf.length < 48) return true;
+  const sample = cbetaAnswerPrefill(lang, coverageList) + headBuf;
+  const gate = assertCbetaAnswerLang(sample, lang);
+  if (gate.ok) return false;
+  // Soft ceiling — avoid holding forever on a stuck CoT model.
+  const ceiling = lang === 'en' ? 1100 : 900;
+  return headBuf.length < ceiling;
 }
 
 /**
  * True when the answer opens with LLM meta / planning instead of content.
- * Covers English CoT and Vietnamese "Tôi cần trả lời…" scaffolding.
  */
 export function isMetaPlanningOpener(text: string): boolean {
-  const head = stripCbetaAnswerPrefill(text).slice(0, 180);
+  const head = stripCbetaAnswerPrefill(text).slice(0, 200);
   if (!head) return false;
-  // Do not treat lowercase "the …" (continuation after prefill) as meta.
+  if (EN_PLAN_OPENER_RE.test(head)) return true;
+  if (EN_PLAN_INLINE_RE.test(head.slice(0, 180))) return true;
   if (
-    /^(The (question|context|entity|user|answer|passage|list)\b|I['’ ]|I'm |I'll |I am |Here |According to|In the |This question|Looking |Based on|Note that|Let me|First, |First (?:I|I'll|I'm)\b)/i.test(
+    /^(The (question|context|entity|user|answer|passage|list)\b|I['’ ]|I'm |I'll |I am |Here |According to|In the |This question|Looking |Based on|Note that|Let me)/i.test(
       head,
     )
   ) {
@@ -130,9 +169,8 @@ export function isMetaPlanningOpener(text: string): boolean {
   ) {
     return true;
   }
-  // Vietnamese scaffolding that is not the answer itself.
   if (
-    /^(Tôi cần|Tôi sẽ|Tôi đang|Mình cần|Để trả lời|Trả lời bằng tiếng)/i.test(
+    /^(Tôi cần|Tôi sẽ|Tôi đang|Mình cần|Để trả lời|Trả lời bằng tiếng|Người dùng hỏi)/i.test(
       head,
     )
   ) {
@@ -149,8 +187,6 @@ export type AssertCbetaAnswerLangResult = {
 
 /**
  * Quality gate for streamed / deterministic answers.
- * Applies the same meta-strip as the stream path, then checks language.
- * Does not invent length caps.
  */
 export function assertCbetaAnswerLang(
   text: string,
@@ -162,18 +198,19 @@ export function assertCbetaAnswerLang(
   if (body.length < 20) {
     return { ok: false, reason: 'too_short', head };
   }
-  if (isMetaPlanningOpener(body) || isMetaPlanningOpener(text)) {
-    // Re-check after strip: leftover CoT still fails.
-    if (isMetaPlanningOpener(body)) {
-      return { ok: false, reason: 'meta_planning', head };
-    }
+  if (isMetaPlanningOpener(body)) {
+    return { ok: false, reason: 'meta_planning', head };
   }
   if (lang === 'vi') {
-    // Require Vietnamese signal near the start (not buried after English CoT).
-    if (!VI_MARK_RE.test(body.slice(0, 160))) {
+    const leadPlain = body.slice(0, 120).replace(/\([^)]*\)/g, '');
+    if (!VI_MARK_RE.test(leadPlain)) {
       return { ok: false, reason: 'missing_vi_marks', head };
     }
-    if (/^[A-Za-z]/.test(body.trim()) && !VI_MARK_RE.test(body.slice(0, 40))) {
+    if (
+      /^(the|a|an|this|that|in|according|looking|based|here|note|I\b|I'm|I'll)\b/i.test(
+        body.trim(),
+      )
+    ) {
       return { ok: false, reason: 'en_lead_in_vi', head };
     }
     return { ok: true, head };
@@ -187,17 +224,41 @@ export function assertCbetaAnswerLang(
     }
     return { ok: true, head };
   }
-  // en
   if (VI_MARK_RE.test(body.slice(0, 120))) {
     return { ok: false, reason: 'unexpected_vi', head };
   }
   if (!/[A-Za-z]{3,}/.test(body)) {
     return { ok: false, reason: 'missing_en', head };
   }
-  if (/^(I'm |I'll |I need |Next I'm )/i.test(body.trim())) {
+  if (EN_PLAN_OPENER_RE.test(body.trim())) {
     return { ok: false, reason: 'meta_planning', head };
   }
   return { ok: true, head };
+}
+
+/** Sanitize a full assembled answer for one-shot emit / retry decision. */
+export function sanitizeCbetaAnswer(
+  text: string,
+  lang: CbetaAnswerLang,
+): { text: string; gate: AssertCbetaAnswerLangResult } {
+  const strippedPrefill = stripCbetaAnswerPrefill(text);
+  const body = stripLeadingMetaPlanning(strippedPrefill, lang);
+  // Re-attach a minimal heading so UI still has PHẦN/PART structure when body is OK.
+  const prefill = text.match(/^(PHẦN\s*1|PART\s*1|第一部分)/i)?.[0];
+  const rebuilt = prefill ? `${prefill}\n\n${body}` : body;
+  const gate = assertCbetaAnswerLang(
+    prefill
+      ? `${prefill}\n\n${cbetaAnswerPrefillBodyCue(lang)}${body}`
+      : cbetaAnswerPrefill(lang, false) + body,
+    lang,
+  );
+  return { text: rebuilt, gate };
+}
+
+function cbetaAnswerPrefillBodyCue(lang: CbetaAnswerLang): string {
+  if (lang === 'zh') return '禪（定慧之學）在本段 CBETA 語境中，';
+  if (lang === 'en') return 'Chan (禪), according to the CBETA passages below, ';
+  return 'Thiền (禪), theo ngữ cảnh CBETA dưới đây, ';
 }
 
 /**

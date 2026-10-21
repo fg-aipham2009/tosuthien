@@ -1,5 +1,8 @@
 .env.production
 .env
+# Postman env with real API keys (keep collection + *.example.json)
+postman/*.local.postman_environment.json
+postman/*local*.postman_environment.json
 __pycache__/
 *.pyc
 .venv/

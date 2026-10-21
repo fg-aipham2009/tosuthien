@@ -33,13 +33,13 @@ export function isPatriarchListIntent(question: string): boolean {
   if (!q) return false;
   // Include "các vị tổ", "truyền đăng" (VI) — not only "tổ sư" / 傳燈.
   if (
-    /tổ\s*sư|các\s*vị\s*tổ|những\s*vị\s*tổ|truyền\s*đăng|truyen\s*dang|祖師|二十八祖|西天|東土|傳燈|ngũ\s*gia|thất\s*tông/i.test(
+    /tổ\s*sư|các\s*vị\s*tổ|những\s*vị\s*tổ|truyền\s*đăng|truyen\s*dang|祖師|二十八祖|西天|東土|傳燈|ngũ\s*gia|thất\s*tông|patriarchs?|transmission\s+of\s+the\s+lamp/i.test(
       q,
     )
   ) {
     return (
       coverageIntent(q) ||
-      /tổ\s*sư|các\s*vị\s*tổ|những\s*vị\s*tổ|祖師|二十八|西天|東土|傳燈|truyền\s*đăng/i.test(
+      /tổ\s*sư|các\s*vị\s*tổ|những\s*vị\s*tổ|祖師|二十八|西天|東土|傳燈|truyền\s*đăng|patriarchs?|transmission\s+of\s+the\s+lamp/i.test(
         q,
       )
     );
@@ -61,7 +61,7 @@ export function coverageTitleHintRegex(question: string): string | null {
   }
   // Bare "truyền đăng lục" / 傳燈錄 → Jingde (not every *傳燈* title).
   if (
-    /景德\s*傳燈|jingde|cảnh\s*đức\s*truyền\s*đăng|truyền\s*đăng\s*lục|truyen\s*dang\s*luc|傳燈\s*錄|傳燈錄/i.test(
+    /景德\s*傳燈|jingde|cảnh\s*đức\s*truyền\s*đăng|truyền\s*đăng\s*lục|truyen\s*dang\s*luc|傳燈\s*錄|傳燈錄|transmission\s+of\s+the\s+lamp/i.test(
       q,
     )
   ) {

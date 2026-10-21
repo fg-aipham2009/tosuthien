@@ -59,6 +59,16 @@ describe('isCbetaCoverageIntent', () => {
       true,
     );
     assert.equal(isCbetaCoverageIntent('danh sách các vị tổ sư'), true);
+    assert.equal(
+      isCbetaCoverageIntent('Kể tên các tổ sư Thiền theo truyền đăng'),
+      true,
+    );
+    assert.equal(
+      isCbetaCoverageIntent(
+        'List the Chan patriarchs in the Transmission of the Lamp',
+      ),
+      true,
+    );
   });
 
   it('does not treat brief essence of toàn bộ as coverage', () => {

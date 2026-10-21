@@ -102,6 +102,22 @@ export class CbetaRetrieveService {
     return Number.isFinite(n) && n > 0 ? n : 100_000;
   }
 
+  /**
+   * User-facing coverage / patriarch list size (not LLM context pack).
+   * Set CBETA_COVERAGE_LIST_MAX_CHARS so RAG context budget does not dump
+   * the entire entity scan into chat. When unset, falls back to context budget.
+   */
+  coverageListCharBudget(): number {
+    const n = parseInt(
+      this.config.get<string>('CBETA_COVERAGE_LIST_MAX_CHARS') ||
+        process.env.CBETA_COVERAGE_LIST_MAX_CHARS ||
+        '',
+      10,
+    );
+    if (Number.isFinite(n) && n > 0) return n;
+    return this.contextCharBudget();
+  }
+
   async retrieve(
     question: string,
     decision: CbetaRouteDecision,

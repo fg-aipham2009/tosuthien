@@ -42,6 +42,8 @@ export function resolveAnthropicMessagesUrl(chatBaseUrl: string): string {
 export class AiConfigService {
   private readonly logger = new Logger(AiConfigService.name);
   private cached: AiConfig | null = null;
+  /** Round-robin cursor across HHTECH keys (spread spend evenly). */
+  private hhtechRr = 0;
 
   constructor(private readonly config: ConfigService) {}
 
@@ -64,13 +66,25 @@ export class AiConfigService {
       (embedKey !== shopKey ? `${shopBase}/v1` : 'https://api.openai.com/v1');
 
     const provider = (
-      this.config.get<string>('CHAT_PROVIDER') || 'shopaikey'
+      this.config.get<string>('CHAT_PROVIDER') || 'hhtech'
     ).toLowerCase() as ChatProvider;
     const defaultModel =
       this.config.get<string>('CHAT_MODEL') || 'claude-opus-5-5';
 
-    const primary = this.resolveEndpoint(provider, defaultModel, shopKey, shopBase);
-    const endpoints: ChatEndpoint[] = [primary];
+    const endpoints: ChatEndpoint[] = [];
+    const seenKeys = new Set<string>();
+    const pushEndpoints = (eps: ChatEndpoint[]) => {
+      for (const ep of eps) {
+        const id = `${ep.provider}:${ep.apiKey}`;
+        if (seenKeys.has(id)) continue;
+        seenKeys.add(id);
+        endpoints.push(ep);
+      }
+    };
+
+    pushEndpoints(
+      this.resolveEndpoints(provider, defaultModel, shopKey, shopBase),
+    );
 
     const fallbackRaw = (
       this.config.get<string>('CHAT_FALLBACK_PROVIDER') ||
@@ -79,18 +93,22 @@ export class AiConfigService {
     )
       .toLowerCase()
       .trim();
-    const seen = new Set<ChatProvider>([primary.provider]);
     for (const part of fallbackRaw.split(/[,+|]/).map((s) => s.trim())) {
-      if (!part || !this.isChatProvider(part) || seen.has(part)) continue;
+      if (!part || !this.isChatProvider(part)) continue;
       try {
-        endpoints.push(
-          this.resolveEndpoint(part, defaultModel, shopKey, shopBase),
+        pushEndpoints(
+          this.resolveEndpoints(part, defaultModel, shopKey, shopBase),
         );
-        seen.add(part);
       } catch {
         // Missing fallback credentials — skip.
       }
     }
+    if (!endpoints.length) {
+      throw new ServiceUnavailableException(
+        'No chat endpoints configured (check CHAT_PROVIDER / API keys)',
+      );
+    }
+    const primary = endpoints[0];
 
     const rawModel =
       this.config.get<string>('EMBEDDING_MODEL') || REQUIRED_EMBEDDING_MODEL;
@@ -113,7 +131,29 @@ export class AiConfigService {
       chatEndpoints: endpoints,
     };
 
+    const hhCount = endpoints.filter((e) => e.provider === 'hhtech').length;
+    if (hhCount > 1) {
+      this.logger.log(
+        `HHTECH chat keys loaded: ${hhCount} (round-robin for even spend)`,
+      );
+    }
+
     return this.cached;
+  }
+
+  /**
+   * Chat endpoints with HHTECH keys rotated round-robin so traffic (and cost)
+   * is spread evenly. Other providers keep their relative order.
+   */
+  orderedChatEndpoints(): ChatEndpoint[] {
+    const eps = this.get().chatEndpoints;
+    const hh = eps.filter((e) => e.provider === 'hhtech');
+    const rest = eps.filter((e) => e.provider !== 'hhtech');
+    if (hh.length <= 1) return eps;
+    const start = this.hhtechRr++ % hh.length;
+    const rotated = [...hh.slice(start), ...hh.slice(0, start)];
+    if (eps[0]?.provider === 'hhtech') return [...rotated, ...rest];
+    return [...rest, ...rotated];
   }
 
   /**
@@ -191,25 +231,50 @@ export class AiConfigService {
     return cleaned;
   }
 
-  private resolveEndpoint(
+  /**
+   * HHTECH keys for chat answers: HHTECH_API_KEYS (comma/newline) plus
+   * HHTECH_API_KEY. Order is preserved; duplicates dropped.
+   */
+  private hhtechApiKeys(): string[] {
+    const multi =
+      this.config.get<string>('HHTECH_API_KEYS') ||
+      process.env.HHTECH_API_KEYS ||
+      '';
+    const single =
+      this.config.get<string>('HHTECH_API_KEY') ||
+      process.env.HHTECH_API_KEY ||
+      '';
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const raw of `${multi}\n${single}`.split(/[\n,|;]+/)) {
+      const k = raw.trim();
+      if (!k.startsWith('sk-') || seen.has(k)) continue;
+      seen.add(k);
+      out.push(k);
+    }
+    return out;
+  }
+
+  /** One or more endpoints (hhtech expands to one endpoint per key). */
+  private resolveEndpoints(
     provider: ChatProvider,
     defaultModel: string,
     shopKey: string,
     shopBase: string,
-  ): ChatEndpoint {
+  ): ChatEndpoint[] {
     const model = this.modelFor(provider, defaultModel);
 
     if (provider === 'hhtech') {
-      const apiKey = this.config.get<string>('HHTECH_API_KEY') ?? '';
+      const keys = this.hhtechApiKeys();
       const baseUrl = (
         this.config.get<string>('HHTECH_BASE_URL') || 'https://hhtechapi.com/v1'
       ).replace(/\/$/, '');
-      if (!apiKey) {
+      if (!keys.length) {
         throw new ServiceUnavailableException(
-          'CHAT_PROVIDER=hhtech nhưng thiếu HHTECH_API_KEY trong .env',
+          'CHAT_PROVIDER=hhtech nhưng thiếu HHTECH_API_KEY / HHTECH_API_KEYS trong .env',
         );
       }
-      return { provider, apiKey, baseUrl, model };
+      return keys.map((apiKey) => ({ provider, apiKey, baseUrl, model }));
     }
 
     if (provider === 'nexus') {
@@ -223,7 +288,7 @@ export class AiConfigService {
           'CHAT_PROVIDER=nexus nhưng thiếu NEXUS_API_KEY trong .env',
         );
       }
-      return { provider, apiKey, baseUrl, model };
+      return [{ provider, apiKey, baseUrl, model }];
     }
 
     if (provider === 'flare') {
@@ -241,7 +306,7 @@ export class AiConfigService {
           'CHAT_PROVIDER=flare nhưng thiếu FLARE_API_KEY trong .env',
         );
       }
-      return { provider, apiKey, baseUrl, model };
+      return [{ provider, apiKey, baseUrl, model }];
     }
 
     if (!shopKey) {
@@ -249,11 +314,13 @@ export class AiConfigService {
         'Thiếu SHOPAIKEY_API_KEY trong .env',
       );
     }
-    return {
-      provider: 'shopaikey',
-      apiKey: shopKey,
-      baseUrl: shopBase,
-      model,
-    };
+    return [
+      {
+        provider: 'shopaikey',
+        apiKey: shopKey,
+        baseUrl: shopBase,
+        model,
+      },
+    ];
   }
 }

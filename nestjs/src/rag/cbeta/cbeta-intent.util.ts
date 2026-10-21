@@ -5,7 +5,7 @@
 
 /** Explicit list / patriarch enumerate (deep scan). */
 const LIST_ENUM_RE =
-  /liệt\s*kê|danh\s*sách|các\s*vị\s*tổ|những\s*vị\s*tổ|ngũ\s*gia|thất\s*tông|truyền\s*thừa.*(liệt|danh)|enumerate|list\s+all|西天.*祖|東土.*祖|二十八祖|歷代祖師/i;
+  /liệt\s*kê|kể\s*tên|danh\s*sách|các\s*vị\s*tổ|những\s*vị\s*tổ|tổ\s*sư.{0,40}truyền\s*đăng|truyền\s*đăng.{0,40}(tổ|liệt|kể|danh)|ngũ\s*gia|thất\s*tông|truyền\s*thừa.*(liệt|danh|kể)|enumerate|list\s+all|list\s+(the\s+)?(chan\s+|zen\s+)?patriarchs?|patriarchs?\s+in\s+the|transmission\s+of\s+the\s+lamp|西天.*祖|東土.*祖|二十八祖|歷代祖師|傳燈錄.*祖|列出.*祖/i;
 
 /** "toàn bộ" only when clearly listing lineage / masters. */
 const TOAN_BO_LINEAGE_RE =

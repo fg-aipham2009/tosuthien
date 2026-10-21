@@ -4,6 +4,7 @@ import {
   type CoverageEntity,
 } from './cbeta-entity.util';
 import { detectCbetaAnswerLang } from './cbeta-intent.util';
+import { formatMasterDisplayName } from './cbeta-name-display.util';
 
 /**
  * Canonical 西天二十八祖 forms as commonly listed in lamp chronologies.
@@ -52,17 +53,61 @@ export const DONGDU_PATRIARCHS = [
   '慧能',
 ] as const;
 
+/**
+ * Match canonical lineage form to an extracted entity (exact, suffix, or
+ * shorter attested form). Prefer higher count, then longer nameZh.
+ */
+function findPresentEntity(
+  canonical: string,
+  entities: CoverageEntity[],
+  byName: Map<string, CoverageEntity>,
+): CoverageEntity | undefined {
+  const exact = byName.get(canonical);
+  if (exact) return exact;
+  let best: CoverageEntity | undefined;
+  for (const e of entities) {
+    const n = e.nameZh;
+    if (
+      n === canonical ||
+      n.endsWith(canonical) ||
+      (canonical.endsWith(n) && n.length >= 2)
+    ) {
+      if (
+        !best ||
+        e.count > best.count ||
+        (e.count === best.count && n.length > best.nameZh.length)
+      ) {
+        best = e;
+      }
+    }
+  }
+  return best;
+}
+
 function pickPresentInOrder(
   canonical: readonly string[],
+  entities: CoverageEntity[],
   byName: Map<string, CoverageEntity>,
 ): CoverageEntity[] {
   const out: CoverageEntity[] = [];
-  const seen = new Set<string>();
+  const seenExact = new Set<string>();
+  const seenForms = new Set<string>();
   for (const name of canonical) {
-    const hit = byName.get(name);
-    if (!hit || seen.has(hit.nameZh)) continue;
-    seen.add(hit.nameZh);
-    out.push(hit);
+    const hit = findPresentEntity(name, entities, byName);
+    if (!hit) continue;
+    if (seenExact.has(hit.nameZh) || seenForms.has(name)) continue;
+    // Prefer longer form already listed (摩訶迦葉 ⊃ 迦葉) — do not emit both.
+    if (
+      [...seenForms].some(
+        (s) => s !== name && (s.endsWith(name) || name.endsWith(s)),
+      )
+    ) {
+      continue;
+    }
+    seenExact.add(hit.nameZh);
+    seenForms.add(name);
+    // Always show the canonical lineage form (Sino-Viet / EN maps keys).
+    out.push({ ...hit, nameZh: name });
   }
   return out;
 }
@@ -99,16 +144,22 @@ export function formatCbetaCoverageListAnswer(
 ): string {
   const lang = detectCbetaAnswerLang(question);
   const works = worksScanned.join(', ') || '(—)';
+  // Lineage can use single attestations; appendix needs stronger signal
+  // (repeat mentions) so one-off dialogue fragments do not dump thousands of rows.
   const filtered = filterCoverageEntities(entities);
+  const appendixPool = filterCoverageEntities(entities, { minCount: 2 });
   const byName = new Map(filtered.map((e) => [e.nameZh, e]));
 
-  const xitian = pickPresentInOrder(XITIAN_PATRIARCHS, byName);
-  const dongdu = pickPresentInOrder(DONGDU_PATRIARCHS, byName);
+  const xitian = pickPresentInOrder(XITIAN_PATRIARCHS, filtered, byName);
+  const dongdu = pickPresentInOrder(DONGDU_PATRIARCHS, filtered, byName);
   const inLineage = new Set([
     ...xitian.map((e) => e.nameZh),
     ...dongdu.map((e) => e.nameZh),
+    // Also hide short aliases that were folded into a canonical lineage row.
+    ...XITIAN_PATRIARCHS.filter((n) => xitian.some((e) => e.nameZh === n || e.nameZh.endsWith(n) || n.endsWith(e.nameZh))),
+    ...DONGDU_PATRIARCHS.filter((n) => dongdu.some((e) => e.nameZh === n || e.nameZh.endsWith(n) || n.endsWith(e.nameZh))),
   ]);
-  const appendix = filtered.filter((e) => !inLineage.has(e.nameZh));
+  const appendix = appendixPool.filter((e) => !inLineage.has(e.nameZh));
 
   const lines: string[] = [];
   const used = { n: 0 };
@@ -119,16 +170,16 @@ export function formatCbetaCoverageListAnswer(
   const rem =
     lang === 'zh' ? remZh : lang === 'en' ? remEn : remVi;
 
+  const lineOf = (e: CoverageEntity, i: number) =>
+    `${i + 1}. ${formatMasterDisplayName(e.nameZh, lang)}`;
+
   if (lang === 'zh') {
     if (xitian.length) {
       appendLines(
         lines,
         used,
         maxChars,
-        [
-          'A. 西天：',
-          ...xitian.map((e, i) => `${i + 1}. ${e.nameZh}`),
-        ],
+        ['A. 西天：', ...xitian.map(lineOf)],
         rem,
       );
     }
@@ -137,10 +188,7 @@ export function formatCbetaCoverageListAnswer(
         lines,
         used,
         maxChars,
-        [
-          'B. 東土：',
-          ...dongdu.map((e, i) => `${i + 1}. ${e.nameZh}`),
-        ],
+        ['B. 東土：', ...dongdu.map(lineOf)],
         rem,
       );
     }
@@ -149,10 +197,7 @@ export function formatCbetaCoverageListAnswer(
         lines,
         used,
         maxChars,
-        [
-          'C. 其他名號（按頻次）：',
-          ...appendix.map((e, i) => `${i + 1}. ${e.nameZh}`),
-        ],
+        ['C. 其他名號（按頻次）：', ...appendix.map(lineOf)],
         rem,
       );
     }
@@ -162,10 +207,7 @@ export function formatCbetaCoverageListAnswer(
         lines,
         used,
         maxChars,
-        [
-          'A. Western lineage (西天):',
-          ...xitian.map((e, i) => `${i + 1}. ${e.nameZh}`),
-        ],
+        ['A. Western lineage (西天):', ...xitian.map(lineOf)],
         rem,
       );
     }
@@ -174,10 +216,7 @@ export function formatCbetaCoverageListAnswer(
         lines,
         used,
         maxChars,
-        [
-          'B. Eastern / China lineage (東土):',
-          ...dongdu.map((e, i) => `${i + 1}. ${e.nameZh}`),
-        ],
+        ['B. Eastern / China lineage (東土):', ...dongdu.map(lineOf)],
         rem,
       );
     }
@@ -186,10 +225,7 @@ export function formatCbetaCoverageListAnswer(
         lines,
         used,
         maxChars,
-        [
-          'C. Other names by frequency:',
-          ...appendix.map((e, i) => `${i + 1}. ${e.nameZh}`),
-        ],
+        ['C. Other names by frequency:', ...appendix.map(lineOf)],
         rem,
       );
     }
@@ -199,10 +235,7 @@ export function formatCbetaCoverageListAnswer(
         lines,
         used,
         maxChars,
-        [
-          'A. Tây Thiên (西天):',
-          ...xitian.map((e, i) => `${i + 1}. ${e.nameZh}`),
-        ],
+        ['A. Tây Thiên (西天):', ...xitian.map(lineOf)],
         rem,
       );
     }
@@ -211,10 +244,7 @@ export function formatCbetaCoverageListAnswer(
         lines,
         used,
         maxChars,
-        [
-          'B. Đông Độ (東土):',
-          ...dongdu.map((e, i) => `${i + 1}. ${e.nameZh}`),
-        ],
+        ['B. Đông Độ (東土):', ...dongdu.map(lineOf)],
         rem,
       );
     }
@@ -223,10 +253,7 @@ export function formatCbetaCoverageListAnswer(
         lines,
         used,
         maxChars,
-        [
-          'C. Phụ lục tên khác (theo tần suất):',
-          ...appendix.map((e, i) => `${i + 1}. ${e.nameZh}`),
-        ],
+        ['C. Phụ lục tên khác (theo tần suất):', ...appendix.map(lineOf)],
         rem,
       );
     }
@@ -238,7 +265,7 @@ export function formatCbetaCoverageListAnswer(
       lines,
       used,
       maxChars,
-      filtered.map((e, i) => `${i + 1}. ${e.nameZh}`),
+      filtered.map(lineOf),
       rem,
     );
   }

@@ -11,8 +11,8 @@
     "prisma:generate": "prisma generate",
     "prisma:pull": "prisma db pull",
     "prisma:studio": "prisma studio",
-    "test": "tsx --test src/rag/cbeta/*.test.ts",
-    "test:cbeta": "tsx --test src/rag/cbeta/*.test.ts",
+    "test": "tsx --test src/rag/cbeta/*.test.ts src/rag/ai-config*.test.ts",
+    "test:cbeta": "tsx --test src/rag/cbeta/*.test.ts src/rag/ai-config*.test.ts",
     "smoke:cbeta-demo": "tsx scripts/smoke-cbeta-demo.ts"
   },
   "dependencies": {

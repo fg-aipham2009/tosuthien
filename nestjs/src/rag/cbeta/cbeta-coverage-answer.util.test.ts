@@ -26,8 +26,10 @@ describe('formatCbetaCoverageListAnswer', () => {
     assert.match(text, /Đông Độ|東土/);
     assert.doesNotMatch(text, /諸佛/);
     assert.doesNotMatch(text, /比丘/);
-    assert.match(text, /迦葉/);
-    assert.match(text, /慧能/);
+    // VI answers: Sino-Viet + Hán; longer alias wins (摩訶迦葉 ⊃ 迦葉).
+    assert.match(text, /Ma-ha Ca-diếp \(摩訶迦葉\)|Ca-diếp \(迦葉\)/);
+    assert.match(text, /Huệ Năng \(慧能\)/);
+    assert.doesNotMatch(text, /今請|州白雲祥|莫便是/);
     assert.match(text, /【AI diễn giải】/);
     const gate = assertCbetaAnswerLang(text, 'vi');
     assert.equal(gate.ok, true, gate.reason);
@@ -54,6 +56,7 @@ describe('formatCbetaCoverageListAnswer', () => {
     );
     assert.match(text, /West|India|Western|East|China|lineage|Patriarch/i);
     assert.doesNotMatch(text, /諸佛/);
+    assert.match(text, /Kāśyapa \(迦葉\)|Huineng \(慧能\)/);
     const gate = assertCbetaAnswerLang(text, 'en');
     assert.equal(gate.ok, true, gate.reason);
   });
@@ -94,6 +97,7 @@ describe('formatCbetaCoverageListAnswer', () => {
         { nameZh: '迦葉', count: 9, works: ['T51n2076'] },
         { nameZh: '趙州', count: 4, works: ['T51n2076'] },
         { nameZh: '諸佛', count: 99, works: ['T51n2076'] },
+        { nameZh: '問如何是', count: 50, works: ['T51n2076'] },
       ],
       ['T51n2076'],
       50_000,
@@ -102,12 +106,13 @@ describe('formatCbetaCoverageListAnswer', () => {
     assert.match(text, /Phụ lục/);
     assert.match(text, /趙州/);
     assert.doesNotMatch(text, /諸佛/);
-    // Both aliases may appear only once each in order; 摩訶迦葉 before 迦葉 if both present.
+    assert.doesNotMatch(text, /問如何是/);
+    // Longer form wins — do not list both 摩訶迦葉 and 迦葉.
     const xitianBlock = text.slice(
       text.indexOf('A. Tây Thiên'),
       text.indexOf('C. Phụ lục'),
     );
-    assert.match(xitianBlock, /摩訶迦葉/);
-    assert.match(xitianBlock, /迦葉/);
+    assert.match(xitianBlock, /Ma-ha Ca-diếp \(摩訶迦葉\)/);
+    assert.doesNotMatch(xitianBlock, /Ca-diếp \(迦葉\)/);
   });
 });

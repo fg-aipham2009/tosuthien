@@ -1,0 +1,113 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-hhtech-cbeta-probe",
+    "name": "HHTech Claude Probe",
+    "description": "Probe hhtech Anthropic-compatible /v1/messages (non-stream + stream). Use environment \"HHTech Local\".",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "model",
+      "value": "claude-opus-5-5"
+    }
+  ],
+  "item": [
+    {
+      "name": "Messages — non-stream",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiKey}}"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "anthropic-version",
+            "value": "2023-06-01"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"model\": \"{{model}}\",\n  \"max_tokens\": 32,\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"Say hi in 3 words\" }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/v1/messages",
+        "description": "Expect JSON with content[].text. Fail if api_error / 502-xxxxx."
+      },
+      "response": []
+    },
+    {
+      "name": "Messages — stream",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiKey}}"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "anthropic-version",
+            "value": "2023-06-01"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "text/event-stream"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"model\": \"{{model}}\",\n  \"max_tokens\": 32,\n  \"stream\": true,\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"Say hi in 3 words\" }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/v1/messages",
+        "description": "SSE: content_block_delta = OK. event error + Mã lỗi 502-xxxxx = gateway fail."
+      },
+      "response": []
+    },
+    {
+      "name": "Messages — CBETA-style short VI",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiKey}}"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "anthropic-version",
+            "value": "2023-06-01"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"model\": \"{{model}}\",\n  \"max_tokens\": 256,\n  \"system\": \"Trả lời ngắn bằng tiếng Việt.\",\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"Thiền là gì? Trả lời 2 câu.\" }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/v1/messages",
+        "description": "Smoke gần câu CBETA vi-simple (không RAG)."
+      },
+      "response": []
+    }
+  ]
+}

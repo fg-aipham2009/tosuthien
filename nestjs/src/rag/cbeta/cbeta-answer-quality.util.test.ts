@@ -78,6 +78,17 @@ describe('assertCbetaAnswerLang', () => {
     assert.equal(r.ok, false);
   });
 
+  it('rejects English body after VI prefill even with Giáo môn parentheses', () => {
+    const text =
+      'PHẦN 1\n\nThiền (禪), theo ngữ cảnh CBETA dưới đây, the doctrinal (Giáo môn) view with its four dhyanas versus Patriarchal Chan (Tổ Sư Thiền).';
+    const r = assertCbetaAnswerLang(text, 'vi');
+    assert.equal(r.ok, false);
+    assert.ok(
+      r.reason === 'en_lead_in_vi' || r.reason === 'missing_vi_marks',
+      r.reason,
+    );
+  });
+
   it('accepts English content after PART 1 prefill', () => {
     const text =
       'PART 1\n\nChan (禪), according to the CBETA passages below, means dhyāna as stillness and deliberation.';
@@ -212,5 +223,46 @@ describe('stripLeadingMetaPlanning', () => {
       'en',
     );
     assert.match(cleaned, /^first covering/i);
+  });
+
+  it('drops EN structure scaffolding and Vietnamese labels', () => {
+    const cleaned = stripLeadingMetaPlanning(
+      'a synthesis section, then an "AI interpretation" section distinguishing doctrinal (Giáo môn) perspectives from Zen lineage (Tổ Sư Thiền). Chan means dhyāna as stillness and deliberation.',
+      'en',
+    );
+    assert.match(cleaned, /^Chan means/i);
+    assert.doesNotMatch(cleaned, /Giáo môn|Tổ Sư/);
+    const gate = assertCbetaAnswerLang(
+      'PART 1\n\nChan (禪), according to the CBETA passages below, ' + cleaned,
+      'en',
+    );
+    assert.equal(gate.ok, true, gate.reason);
+  });
+
+  it('drops I-should-also-note CoT before Chan content', () => {
+    const cleaned = stripLeadingMetaPlanning(
+      "I should also note that Bodhidharma's four-phrase formula is sometimes mistakenly tied to the fifth paramita when it's actually about prajna (per Yang Renshan). Chan means meditative absorption as stillness and deliberation.",
+      'en',
+    );
+    assert.match(cleaned, /^Chan means/i);
+    assert.equal(isMetaPlanningOpener(cleaned), false);
+    const gate = assertCbetaAnswerLang(
+      'PART 1\n\nChan (禪), according to the CBETA passages below, ' + cleaned,
+      'en',
+    );
+    assert.equal(gate.ok, true, gate.reason);
+  });
+
+  it('drops first-a-synthesis and English-pulling openers', () => {
+    const cleaned = stripLeadingMetaPlanning(
+      'first a synthesis distinguishing the doctrinal school versus patriarch Chan perspectives without citations. Chan means dhyāna as quiet contemplation.',
+      'en',
+    );
+    assert.match(cleaned, /^Chan means/i);
+    const cleaned2 = stripLeadingMetaPlanning(
+      'English, pulling together the etymology of Chan as dhyāna. Chan is also called correct concentration.',
+      'en',
+    );
+    assert.match(cleaned2, /^Chan is|^Chan means/i);
   });
 });
