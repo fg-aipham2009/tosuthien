@@ -1,0 +1,31 @@
+id,group,status,latency_ms,reason,question
+IND01,I,PASS,26052,juan/ref/heading,"Trong T51n2076, cbeta_ref p.0256c07 thuộc quyển mấy và mục nào?"
+IND02,I,PASS,8999,first5_hits=5/5,Liệt kê đúng 5 tên đầu 見錄 của mục 馬祖法嗣 五十六人 trong 景德傳燈錄.
+IND03,I,PASS,6773,name=呂后山寧賁禪師,13 người 無機緣語句不錄 trong mục 馬祖法嗣 五十六人 — tên cuối cùng là ai?
+IND04,I,PASS,8604,name=龐蘊 expect_in=recorded,襄州居士龐蘊 có thuộc nhóm 見錄 (43 người) của 馬祖法嗣 không?
+IND05,I,PASS,7425,name=天目山明覺禪師 expect_in=norec,天目山明覺禪師 thuộc 見錄 hay 不錄 trong mục 56 pháp tự Mã Tổ?
+IND06,I,PASS,16488,code=True title=True,Xác nhận work_code của 續傳燈錄 trong kho đã index.
+IND07,I,PASS,8654,code=True title=True,X80n1565 tên Hán là gì?
+IND08,I,PASS,8467,code=True title=True,傳法正宗記 mã kinh trong kho này?
+IND09,I,PASS,40139,,大寂禪師 có phải cùng một người với 馬祖道一 không? Dẫn nguồn.
+IND10,I,PASS,53215,,淨影慧遠 và 廬山慧遠 có phải một người không?
+IND11,I,PASS,60353,edge=黃檗->臨濟,Cạnh truyền thừa 黃檗希運 → 臨濟義玄: có bằng chứng CBETA không?
+IND12,I,PASS,70162,edge=百丈->黃檗,Cạnh 百丈懷海 → 黃檗希運 cần citation work_code.
+IND13,I,PASS,22181,denial,Có đoạn 「假造完全不存在的傳法句XYZ」 trong T51n2076 không?
+IND14,I,PASS,30196,denial,Thiền sư FakeMaster999 có trong 馬祖法嗣 không?
+IND15,I,PASS,11032,denial,Giải thích T00n0000 quyển 1 về Lâm Tế.
+IND16,I,PASS,33221,"cjk=['百丈', '馬祖']",Bách Trượng Hoài Hải theo CBETA là pháp tự của ai?
+IND17,I,PASS,42277,"cjk=['趙州', '南泉']",Triệu Châu Tùng Thẩm thầy là ai theo truyền đăng?
+IND18,I,PASS,10860,work_code=T51n2076,Tìm 南泉普願 trong 景德傳燈錄 — cho work_code và ref nếu có.
+IND19,I,PASS,41365,,雪峯義存 và 雪峰義存 có phải cùng một dị thể chữ không?
+IND20,I,PASS,9866,x78=True wrong2077=False,"Trong kho index, 天聖廣燈錄 khác T51n2077 như thế nào?"
+IND21,I,PASS,7279,rec=43 norec=13,Liệt kê số người 見錄 vs 不錄 trong mục 馬祖法嗣 五十六人.
+IND22,I,PASS,3621,name=亮坐主,洪州西山亮坐主 có trong 56 pháp tự Mã Tổ không?
+IND23,I,PASS,24830,name=龜洋無了 expect_in=recorded,泉州龜洋無了禪師 thuộc nhóm nào trong 56?
+IND24,I,PASS,5005,work_code=X86n1601,Không dùng kiến thức ngoài: chỉ nói work_code đã index của 禪燈世譜.
+IND25,I,PASS,46230,edge=慧能->懷讓,Huệ Năng → Hoài Nhượng: nêu một citation CBETA cụ thể.
+IND26,I,PASS,7917,rec=43 norec=13,Có phải mọi pháp tự Mã Tổ đều có ngữ lục 見錄 không?
+IND27,I,PASS,10944,"works=['T51n2076', 'T51n2078']",Đối chiếu: 臨濟義玄 xuất hiện trong T51n2076 và T51n2078 — nêu work_code.
+IND28,I,PASS,7249,56_not_100,Câu hỏi đánh lừa: 馬祖法嗣 có đúng 100 người trong T51n2076 mục 五十六人 không?
+IND29,I,PASS,46707,denial,Trích dẫn có thật nhưng lệch: khẳng định 南泉 là pháp tự của 石頭希遷 theo T51n2076 — đúng/sai?
+IND30,I,PASS,7292,rec=43,Stability probe: 馬祖法嗣 五十六人 có bao nhiêu người 見錄?

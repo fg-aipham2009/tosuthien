@@ -17,14 +17,60 @@ describe('coverageTitleHintRegex', () => {
     assert.equal(coverageTitleHintRegex('景德傳燈錄祖師'), '景德傳燈');
   });
 
+  it('narrows bare "theo truyền đăng" to Jingde (not 7 *傳燈* works)', () => {
+    assert.equal(
+      coverageTitleHintRegex('Kể tên các tổ sư Thiền theo truyền đăng'),
+      '景德傳燈',
+    );
+    assert.equal(coverageTitleHintRegex('tổ sư truyền đăng'), '景德傳燈');
+    const re = new RegExp(
+      coverageTitleHintRegex('theo truyền đăng')!,
+      'u',
+    );
+    const titles = [
+      '景德傳燈錄',
+      '續傳燈錄',
+      '增集續傳燈錄',
+      '傳燈玉英集（殘卷）',
+      '續傳燈錄目錄',
+      '東域傳燈目錄',
+      '日本佛教目錄學的形成——以《東域傳燈錄》為中心',
+    ];
+    assert.deepEqual(
+      titles.filter((t) => re.test(t)),
+      ['景德傳燈錄'],
+    );
+  });
+
   it('uses 續傳燈 when user asks tục truyền đăng', () => {
     assert.equal(coverageTitleHintRegex('tục truyền đăng lục'), '續傳燈');
     assert.equal(coverageTitleHintRegex('續傳燈錄'), '續傳燈');
   });
 
-  it('maps ngũ đăng / chỉ nguyệt', () => {
-    assert.equal(coverageTitleHintRegex('liệt kê trong ngũ đăng hội nguyên'), '五燈');
+  it('maps ngũ đăng / chỉ nguyệt / phổ đăng / thế phổ', () => {
+    assert.equal(
+      coverageTitleHintRegex('liệt kê trong ngũ đăng hội nguyên'),
+      '五燈會元',
+    );
     assert.equal(coverageTitleHintRegex('chỉ nguyệt lục'), '指月');
+    assert.equal(
+      coverageTitleHintRegex('Gia Thái Phổ Đăng Lục'),
+      '嘉泰普燈錄',
+    );
+    assert.equal(coverageTitleHintRegex('Thiền Đăng Thế Phổ'), '禪燈世譜');
+  });
+
+  it('prefers Ngũ Đăng over Jingde when both words appear', () => {
+    assert.equal(
+      coverageTitleHintRegex(
+        'Liệt kê pháp tự Dương Kỳ theo Ngũ Đăng Hội Nguyên / truyền đăng CBETA',
+      ),
+      '五燈會元',
+    );
+    assert.equal(
+      coverageTitleHintRegex('五燈會元與傳燈錄祖師'),
+      '五燈會元',
+    );
   });
 
   it('returns null when no specific chronicle named', () => {
@@ -81,6 +127,18 @@ describe('enrichCbetaSearchZh', () => {
   it('leaves ordinary questions unchanged', () => {
     const { searchZh } = enrichCbetaSearchZh('thiền là gì', '禪 靜慮', []);
     assert.equal(searchZh, '禪 靜慮');
+  });
+
+  it('does not dump full lamp bag when user already named a work_code', () => {
+    const { searchZh, keywords } = enrichCbetaSearchZh(
+      'Trong T51n2076 nói gì về Tổ sư truyền pháp?',
+      '祖師 傳法',
+      ['T51n2076'],
+    );
+    assert.doesNotMatch(searchZh, /五燈會元/);
+    assert.doesNotMatch(searchZh, /指月錄/);
+    assert.ok(keywords.includes('傳法') || /傳法/.test(searchZh));
+    assert.ok(keywords.includes('T51n2076'));
   });
 });
 

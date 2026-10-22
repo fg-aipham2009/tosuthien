@@ -14,6 +14,10 @@ export function stripCbetaAnswerPrefill(text: string): string {
     .replace(/^Dưới đây là các vị tổ trong phạm vi đã quét:\s*/i, '')
     .replace(/^以下依已掃範圍列出祖師：\s*/i, '')
     .replace(/^Patriarchs in the scanned scope:\s*/i, '')
+    .replace(/^Theo các đoạn CBETA dưới đây,\s*/i, '')
+    .replace(/^According to the CBETA passages below,\s*/i, '')
+    .replace(/^根據下列 CBETA 段落，\s*/u, '')
+    // Legacy prefills (still strip if older streams / cached prompts appear).
     .replace(/^Thiền\s*\(禪\),\s*theo ngữ cảnh CBETA dưới đây,\s*/i, '')
     .replace(
       /^Chan\s*\(禪\),\s*according to the CBETA passages below,\s*/i,
@@ -256,9 +260,10 @@ export function sanitizeCbetaAnswer(
 }
 
 function cbetaAnswerPrefillBodyCue(lang: CbetaAnswerLang): string {
-  if (lang === 'zh') return '禪（定慧之學）在本段 CBETA 語境中，';
-  if (lang === 'en') return 'Chan (禪), according to the CBETA passages below, ';
-  return 'Thiền (禪), theo ngữ cảnh CBETA dưới đây, ';
+  // Neutral cue — do not force a “what is Chan?” gloss on every answer.
+  if (lang === 'zh') return '根據下列 CBETA 段落，';
+  if (lang === 'en') return 'According to the CBETA passages below, ';
+  return 'Theo các đoạn CBETA dưới đây, ';
 }
 
 /**
@@ -272,14 +277,14 @@ export function cbetaAnswerPrefill(
   if (lang === 'zh') {
     return coverageList
       ? '第一部分\n\n以下依已掃範圍列出祖師：\n\n'
-      : '第一部分\n\n禪（定慧之學）在本段 CBETA 語境中，';
+      : '第一部分\n\n根據下列 CBETA 段落，';
   }
   if (lang === 'en') {
     return coverageList
       ? 'PART 1\n\nPatriarchs in the scanned scope:\n\n'
-      : 'PART 1\n\nChan (禪), according to the CBETA passages below, ';
+      : 'PART 1\n\nAccording to the CBETA passages below, ';
   }
   return coverageList
     ? 'PHẦN 1\n\nDưới đây là các vị tổ trong phạm vi đã quét:\n\n'
-    : 'PHẦN 1\n\nThiền (禪), theo ngữ cảnh CBETA dưới đây, ';
+    : 'PHẦN 1\n\nTheo các đoạn CBETA dưới đây, ';
 }

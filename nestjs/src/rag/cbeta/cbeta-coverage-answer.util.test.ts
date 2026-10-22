@@ -62,19 +62,39 @@ describe('formatCbetaCoverageListAnswer', () => {
   });
 
   it('respects maxChars budget without inventing a fixed row cap', () => {
-    const many = Array.from({ length: 200 }, (_, i) => ({
-      nameZh: `名${String.fromCharCode(0x4e00 + i)}${String.fromCharCode(0x4e01 + (i % 10))}`,
-      count: 200 - i,
+    const many = Array.from({ length: 80 }, (_, i) => ({
+      nameZh: `山${String.fromCharCode(0x5fb7 + (i % 20))}${String.fromCharCode(0x6d77 + (i % 15))}`,
+      count: 80 - i,
       works: ['T51n2076'],
     }));
     const text = formatCbetaCoverageListAnswer(
-      'liệt kê tổ',
+      '列出傳燈錄祖師',
       many,
       ['T51n2076'],
       120,
     );
-    assert.match(text, /còn \d+ tên|phụ lục/i);
+    assert.match(text, /尚有 \d+ 名|其他名號/);
     assert.ok(text.length < 800);
+  });
+
+  it('Vietnamese answers never leave bare-Hán appendix rows', () => {
+    const text = formatCbetaCoverageListAnswer(
+      'Liệt kê các vị tổ trong truyền đăng lục',
+      [
+        { nameZh: '慧能', count: 6, works: ['T51n2076'] },
+        { nameZh: '菩提達磨', count: 8, works: ['T51n2076'] },
+        { nameZh: '藥山惟儼', count: 5, works: ['T51n2076'] },
+        { nameZh: '行思', count: 9, works: ['T51n2076'] },
+        { nameZh: '青原行思', count: 4, works: ['T51n2076'] },
+      ],
+      ['T51n2076'],
+      0,
+    );
+    assert.match(text, /Dược Sơn Duy Nghiễm \(藥山惟儼\)/);
+    assert.match(text, /Thanh Nguyên Hành Tư \(青原行思\)|Hành Tư \(行思\)/);
+    // No bare CJK-only numbered row like "1. 藥山惟儼"
+    assert.doesNotMatch(text, /^\d+\.\s*[\u4e00-\u9fff]+$/m);
+    assert.doesNotMatch(text, /còn \d+ tên/);
   });
 
   it('does not invent lineage names absent from entities', () => {

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "AFTER_HEART",
+    "elapsed_s": 31.61,
+    "cite_count": 1,
+    "cite_works": [
+      "X26n0567"
+    ],
+    "gate": true,
+    "findings": [],
+    "qualify": false,
+    "claim_n": 18,
+    "answer_head": "PHẦN 1\n\nTheo các đoạn CBETA dưới đây, Không. Theo các đoạn CBETA tìm được, \"sắc tức là không, không tức là sắc\" không có nghĩa là mọi thứ đều không tồn tại. Bản chú giải trong ngữ cảnh còn phê phán rõ cả cách hiểu \"thật có\" lẫn cách hiểu \"rơi vào không\".\n\n### 1. Nguyên văn kinh (原文)\n\nTrong Bát-nhã Ba-la-mật-đa Tâm Kinh (được dẫn trong bản chú), câu này nằm trong mạch sau:\n\n- Bồ-tát Quán Tự Tại khi",
+    "cites": [
+      {
+        "work": "X26n0567",
+        "ref": "0929c14",
+        "title": "般若心經如是經義"
+      }
+    ]
+  },
+  {
+    "id": "AFTER_DIAMOND",
+    "elapsed_s": 33.34,
+    "cite_count": 1,
+    "cite_works": [
+      "X15n0299"
+    ],
+    "gate": true,
+    "findings": [],
+    "qualify": false,
+    "claim_n": 18,
+    "answer_head": "PHẦN 1\n\nTheo các đoạn CBETA dưới đây, Không. Trong phạm vi CBETA của lượt này, câu ấy không được giải thích là \"không suy nghĩ, không làm gì\". Chú giải truy được dùng câu này để chỉ tâm không bám vào đối tượng (所), và việc lìa bám ấy là một quá trình tu tập có thứ lớp.\n\nLưu ý về nguồn: ngữ cảnh chỉ có một đoạn từ \"Lăng Nghiêm Kinh Giảng Lục\" (楞嚴經講錄), do Thích Thừa Thời (釋乘旹) đời Minh giảng. Đây là",
+    "cites": [
+      {
+        "work": "X15n0299",
+        "ref": "0081c17",
+        "title": "楞嚴經講錄"
+      }
+    ]
+  },
+  {
+    "id": "AFTER_LOTUS",
+    "elapsed_s": 42.53,
+    "cite_count": 1,
+    "cite_works": [
+      "X33n0625"
+    ],
+    "gate": true,
+    "findings": [],
+    "qualify": false,
+    "claim_n": 18,
+    "answer_head": "PHẦN 1\n\nTheo các đoạn CBETA dưới đây, ## Nguyên văn kinh (原文)\n\nTrong ngữ cảnh đã truy xuất, câu「唯有一佛乘」xuất hiện ở phần kệ tụng cuối phẩm Hóa Thành Dụ (化城喻品) của Diệu Pháp Liên Hoa Kinh, được dẫn lại trong bộ chú «Pháp Hoa Kinh Diễn Nghĩa». Đoạn kinh liên quan như sau:\n\n「諸佛方便力，分別說三乘，唯有一佛乘，息處故說二。今為汝說實，汝所得非滅，為佛一切智，當發大精進。」\n\n## Văn nghĩa (文義)\n\nDịch sát theo câu kinh:\n\n- Chư Phật dùng sức phương tiện (方",
+    "cites": [
+      {
+        "work": "X33n0625",
+        "ref": "0171b03",
+        "title": "法華經演義"
+      }
+    ]
+  }
+]

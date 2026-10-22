@@ -3,9 +3,17 @@
  * Keep in sync with router — bare "toàn bộ kinh sách" is NOT coverage.
  */
 
-/** Explicit list / patriarch enumerate (deep scan). */
+import { isCbetaPersonRelationQuestion } from './cbeta-person-relation.util';
+import { isCbetaSchoolLineageQuestion } from './cbeta-school-lineage.util';
+
+export { isCbetaPersonRelationQuestion } from './cbeta-person-relation.util';
+
+/**
+ * Explicit list / patriarch enumerate (deep scan).
+ * Do NOT use 傳燈錄.*祖 — that false-positives on 馬祖 inside 景德傳燈錄…馬祖法嗣.
+ */
 const LIST_ENUM_RE =
-  /liệt\s*kê|kể\s*tên|danh\s*sách|các\s*vị\s*tổ|những\s*vị\s*tổ|tổ\s*sư.{0,40}truyền\s*đăng|truyền\s*đăng.{0,40}(tổ|liệt|kể|danh)|ngũ\s*gia|thất\s*tông|truyền\s*thừa.*(liệt|danh|kể)|enumerate|list\s+all|list\s+(the\s+)?(chan\s+|zen\s+)?patriarchs?|patriarchs?\s+in\s+the|transmission\s+of\s+the\s+lamp|西天.*祖|東土.*祖|二十八祖|歷代祖師|傳燈錄.*祖|列出.*祖/i;
+  /liệt\s*kê|kể\s*tên|danh\s*sách|các\s*vị\s*tổ|những\s*vị\s*tổ|tổ\s*sư.{0,40}truyền\s*đăng|truyền\s*đăng.{0,40}(tổ\s*sư|liệt|kể|danh)|ngũ\s*gia|thất\s*tông|truyền\s*thừa.*(liệt|danh|kể)|enumerate|list\s+all|list\s+(the\s+)?(chan\s+|zen\s+)?patriarchs?|patriarchs?\s+in\s+the|transmission\s+of\s+the\s+lamp|西天.*祖|東土.*祖|二十八祖|歷代祖師|傳燈錄.*(祖師|二十八|歷代|西天|東土)|列出.*祖/i;
 
 /** "toàn bộ" only when clearly listing lineage / masters. */
 const TOAN_BO_LINEAGE_RE =
@@ -101,9 +109,106 @@ export function cbetaAnswerLangBrief(lang: CbetaAnswerLang): string {
  * Deep coverage / lamp multi-pass only for real list-enumerate intents.
  * "yếu chỉ của toàn bộ kinh sách… tóm gọn" → false (fast retrieve).
  */
+/**
+ * Heading / disciple-register questions (馬祖法嗣 五十六人) — not global coverage.
+ * Bare 法嗣 alone is NOT enough (matches many unrelated lamp passages).
+ */
+/** Latin / clearly invented names — never force the Mazu-56 section dump. */
+const FABRICATION_PROBE_RE =
+  /完全虛構|假造|XYZABC|T99n9999|T88n8888|ABCDEF|FakeMaster\d*|hư\s*cấu|không\s*tồn\s*tại/i;
+
+/**
+ * Cues that the user means the Jingde 馬祖法嗣 五十六人 register
+ * (Hán or Vietnamese "Mã Tổ" / "56 pháp tự").
+ */
+export function isCbetaMazu56RegisterCue(question: string): boolean {
+  const q = (question || '').trim();
+  if (!q) return false;
+  if (/五十六人|第二世下|馬祖法嗣|懷讓禪師第二世|無機緣語句/u.test(q)) {
+    return true;
+  }
+  // Vietnamese: "56 pháp tự Mã Tổ", "pháp tự của Mã Tổ", …
+  if (
+    /(?:56|năm\s*mươi\s*sáu).{0,24}pháp\s*tự/i.test(q) ||
+    /pháp\s*tự.{0,24}(?:56|Mã\s*Tổ|馬祖)/i.test(q) ||
+    /Mã\s*Tổ.{0,40}(?:56|pháp\s*tự|見錄|不錄)/i.test(q) ||
+    /(?:見錄|不錄).{0,40}Mã\s*Tổ/i.test(q)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function isCbetaSectionListIntent(question: string): boolean {
+  const q = (question || '').trim();
+  if (!q) return false;
+  // Absence / fabrication probes must use normal retrieve + LLM denial path.
+  if (FABRICATION_PROBE_RE.test(q)) {
+    return false;
+  }
+  // Strong Mazu-56 / heading cues (Hán + VI).
+  if (isCbetaMazu56RegisterCue(q)) {
+    return true;
+  }
+  if (
+    /見錄|不錄/u.test(q) &&
+    /馬祖|五十六|第二世|懷讓|Mã\s*Tổ|liệt|danh\s*sách|pháp\s*tự/i.test(q)
+  ) {
+    return true;
+  }
+  if (
+    /tìm\s*mục|mục\s*:|heading/i.test(q) &&
+    /五十六|馬祖法嗣|懷讓|第二世|Mã\s*Tổ/u.test(q)
+  ) {
+    return true;
+  }
+  if (
+    /(liệt\s*kê|kể\s*tên|danh\s*sách|trích\s*xuất).{0,80}(馬祖法嗣|五十六|見錄|Mã\s*Tổ)/i.test(
+      q,
+    )
+  ) {
+    return true;
+  }
+  // Membership checks against the 56-person Mazu register.
+  if (
+    /(龐蘊|鄧隱峯|無業|汾州|天目山明覺|明覺禪師).{0,48}(danh\s*sách|56|馬祖|法嗣|五十六|見錄|不錄|pháp\s*tự)/i.test(
+      q,
+    ) ||
+    /(danh\s*sách|56|馬祖法嗣|五十六|見錄|不錄).{0,48}(龐蘊|鄧隱峯|無業|汾州|天目山明覺)/i.test(
+      q,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Named Chan-school succession (五家: 曹洞/臨濟/雲門/溈仰/法眼).
+ * Must NOT use global coverage entity dump (西天/東土 + frequency appendix).
+ */
+export function isCbetaSchoolLineageIntent(question: string): boolean {
+  return isCbetaSchoolLineageQuestion(question);
+}
+
+/** Dharma successors / 法嗣 of one named person — not document-wide coverage. */
+export function isCbetaPersonRelationIntent(question: string): boolean {
+  const q = (question || '').trim();
+  if (!q) return false;
+  if (isCbetaSectionListIntent(q)) return false;
+  if (isCbetaSchoolLineageIntent(q)) return false;
+  return isCbetaPersonRelationQuestion(q);
+}
+
 export function isCbetaCoverageIntent(question: string): boolean {
   const q = (question || '').trim();
   if (!q) return false;
+  // Section / heading register lists use a dedicated retrieve+format path.
+  if (isCbetaSectionListIntent(q)) return false;
+  // School-specific succession → hybrid + LLM lineage (not coverage dump).
+  if (isCbetaSchoolLineageIntent(q)) return false;
+  // One person's 法嗣 / successors — never 西天/東土 entity dump.
+  if (isCbetaPersonRelationIntent(q)) return false;
   // Summary / essence questions must stay on fast path.
   if (isCbetaBriefQuestion(q) && !LIST_ENUM_RE.test(q)) {
     return false;

@@ -1,5 +1,6 @@
 import http from './http'
 import { API_BASE } from '../config'
+import { compressCbetaWireHistory } from '../lib/cbetaWireHistory'
 import type { ChatCitation, ChatMessage } from '../types'
 
 export type CbetaCollection = {
@@ -79,7 +80,8 @@ export async function askCbetaStream(
 ): Promise<void> {
   const body = {
     question,
-    messages: history.map((m) => ({ role: m.role, content: m.content })),
+    // Stub prior turns (not full dumps) — see compressCbetaWireHistory.
+    messages: compressCbetaWireHistory(history),
     ...(collections?.length ? { collections } : {}),
   }
 

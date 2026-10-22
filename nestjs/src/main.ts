@@ -2,6 +2,7 @@ import cluster from 'node:cluster';
 import os from 'node:os';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
 Object.defineProperty(BigInt.prototype, 'toJSON', {
@@ -24,8 +25,20 @@ function workerCount(): number {
   return Math.min(Math.max(os.cpus().length, 1), 2);
 }
 
+/** Express default is ~100kb; CBETA chat can POST prior turns with long dumps. */
+function jsonBodyLimit(): string {
+  const raw = process.env.JSON_BODY_LIMIT?.trim();
+  return raw || '2mb';
+}
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    // Replace default ~100kb parsers so CBETA history POSTs do not 413.
+    bodyParser: false,
+  });
+  const limit = jsonBodyLimit();
+  app.useBodyParser('json', { limit });
+  app.useBodyParser('urlencoded', { limit, extended: true });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({

@@ -5,6 +5,8 @@ import {
   detectCbetaAnswerLang,
   isCbetaBriefQuestion,
   isCbetaCoverageIntent,
+  isCbetaSchoolLineageIntent,
+  isCbetaSectionListIntent,
 } from './cbeta-intent.util';
 
 describe('detectCbetaAnswerLang', () => {
@@ -80,6 +82,89 @@ describe('isCbetaCoverageIntent', () => {
 
   it('keeps ordinary questions on non-coverage', () => {
     assert.equal(isCbetaCoverageIntent('thiền là gì'), false);
+  });
+
+  it('does not false-positive 景德傳燈錄…馬祖 as coverage', () => {
+    assert.equal(
+      isCbetaCoverageIntent(
+        'Trong 景德傳燈錄 (T51n2076), tìm mục: 懷讓禪師第二世下五十六人（馬祖法嗣）',
+      ),
+      false,
+    );
+  });
+
+  it('does not treat fabrication probes as coverage', () => {
+    assert.equal(
+      isCbetaCoverageIntent(
+        'Thiền sư 「完全虛構禪師甲乙丙」 có phải pháp tự của 馬祖道一 không?',
+      ),
+      false,
+    );
+  });
+});
+
+describe('isCbetaSectionListIntent (hallucination probes)', () => {
+  it('rejects fabrication probes even if they contain 法嗣', () => {
+    assert.equal(
+      isCbetaSectionListIntent(
+        'Thiền sư 「完全虛構禪師甲乙丙」 có phải pháp tự của 馬祖道一 trong T51n2076 không?',
+      ),
+      false,
+    );
+    assert.equal(
+      isCbetaSectionListIntent(
+        'Trong phạm vi CBETA đã index, có đoạn 「假造禪師虛雲二世法嗣完全虛構句」 không?',
+      ),
+      false,
+    );
+  });
+
+  it('keeps Mazu-56 membership questions on section path', () => {
+    assert.equal(
+      isCbetaSectionListIntent('龐蘊 cư sĩ có trong danh sách 56 không?'),
+      true,
+    );
+    assert.equal(
+      isCbetaSectionListIntent('鄧隱峯 có trong danh sách không?'),
+      true,
+    );
+  });
+
+  it('detects Vietnamese Mazu-56 / 見錄 cues and rejects FakeMaster', () => {
+    assert.equal(
+      isCbetaSectionListIntent(
+        '天目山明覺禪師 thuộc 見錄 hay 不錄 trong mục 56 pháp tự Mã Tổ?',
+      ),
+      true,
+    );
+    assert.equal(
+      isCbetaSectionListIntent(
+        'Có phải mọi pháp tự Mã Tổ đều có ngữ lục 見錄 không?',
+      ),
+      true,
+    );
+    assert.equal(
+      isCbetaSectionListIntent(
+        'Thiền sư FakeMaster999 có trong 馬祖法嗣 không?',
+      ),
+      false,
+    );
+  });
+});
+
+describe('isCbetaSchoolLineageIntent / coverage exclusion', () => {
+  it('routes Tào Động succession off global coverage dump', () => {
+    const q =
+      'liệt kê các vị tổ theo dòng truyền thừa của tông tào động giúp tôi';
+    assert.equal(isCbetaSchoolLineageIntent(q), true);
+    assert.equal(isCbetaCoverageIntent(q), false);
+  });
+
+  it('keeps bare patriarch-list coverage on', () => {
+    assert.equal(
+      isCbetaCoverageIntent('Liệt kê các vị tổ trong truyền đăng lục'),
+      true,
+    );
   });
 });
 

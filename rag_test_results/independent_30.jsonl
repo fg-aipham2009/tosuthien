@@ -1,0 +1,30 @@
+{"id":"IND01","group":"I","question":"Trong T51n2076, cbeta_ref p.0256c07 thuộc quyển mấy và mục nào?","criteria":"juan 8 + 馬祖法嗣/五十六人","has_ground_truth":true,"ground_truth":{"juan":8,"ref":"0256c07","heading_needles":["五十六人","馬祖法嗣"]}}
+{"id":"IND02","group":"I","question":"Liệt kê đúng 5 tên đầu 見錄 của mục 馬祖法嗣 五十六人 trong 景德傳燈錄.","criteria":"first5 GT","has_ground_truth":true,"ground_truth":{"first5":["汾州無業禪師","澧州大同廣澄禪師","池州南泉普願禪師","五臺鄧隱峯禪師","溫州佛嶴和尚"]}}
+{"id":"IND03","group":"I","question":"13 người 無機緣語句不錄 trong mục 馬祖法嗣 五十六人 — tên cuối cùng là ai?","criteria":"呂后山寧賁禪師","has_ground_truth":true,"ground_truth":{"name":"呂后山寧賁禪師"}}
+{"id":"IND04","group":"I","question":"襄州居士龐蘊 có thuộc nhóm 見錄 (43 người) của 馬祖法嗣 không?","criteria":"yes in recorded","has_ground_truth":true,"ground_truth":{"name":"龐蘊","expect_in":"recorded"}}
+{"id":"IND05","group":"I","question":"天目山明覺禪師 thuộc 見錄 hay 不錄 trong mục 56 pháp tự Mã Tổ?","criteria":"不錄","has_ground_truth":true,"ground_truth":{"name":"天目山明覺禪師","expect_in":"norec"}}
+{"id":"IND06","group":"I","question":"Xác nhận work_code của 續傳燈錄 trong kho đã index.","criteria":"T51n2077","has_ground_truth":true,"ground_truth":{"work_code":"T51n2077","title":"續傳燈錄"}}
+{"id":"IND07","group":"I","question":"X80n1565 tên Hán là gì?","criteria":"五燈會元","has_ground_truth":true,"ground_truth":{"work_code":"X80n1565","title":"五燈會元"}}
+{"id":"IND08","group":"I","question":"傳法正宗記 mã kinh trong kho này?","criteria":"T51n2078","has_ground_truth":true,"ground_truth":{"work_code":"T51n2078","title":"傳法正宗記"}}
+{"id":"IND09","group":"I","question":"大寂禪師 có phải cùng một người với 馬祖道一 không? Dẫn nguồn.","criteria":"same person","has_ground_truth":true,"ground_truth":{"same":true,"needles":["大寂","馬祖"]}}
+{"id":"IND10","group":"I","question":"淨影慧遠 và 廬山慧遠 có phải một người không?","criteria":"different","has_ground_truth":true,"ground_truth":{"different":true}}
+{"id":"IND11","group":"I","question":"Cạnh truyền thừa 黃檗希運 → 臨濟義玄: có bằng chứng CBETA không?","criteria":"edge evidence","has_ground_truth":true,"ground_truth":{"edge":["黃檗","臨濟"]}}
+{"id":"IND12","group":"I","question":"Cạnh 百丈懷海 → 黃檗希運 cần citation work_code.","criteria":"edge+cite","has_ground_truth":true,"ground_truth":{"edge":["百丈","黃檗"]}}
+{"id":"IND13","group":"I","question":"Có đoạn 「假造完全不存在的傳法句XYZ」 trong T51n2076 không?","criteria":"deny","has_ground_truth":true,"ground_truth":{"expect_absent":true}}
+{"id":"IND14","group":"I","question":"Thiền sư FakeMaster999 có trong 馬祖法嗣 không?","criteria":"deny","has_ground_truth":true,"ground_truth":{"expect_absent":true}}
+{"id":"IND15","group":"I","question":"Giải thích T00n0000 quyển 1 về Lâm Tế.","criteria":"invalid work","has_ground_truth":true,"ground_truth":{"invalid":true,"work":"T00n0000"}}
+{"id":"IND16","group":"I","question":"Bách Trượng Hoài Hải theo CBETA là pháp tự của ai?","criteria":"馬祖/道一","has_ground_truth":true,"ground_truth":{"cjk":["百丈","馬祖"]}}
+{"id":"IND17","group":"I","question":"Triệu Châu Tùng Thẩm thầy là ai theo truyền đăng?","criteria":"南泉","has_ground_truth":true,"ground_truth":{"cjk":["趙州","南泉"]}}
+{"id":"IND18","group":"I","question":"Tìm 南泉普願 trong 景德傳燈錄 — cho work_code và ref nếu có.","criteria":"T51n2076 + 南泉","has_ground_truth":true,"ground_truth":{"work_code":"T51n2076","cjk":"南泉"}}
+{"id":"IND19","group":"I","question":"雪峯義存 và 雪峰義存 có phải cùng một dị thể chữ không?","criteria":"same variant","has_ground_truth":true,"ground_truth":{"same_variant":true}}
+{"id":"IND20","group":"I","question":"Trong kho index, 天聖廣燈錄 khác T51n2077 như thế nào?","criteria":"X78 vs 續傳燈","has_ground_truth":true,"ground_truth":{"tiansheng":"X78n1553","not":"T51n2077"}}
+{"id":"IND21","group":"I","question":"Liệt kê số người 見錄 vs 不錄 trong mục 馬祖法嗣 五十六人.","criteria":"43 vs 13","has_ground_truth":true,"ground_truth":{"rec":43,"norec":13}}
+{"id":"IND22","group":"I","question":"洪州西山亮坐主 có trong 56 pháp tự Mã Tổ không?","criteria":"yes","has_ground_truth":true,"ground_truth":{"name":"亮坐主"}}
+{"id":"IND23","group":"I","question":"泉州龜洋無了禪師 thuộc nhóm nào trong 56?","criteria":"見錄","has_ground_truth":true,"ground_truth":{"name":"龜洋無了","expect_in":"recorded"}}
+{"id":"IND24","group":"I","question":"Không dùng kiến thức ngoài: chỉ nói work_code đã index của 禪燈世譜.","criteria":"X86n1601","has_ground_truth":true,"ground_truth":{"work_code":"X86n1601"}}
+{"id":"IND25","group":"I","question":"Huệ Năng → Hoài Nhượng: nêu một citation CBETA cụ thể.","criteria":"edge+cite","has_ground_truth":true,"ground_truth":{"edge":["慧能","懷讓"]}}
+{"id":"IND26","group":"I","question":"Có phải mọi pháp tự Mã Tổ đều có ngữ lục 見錄 không?","criteria":"no — 13 不錄","has_ground_truth":true,"ground_truth":{"rec":43,"norec":13}}
+{"id":"IND27","group":"I","question":"Đối chiếu: 臨濟義玄 xuất hiện trong T51n2076 và T51n2078 — nêu work_code.","criteria":"both works","has_ground_truth":true,"ground_truth":{"works":["T51n2076","T51n2078"]}}
+{"id":"IND28","group":"I","question":"Câu hỏi đánh lừa: 馬祖法嗣 có đúng 100 người trong T51n2076 mục 五十六人 không?","criteria":"deny 100; affirm 56","has_ground_truth":true,"ground_truth":{"not_100":true,"is_56":true}}
+{"id":"IND29","group":"I","question":"Trích dẫn có thật nhưng lệch: khẳng định 南泉 là pháp tự của 石頭希遷 theo T51n2076 — đúng/sai?","criteria":"reject false lineage","has_ground_truth":true,"ground_truth":{"false_claim":true}}
+{"id":"IND30","group":"I","question":"Stability probe: 馬祖法嗣 五十六人 có bao nhiêu người 見錄?","criteria":"43","has_ground_truth":true,"ground_truth":{"rec":43}}

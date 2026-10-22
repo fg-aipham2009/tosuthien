@@ -1,0 +1,101 @@
+id,group,status,latency_ms,reason,metrics
+TEST01,A,PASS,1683,work=True title=True heading=True loc=True,{}
+TEST02,E,PASS,287,,"{""found"": 56, ""total_gt"": 56, ""missed"": 0, ""precision"": 1.0, ""recall"": 1.0, ""f1"": 1.0, ""found_names"": [""汾州無業禪師"", ""澧州大同廣澄禪師"", ""池州南泉普願禪師"", ""五臺鄧隱峯禪師"", ""溫州佛嶴和尚"", ""烏臼和尚"", ""潭州石霜山大善和尚"", ""石臼和尚"", ""本谿和尚"", ""石林和尚"", ""洪州西山亮坐主"", ""黑眼和尚"", ""米嶺和尚"", ""齊峯和尚"", ""大陽和尚"", ""紅螺山和尚"", ""泉州龜洋無了禪師"", ""利山和尚"", ""韶州乳源和尚"", ""松山和尚"", ""則川和尚"", ""南嶽西園曇藏禪師"", ""百靈和尚"", ""鎮州金牛和尚"", ""洞安和尚"", ""忻州打地和尚"", ""潭州秀谿和尚"", ""磁州馬頭峯神藏禪師"", ""潭州華林善覺禪師"", ""汀州水塘和尚"", ""古寺和尚"", ""江西椑樹和尚"", ""京兆草堂和尚"", ""袁州陽岐山甄叔禪師"", ""濛谿和尚"", ""洛京黑㵎和尚"", ""京兆興平和尚"", ""逍遙和尚"", ""福谿和尚"", ""洪州水老和尚"", ""浮杯和尚"", ""潭州龍山和尚"", ""襄州居士龐蘊"", ""天目山明覺禪師"", ""王屋山行明禪師"", ""京兆智藏禪師"", ""大陽山希頂禪師"", ""蘇州崑山定覺禪師"", ""隨州洪山大師"", ""連州元堤禪師"", ""泉州無了禪師"", ""泉州慧忠禪師"", ""安豐山懷空禪師"", ""羅浮山道行禪師"", ""廬山法藏禪師"", ""呂后山寧賁禪師""], ""mentions_recorded_split"": true}"
+TEST03,C,PASS,42880,diff=True mazu=True,{}
+TEST04,D,PASS,69830,,"{""edges_hit"": 5}"
+TEST05,A,PASS,39917,citations=68,"{""citation_count"": 68}"
+TEST06a,G,PASS,16405,denied absence/invalid,{}
+TEST06b,G,PASS,8624,denied absence/invalid,{}
+TEST06c,G,UNVERIFIED,6589,no specific grader matched,{}
+TEST07,F,PASS,7675,correct work mapping signal,{}
+TEST08_1,H,PASS,3467,"key-fact-tuple consistency=True tuples=[(True, True, True, True, True), (True, True, True, True, True), (True, True, True, True, True)]",{}
+TEST08_2,H,PASS,3118,"key-fact-tuple consistency=True tuples=[(True, True, True, True, True), (True, True, True, True, True), (True, True, True, True, True)]",{}
+TEST08_3,H,PASS,3185,"key-fact-tuple consistency=True tuples=[(True, True, True, True, True), (True, True, True, True, True), (True, True, True, True, True)]",{}
+A02,A,UNVERIFIED,1602,no verified ground truth for scoring,{}
+A03,A,UNVERIFIED,54186,no verified ground truth for scoring,{}
+A04,A,UNVERIFIED,375,no verified ground truth for scoring,{}
+A05,A,UNVERIFIED,25172,no verified ground truth for scoring,{}
+A06,A,UNVERIFIED,21215,no verified ground truth for scoring,{}
+A07,A,UNVERIFIED,5042,no specific grader matched,{}
+A08,A,UNVERIFIED,832,no verified ground truth for scoring,{}
+A09,A,UNVERIFIED,1291,no specific grader matched,{}
+A10,A,UNVERIFIED,1027,no specific grader matched,{}
+A11,A,UNVERIFIED,52383,no verified ground truth for scoring,{}
+A12,A,UNVERIFIED,53405,no verified ground truth for scoring,{}
+A13,A,UNVERIFIED,99514,no verified ground truth for scoring,{}
+A14,A,UNVERIFIED,46431,no verified ground truth for scoring,{}
+B01,B,PASS,58595,expect CJK 慧能 in answer,{}
+B02,B,PASS,59748,expect CJK 百丈 in answer,{}
+B03,B,PASS,62862,expect CJK 黃檗 in answer,{}
+B04,B,PASS,58130,expect CJK 臨濟 in answer,{}
+B05,B,PASS,31035,expect CJK 懷讓 in answer,{}
+B06,B,PASS,58988,expect CJK 大寂 in answer,{}
+B07,B,UNVERIFIED,58788,no verified ground truth for scoring,{}
+B08,B,PASS,41372,expect CJK 青原行思 in answer,{}
+B09,B,PASS,49419,expect CJK 藥山 in answer,{}
+B10,B,PASS,92524,expect CJK 雲門 in answer,{}
+C01,C,PASS,33797,,{}
+C02,C,UNVERIFIED,49509,,{}
+C03,C,PASS,47443,,{}
+C04,C,UNVERIFIED,46625,no verified ground truth for scoring,{}
+C05,C,PASS,44718,,{}
+C06,C,UNVERIFIED,76010,,{}
+C07,C,UNVERIFIED,54032,,{}
+C08,C,UNVERIFIED,20289,,{}
+C09,C,UNVERIFIED,48043,no verified ground truth for scoring,{}
+C10,C,PASS,40623,,{}
+C11,C,UNVERIFIED,36980,no verified ground truth for scoring,{}
+C12,C,PASS,52218,,{}
+C13,C,UNVERIFIED,41928,no verified ground truth for scoring,{}
+C14,C,PASS,60627,,{}
+D01,D,UNVERIFIED,61405,no specific grader matched,{}
+D02,D,UNVERIFIED,33150,no specific grader matched,{}
+D03,D,UNVERIFIED,36731,no specific grader matched,{}
+D04,D,UNVERIFIED,47722,no specific grader matched,{}
+D05,D,UNVERIFIED,53996,no specific grader matched,{}
+D06,D,UNVERIFIED,49816,no specific grader matched,{}
+D07,D,UNVERIFIED,46138,no specific grader matched,{}
+D08,D,UNVERIFIED,34792,no verified ground truth for scoring,{}
+D09,D,UNVERIFIED,39703,no specific grader matched,{}
+D10,D,UNVERIFIED,42432,no specific grader matched,{}
+D11,D,UNVERIFIED,34894,no verified ground truth for scoring,{}
+D12,D,UNVERIFIED,32773,no verified ground truth for scoring,{}
+D13,D,UNVERIFIED,49504,no verified ground truth for scoring,{}
+D14,D,UNVERIFIED,32233,no verified ground truth for scoring,{}
+E01,E,UNVERIFIED,4719,no specific grader matched,{}
+E02,E,UNVERIFIED,4014,no verified ground truth for scoring,{}
+E03,E,PASS,36181,,{}
+E04,E,PASS,302,,"{""hits"": 5}"
+E05,E,PASS,10342,,{}
+E06,E,PASS,267,,{}
+E07,E,UNVERIFIED,339,no specific grader matched,{}
+E08,E,UNVERIFIED,2661,no verified ground truth for scoring,{}
+E09,E,UNVERIFIED,6113,no verified ground truth for scoring,{}
+E10,E,UNVERIFIED,334,no specific grader matched,{}
+E11,E,UNVERIFIED,20938,no specific grader matched,{}
+E12,E,PASS,275,,{}
+E13,E,PASS,277,,{}
+E14,E,UNVERIFIED,16412,no specific grader matched,{}
+F01,F,UNVERIFIED,35116,no verified ground truth for scoring,{}
+F02,F,PASS,2832,expect code X78n1553,{}
+F03,F,PASS,29511,,{}
+F04,F,UNVERIFIED,54570,no verified ground truth for scoring,{}
+F05,F,UNVERIFIED,33266,no verified ground truth for scoring,{}
+F06,F,UNVERIFIED,52663,no verified ground truth for scoring,{}
+F07,F,UNVERIFIED,28665,no verified ground truth for scoring,{}
+F08,F,UNVERIFIED,60776,no verified ground truth for scoring,{}
+F09,F,UNVERIFIED,28247,no verified ground truth for scoring,{}
+G01,G,PASS,43557,denied absence/invalid,{}
+G02,G,PASS,1596,denied absence/invalid,{}
+G03,G,PASS,34973,denied absence/invalid,{}
+G04,G,UNVERIFIED,789,no specific grader matched,{}
+G05,G,PASS,16883,denied absence/invalid,{}
+G06,G,PASS,11302,denied absence/invalid,{}
+G07,G,PASS,39692,denied absence/invalid,{}
+H01,H,UNVERIFIED,75479,no verified ground truth for scoring,{}
+H02,H,UNVERIFIED,33881,no verified ground truth for scoring,{}
+H03,H,UNVERIFIED,78644,no verified ground truth for scoring,{}
+H04,H,UNVERIFIED,10346,no verified ground truth for scoring,{}
+H05,H,BLOCKED,0,{'message': 'empty question skipped'},{}
+H06,H,UNVERIFIED,15215,no verified ground truth for scoring,{}
+H07,H,UNVERIFIED,1158,no verified ground truth for scoring,{}

@@ -4,7 +4,11 @@ import {
   type CoverageEntity,
 } from './cbeta-entity.util';
 import { detectCbetaAnswerLang } from './cbeta-intent.util';
-import { formatMasterDisplayName } from './cbeta-name-display.util';
+import {
+  formatMasterDisplayName,
+  hasMasterDisplayName,
+  type NameDisplayLang,
+} from './cbeta-name-display.util';
 
 /**
  * Canonical 西天二十八祖 forms as commonly listed in lamp chronologies.
@@ -156,10 +160,30 @@ export function formatCbetaCoverageListAnswer(
     ...xitian.map((e) => e.nameZh),
     ...dongdu.map((e) => e.nameZh),
     // Also hide short aliases that were folded into a canonical lineage row.
-    ...XITIAN_PATRIARCHS.filter((n) => xitian.some((e) => e.nameZh === n || e.nameZh.endsWith(n) || n.endsWith(e.nameZh))),
-    ...DONGDU_PATRIARCHS.filter((n) => dongdu.some((e) => e.nameZh === n || e.nameZh.endsWith(n) || n.endsWith(e.nameZh))),
+    ...XITIAN_PATRIARCHS.filter((n) =>
+      xitian.some(
+        (e) =>
+          e.nameZh === n || e.nameZh.endsWith(n) || n.endsWith(e.nameZh),
+      ),
+    ),
+    ...DONGDU_PATRIARCHS.filter((n) =>
+      dongdu.some(
+        (e) =>
+          e.nameZh === n || e.nameZh.endsWith(n) || n.endsWith(e.nameZh),
+      ),
+    ),
   ]);
-  const appendix = appendixPool.filter((e) => !inLineage.has(e.nameZh));
+  // VI/EN: only names we can show localized (no bare-Hán rows mixed in).
+  // ZH: keep Hán frequency appendix. Always emit the full filtered set (no
+  // mid-list “còn N tên” unless caller passes a positive maxChars).
+  const displayLang = lang as NameDisplayLang;
+  const appendix = dedupeAppendixByPersonalName(
+    appendixPool.filter((e) => {
+      if (inLineage.has(e.nameZh)) return false;
+      if (lang === 'zh') return true;
+      return hasMasterDisplayName(e.nameZh, displayLang);
+    }),
+  );
 
   const lines: string[] = [];
   const used = { n: 0 };
@@ -261,13 +285,11 @@ export function formatCbetaCoverageListAnswer(
 
   // Fallback: no lineage hits — plain filtered frequency list.
   if (!lines.length && filtered.length) {
-    appendLines(
-      lines,
-      used,
-      maxChars,
-      filtered.map(lineOf),
-      rem,
-    );
+    const fallback =
+      lang === 'zh'
+        ? filtered
+        : filtered.filter((e) => hasMasterDisplayName(e.nameZh, displayLang));
+    appendLines(lines, used, maxChars, fallback.map(lineOf), rem);
   }
 
   const body = lines.join('\n');
@@ -281,14 +303,44 @@ export function formatCbetaCoverageListAnswer(
         '名單由 CBETA 原文擷取後過濾常見虛名，可能仍含異名／殘片；請以原典卷次核對。';
       break;
     case 'en':
-      part1 = `Names from scanned works (${works}). Western/Eastern lineage sections list only names attested in the extract; appendix is frequency-ranked (not a critical edition chart):\n\n${body}`;
+      part1 = `Names from scanned works (${works}). Western/Eastern lineage sections list only names attested in the extract; appendix lists localized names (English gloss when known, else Latin reading + Chinese characters), frequency-ranked, full list:\n\n${body}`;
       part2 =
-        'Filtered from CBETA text; may still include variants or fragments — verify against the source juan.';
+        'Filtered from CBETA text; verify against the source juan.';
       break;
     default:
-      part1 = `Các tên trong phạm vi đã quét (${works}). Mục Tây Thiên / Đông Độ chỉ gồm tên có trong trích xuất; phụ lục xếp theo tần suất (chưa phải niên phổ phê bình):\n\n${body}`;
+      part1 = `Các tên trong phạm vi đã quét (${works}). Mục Tây Thiên / Đông Độ chỉ gồm tên có trong trích xuất; phụ lục chỉ gồm tên đã chuyển Hán-Việt (đủ danh, xếp theo tần suất — chưa phải niên phổ phê bình):\n\n${body}`;
       part2 =
-        'Đã lọc các hư danh thường gặp; vẫn có thể lẫn dị danh / mảnh chữ — cần đối chiếu đúng quyển.';
+        'Mọi dòng tên phụ lục đều có dạng tiếng Việt + Hán trong ngoặc; đối chiếu thêm với đúng quyển CBETA nếu cần.';
   }
   return `${part1}\n\n${AI_INTERPRETATION_MARKER}\n${part2}`;
+}
+
+/**
+ * Collapse 行思 / 青原行思 / 原山行思 style duplicates: keep the best form
+ * per personal-name tail (last 2 chars), preferring longer + higher count.
+ */
+function dedupeAppendixByPersonalName(
+  entities: CoverageEntity[],
+): CoverageEntity[] {
+  const byTail = new Map<string, CoverageEntity>();
+  for (const e of entities) {
+    const n = e.nameZh;
+    if (n.length < 2) continue;
+    const tail = n.slice(-2);
+    const prev = byTail.get(tail);
+    if (!prev) {
+      byTail.set(tail, e);
+      continue;
+    }
+    const prefer =
+      n.length > prev.nameZh.length ||
+      (n.length === prev.nameZh.length && e.count > prev.count) ||
+      (hasMasterDisplayName(n, 'vi') &&
+        !hasMasterDisplayName(prev.nameZh, 'vi'));
+    if (prefer) byTail.set(tail, e);
+  }
+  return [...byTail.values()].sort(
+    (a, b) =>
+      b.count - a.count || a.nameZh.localeCompare(b.nameZh, 'zh'),
+  );
 }

@@ -18,6 +18,31 @@ export interface CbetaRouteDecision {
    * Deep retrieve then seeds from CBETA_COVERAGE_TITLE_REGEX / DEEP_MAX_WORKS.
    */
   coverageMode: boolean;
+  /**
+   * True for heading-scoped register lists (e.g. 馬祖法嗣 五十六人).
+   * Uses section retrieve + ordered parse — not global 西天/東土 coverage.
+   */
+  sectionListMode: boolean;
+  /**
+   * True for named 五家 school succession (曹洞/臨濟/…).
+   * Hybrid retrieve + evidence-first LLM — not coverage entity dump.
+   */
+  schoolLineageMode: boolean;
+  /**
+   * True for Dharma successors / 法嗣 of one focal person.
+   * Locator/phrase retrieve + scoped list — not document-wide coverage.
+   */
+  personRelationMode: boolean;
+  /**
+   * True when verifying whether a quotation / teaching appears in CBETA.
+   * Phrase-first retrieve — not coverage dump.
+   */
+  quoteVerifyMode: boolean;
+  /**
+   * True for scripture explanation / gloss / doctrinal “does X mean Y?” questions.
+   * Phrase-aware retrieve + grounding brief — not coverage dump.
+   */
+  scriptureExplainMode: boolean;
   /** Factual route summary (path + filters). Actual scan list comes from retrieve. */
   scopeNote: string;
   reasons: string[];

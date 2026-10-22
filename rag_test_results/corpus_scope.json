@@ -1,0 +1,28 @@
+{
+  "health_http": 200,
+  "health": {
+    "ok": true,
+    "configured": true,
+    "works": 4985,
+    "chunks": 256168,
+    "embeddings": 256168
+  },
+  "health_ms": 787,
+  "indexed_works_sample": {
+    "T51n2076": "景德傳燈錄",
+    "T51n2077": "續傳燈錄",
+    "T51n2078": "傳法正宗記",
+    "X78n1553": "天聖廣燈錄",
+    "X80n1565": "五燈會元",
+    "X86n1601": "禪燈世譜"
+  },
+  "api_base": "http://127.0.0.1:8000/api",
+  "started_at": "2026-10-21T17:35:39.535433+00:00",
+  "qa_runtime_notes": {
+    "removed_dead_key_prefix": "sk-28f62a57f",
+    "chat_model": "claude-opus-5-5",
+    "primary_key_prefix": "sk-6465f4b5",
+    "cbeta_chat_timeout_ms": 240000,
+    "no_production_rag_code_changes": true
+  }
+}

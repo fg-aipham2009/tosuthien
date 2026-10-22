@@ -128,15 +128,17 @@ describe('shouldBufferCbetaHead', () => {
 });
 
 describe('cbetaAnswerPrefill', () => {
-  it('opens ordinary VI answers with content, not bare heading only', () => {
+  it('opens ordinary VI answers with a neutral CBETA cue', () => {
     const p = cbetaAnswerPrefill('vi', false);
-    assert.match(p, /Thiền \(禪\)/);
+    assert.match(p, /Theo các đoạn CBETA dưới đây/);
+    assert.doesNotMatch(p, /Thiền \(禪\)/);
     assert.ok(p.length > 'PHẦN 1\n\n'.length);
   });
 
-  it('opens ordinary EN answers with Chan content cue', () => {
+  it('opens ordinary EN answers with a neutral CBETA cue', () => {
     const p = cbetaAnswerPrefill('en', false);
-    assert.match(p, /Chan \(禪\)/);
+    assert.match(p, /According to the CBETA passages below/);
+    assert.doesNotMatch(p, /Chan \(禪\)/);
   });
 
   it('keeps coverage prefills list-oriented', () => {
@@ -148,9 +150,13 @@ describe('cbetaAnswerPrefill', () => {
 describe('stripCbetaAnswerPrefill', () => {
   it('removes PHẦN 1 and content cue prefix', () => {
     const body = stripCbetaAnswerPrefill(
-      'PHẦN 1\n\nThiền (禪), theo ngữ cảnh CBETA dưới đây, là tĩnh lự.',
+      'PHẦN 1\n\nTheo các đoạn CBETA dưới đây, là tĩnh lự.',
     );
     assert.equal(body, 'là tĩnh lự.');
+    const legacy = stripCbetaAnswerPrefill(
+      'PHẦN 1\n\nThiền (禪), theo ngữ cảnh CBETA dưới đây, là tĩnh lự.',
+    );
+    assert.equal(legacy, 'là tĩnh lự.');
   });
 });
 

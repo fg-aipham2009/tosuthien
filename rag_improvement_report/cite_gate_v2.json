@@ -1,0 +1,78 @@
+[
+  {
+    "id": "V2_HEART",
+    "prefer": "T08n0251",
+    "prefer_hit": false,
+    "cite_count": 1,
+    "works": [
+      "X26n0567"
+    ],
+    "elapsed_s": 31.99,
+    "gate": true,
+    "findings": [],
+    "qualify": false,
+    "titles": [
+      "般若心經如是經義"
+    ],
+    "answer_head": "PHẦN 1\n\nTheo các đoạn CBETA dưới đây, Không phải. Theo bản chú giải có trong ngữ cảnh, \"sắc tức là không\" không có nghĩa là mọi thứ hoàn toàn không tồn tại. Chính bản chú bác bỏ cả hai cách hiểu cực đoan: chấp sự vật là thật có, và chấp vào cái \"không\" trống rỗng.\n\n**Nguyên văn (原文)**\n\nCâu này nằm trong Bát Nhã Tâm Kinh, được dẫn lại trong bản chú "
+  },
+  {
+    "id": "V2_DIAMOND",
+    "prefer": "T08n0235",
+    "prefer_hit": false,
+    "cite_count": 1,
+    "works": [
+      "X15n0299"
+    ],
+    "elapsed_s": 29.2,
+    "gate": true,
+    "findings": [],
+    "qualify": false,
+    "titles": [
+      "楞嚴經講錄"
+    ],
+    "answer_head": "PHẦN 1\n\nTheo các đoạn CBETA dưới đây, PHẦN 1 — BẢN TỔNG HỢP\n\nCâu trả lời ngắn\n\nTheo ngữ cảnh CBETA đã truy xuất, không thể hiểu \"Ưng vô sở trụ nhi sinh kỳ tâm\" (應無所住而生其心) là \"không cần suy nghĩ hay làm gì\". Đoạn văn duy nhất có trong phạm vi tra cứu giải thích câu này theo nghĩa tâm không dính mắc vào cảnh sở đối, và gắn nó với một tiến trình tu tậ"
+  },
+  {
+    "id": "V2_LOTUS",
+    "prefer": "T09n0262",
+    "prefer_hit": false,
+    "cite_count": 1,
+    "works": [
+      "X33n0625"
+    ],
+    "elapsed_s": 39.52,
+    "gate": true,
+    "findings": [],
+    "qualify": false,
+    "titles": [
+      "法華經演義"
+    ],
+    "answer_head": "PHẦN 1\n\nTheo các đoạn CBETA dưới đây, PHẦN 1. BẢN TỔNG HỢP\n\nTrong phạm vi CBETA đã truy xuất, câu「唯有一佛乘」xuất hiện ở phần kệ tụng của phẩm Hóa Thành Dụ (化城喻品) trong Kinh Pháp Hoa. Câu kinh này được trích lại trong bộ chú giải Pháp Hoa Kinh Diễn Nghĩa (法華經演義), do Nhất Tùng Đại sư (一松大師) thuộc dòng Thiên Thai giảng, Thích Hiểu Nhu (曉柔) đời Thanh biên "
+  },
+  {
+    "id": "V2_MM",
+    "prefer": "T30n1564",
+    "prefer_hit": true,
+    "cite_count": 6,
+    "works": [
+      "LC01n0001",
+      "LC02n0002",
+      "T30n1564",
+      "T42n1824",
+      "T42n1824",
+      "T45n1859"
+    ],
+    "elapsed_s": 57.52,
+    "gate": true,
+    "findings": [],
+    "qualify": false,
+    "titles": [
+      "印度佛學源流略講",
+      "中國佛學源流略講",
+      "中論",
+      "中觀論疏"
+    ],
+    "answer_head": "PHẦN 1\n\nTheo các đoạn CBETA dưới đây, Theo các văn bản CBETA trong phạm vi tra cứu, câu 「眾因緣生法」 trước hết là một bài kệ trong Trung luận (中論), thuộc phẩm Quán Tứ Đế (觀四諦品), và đa số chú sớ đều gọi nó là \"kệ trong luận\" của Long Thọ. Tuy vậy, Cát Tạng (吉藏) đưa ra một dị thuyết: ông cho rằng Long Thọ đang dẫn lời Phật từ một bản kinh.\n\n### Vị trí tro"
+  }
+]

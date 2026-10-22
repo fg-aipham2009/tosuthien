@@ -3,7 +3,13 @@
  * diversify packed hits so the answer LLM sees less duplicate noise.
  */
 
-import { isCbetaCoverageIntent as coverageIntent } from './cbeta-intent.util';
+import {
+  isCbetaCoverageIntent as coverageIntent,
+  isCbetaPersonRelationIntent as personRelationIntent,
+  isCbetaSectionListIntent as sectionListIntent,
+} from './cbeta-intent.util';
+import { extractPersonRelationNeedles } from './cbeta-person-relation.util';
+import { enrichSchoolLineageSearch } from './cbeta-school-lineage.util';
 
 export { isCbetaCoverageIntent } from './cbeta-intent.util';
 
@@ -55,23 +61,26 @@ export function isPatriarchListIntent(question: string): boolean {
 export function coverageTitleHintRegex(question: string): string | null {
   const q = (question || '').normalize('NFC');
   if (!q.trim()) return null;
-  // More specific first.
+  // More specific chronicles first — never let bare "truyền đăng" steal
+  // Ngũ Đăng / Phổ Đăng / Thế Phổ when those are named in the same question.
   if (/續\s*傳燈|tục\s*truyền\s*đăng|續傳燈錄/i.test(q)) {
     return '續傳燈';
   }
-  // Bare "truyền đăng lục" / 傳燈錄 → Jingde (not every *傳燈* title).
   if (
-    /景德\s*傳燈|jingde|cảnh\s*đức\s*truyền\s*đăng|truyền\s*đăng\s*lục|truyen\s*dang\s*luc|傳燈\s*錄|傳燈錄|transmission\s+of\s+the\s+lamp/i.test(
-      q,
-    )
+    /ngũ\s*đăng|ngu\s*dang|五燈\s*會元|五燈會元|五燈/i.test(q)
   ) {
-    return '景德傳燈';
+    // Prefer the main chronicle, not 目錄 / 續略 / stray 五燈 titles.
+    return '五燈會元';
   }
-  if (/truyền\s*đăng|truyen\s*dang|chuandeng/i.test(q)) {
-    return '傳燈';
+  if (
+    /phổ\s*đăng|pho\s*dang|嘉泰\s*普燈|普燈錄|普燈/i.test(q)
+  ) {
+    return '嘉泰普燈錄';
   }
-  if (/ngũ\s*đăng|ngu\s*dang|五燈\s*會元|五燈會元|五燈/i.test(q)) {
-    return '五燈';
+  if (
+    /thiền\s*đăng\s*thế\s*phổ|thien\s*dang\s*the\s*pho|禪燈世譜/i.test(q)
+  ) {
+    return '禪燈世譜';
   }
   if (/chỉ\s*nguyệt|chi\s*nguyet|指月/i.test(q)) {
     return '指月';
@@ -85,11 +94,26 @@ export function coverageTitleHintRegex(question: string): string | null {
   if (/cao\s*tăng\s*truyện|高僧傳/i.test(q)) {
     return '高僧傳';
   }
+  // "truyền đăng lục" / Jingde / Transmission of the Lamp → Jingde only.
+  // Do NOT return bare 傳燈 (matches 目錄 / 續傳燈 / 玉英集).
+  if (
+    /景德\s*傳燈|jingde|cảnh\s*đức\s*truyền\s*đăng|truyền\s*đăng\s*lục|truyen\s*dang\s*luc|傳燈\s*錄|傳燈錄|transmission\s+of\s+the\s+lamp/i.test(
+      q,
+    )
+  ) {
+    return '景德傳燈';
+  }
+  // Bare "theo truyền đăng" (no other chronicle named) → Jingde default.
+  if (/truyền\s*đăng|truyen\s*dang|chuandeng/i.test(q)) {
+    return '景德傳燈';
+  }
   return null;
 }
 
 /**
  * Merge rewrite search with deterministic coverage/patriarch terms.
+ * When the user already names a work_code (e.g. T51n2076), do not dump the
+ * full lamp-title bag — that bloats hybrid search and slows answers.
  */
 export function enrichCbetaSearchZh(
   question: string,
@@ -98,8 +122,86 @@ export function enrichCbetaSearchZh(
 ): { searchZh: string; keywords: string[] } {
   const base = (searchZh || question || '').trim();
   const kw = [...keywords];
+  const hasWorkCode = /T\d{1,3}n\d{3,5}/i.test(question || '');
+  // Section register lists: keep heading CJK only — no 西天/五燈 bag.
+  if (sectionListIntent(question)) {
+    return { searchZh: base, keywords: kw };
+  }
+  // One person's 法嗣: person + 法嗣 needles only — never 西天/東土 bag.
+  if (personRelationIntent(question)) {
+    const extras = [
+      '法嗣',
+      '嗣',
+      ...extractPersonRelationNeedles(question).filter((n) =>
+        /[\u3400-\u9fff]/u.test(n),
+      ),
+    ];
+    const parts = [base, ...extras];
+    const seen = new Set<string>();
+    const merged: string[] = [];
+    for (const p of parts) {
+      const t = (p || '').trim();
+      if (!t || seen.has(t)) continue;
+      seen.add(t);
+      merged.push(t);
+    }
+    for (const t of extras) {
+      if (!kw.includes(t)) kw.push(t);
+    }
+    return { searchZh: merged.join(' '), keywords: kw };
+  }
+  // Named 五家 school succession — school + 法嗣/宗派 needles (not answer tree).
+  const schoolEnrich = enrichSchoolLineageSearch(question, base, kw);
+  if (schoolEnrich) return schoolEnrich;
+  // Teacher / 法嗣 questions: add lamp succession anchors so hybrid finds 嗣X.
+  if (
+    /pháp\s*tự\s*của\s*ai|thầy\s*(là\s*ai|truyền)|師事|嗣誰|theo\s*truyền\s*đăng/i.test(
+      question,
+    )
+  ) {
+    const extras: string[] = ['法嗣', '嗣', '傳燈'];
+    if (/百丈|懷海/u.test(`${question}\n${base}`)) {
+      extras.push('百丈懷海', '嗣馬祖', '馬祖道一');
+    }
+    if (/趙州|從諗|从谂|Tùng\s*Thẩm|Tung\s*Tham/iu.test(`${question}\n${base}`)) {
+      extras.push('趙州從諗', '南泉普願', '嗣南泉');
+    }
+    if (/黃檗|希運/u.test(`${question}\n${base}`)) {
+      extras.push('黃檗希運', '嗣百丈', '百丈懷海');
+    }
+    const parts = [base, ...extras];
+    const seen = new Set<string>();
+    const merged: string[] = [];
+    for (const p of parts) {
+      const t = (p || '').trim();
+      if (!t || seen.has(t)) continue;
+      seen.add(t);
+      merged.push(t);
+    }
+    for (const t of extras) {
+      if (!kw.includes(t)) kw.push(t);
+    }
+    return { searchZh: merged.join(' '), keywords: kw };
+  }
   if (!isPatriarchListIntent(question) && !coverageIntent(question)) {
     return { searchZh: base, keywords: kw };
+  }
+  // Work-scoped patriarch list: light anchors (no 西天/東土 — those skew hybrid).
+  if (hasWorkCode && !coverageIntent(question)) {
+    const light = ['祖師', '傳法', '付法'];
+    const parts = [base, ...light];
+    const seen = new Set<string>();
+    const merged: string[] = [];
+    for (const p of parts) {
+      const t = (p || '').trim();
+      if (!t || seen.has(t)) continue;
+      seen.add(t);
+      merged.push(t);
+    }
+    for (const t of light) {
+      if (!kw.includes(t)) kw.push(t);
+    }
+    return { searchZh: merged.join(' '), keywords: kw };
   }
 
   const extra =

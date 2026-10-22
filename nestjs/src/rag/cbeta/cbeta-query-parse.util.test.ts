@@ -26,6 +26,15 @@ describe('parseCbetaCitationHints', () => {
       'p0292',
     );
   });
+
+  it('parses glued work+linehead and English volume', () => {
+    const h = parseCbetaCitationHints(
+      'From T51n2076 volume 15, locator T51n2076_p0317a22',
+    );
+    assert.ok(h.workCodes.includes('T51n2076'));
+    assert.equal(h.juanNo, 15);
+    assert.equal(h.cbetaRefNeedle, 'p0317a22');
+  });
 });
 
 describe('extractPreservedCjk', () => {

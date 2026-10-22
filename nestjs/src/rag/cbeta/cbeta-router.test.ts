@@ -16,6 +16,17 @@ describe('routeCbetaQuery', () => {
     const d = routeCbetaQuery({ question: 'thiền là gì' });
     assert.equal(d.path, 'fast');
     assert.equal(d.coverageMode, false);
+    assert.equal(d.sectionListMode, false);
+  });
+
+  it('routes 馬祖法嗣 heading list to sectionListMode (not coverage)', () => {
+    const d = routeCbetaQuery({
+      question:
+        'Trong 景德傳燈錄 (T51n2076), tìm mục: 懷讓禪師第二世下五十六人（馬祖法嗣）',
+    });
+    assert.equal(d.path, 'deep');
+    assert.equal(d.sectionListMode, true);
+    assert.equal(d.coverageMode, false);
   });
 
   it('respects forcePath=fast even for list questions', () => {

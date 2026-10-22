@@ -1,4 +1,13 @@
-import { isCbetaCoverageIntent } from './cbeta-intent.util';
+import {
+  isCbetaCoverageIntent,
+  isCbetaPersonRelationIntent,
+  isCbetaSchoolLineageIntent,
+  isCbetaSectionListIntent,
+} from './cbeta-intent.util';
+import {
+  isCbetaQuoteVerifyIntent,
+  isCbetaScriptureExplainIntent,
+} from './cbeta-scripture-intent.util';
 import type { CbetaCorpus, CbetaPath, CbetaRouteDecision } from './cbeta.types';
 
 export interface CbetaCollectionAlias {
@@ -39,8 +48,32 @@ export function aliasMatchesQuestion(question: string, alias: string): boolean {
 export function routeCbetaQuery(input: RouteInput): CbetaRouteDecision {
   const q = (input.question || '').trim();
   const reasons: string[] = ['api=cbeta'];
+  // Section register (馬祖法嗣…) wins over global patriarch coverage.
+  const sectionList = isCbetaSectionListIntent(q);
+  // Named 五家 school succession — not coverage dump.
+  const schoolLineage = !sectionList && isCbetaSchoolLineageIntent(q);
+  // One person's 法嗣 / Dharma successors — not 西天/東土 coverage dump.
+  const personRelation =
+    !sectionList && !schoolLineage && isCbetaPersonRelationIntent(q);
+  const quoteVerify =
+    !sectionList &&
+    !schoolLineage &&
+    !personRelation &&
+    isCbetaQuoteVerifyIntent(q);
+  const scriptureExplain =
+    !sectionList &&
+    !schoolLineage &&
+    !personRelation &&
+    !quoteVerify &&
+    isCbetaScriptureExplainIntent(q);
   // Not bare "toàn bộ kinh sách" — that is essence/summary, not list coverage.
-  const coverage = isCbetaCoverageIntent(q);
+  const coverage =
+    !sectionList &&
+    !schoolLineage &&
+    !personRelation &&
+    !quoteVerify &&
+    !scriptureExplain &&
+    isCbetaCoverageIntent(q);
 
   const collections: string[] = [];
   const seen = new Set<string>();
@@ -64,6 +97,19 @@ export function routeCbetaQuery(input: RouteInput): CbetaRouteDecision {
   if (input.forcePath === 'fast' || input.forcePath === 'deep') {
     path = input.forcePath;
     reasons.push(`forcePath=${path}`);
+  } else if (sectionList) {
+    path = 'deep';
+    reasons.push('sectionList→deep');
+  } else if (schoolLineage) {
+    // Deep flag for logging; retrieve uses schoolLineageMode hybrid path.
+    path = 'deep';
+    reasons.push('schoolLineage→deep');
+  } else if (personRelation) {
+    path = 'fast';
+    reasons.push('personRelation→fast');
+  } else if (quoteVerify || scriptureExplain) {
+    path = 'fast';
+    reasons.push(quoteVerify ? 'quoteVerify→fast' : 'scriptureExplain→fast');
   } else if (coverage) {
     path = 'deep';
     reasons.push('coverage→deep');
@@ -72,10 +118,25 @@ export function routeCbetaQuery(input: RouteInput): CbetaRouteDecision {
   }
 
   const coverageMode = coverage;
+  const sectionListMode = sectionList;
+  const schoolLineageMode = schoolLineage;
+  const personRelationMode = personRelation;
+  const quoteVerifyMode = quoteVerify;
+  const scriptureExplainMode = scriptureExplain;
   if (coverageMode) reasons.push('coverageMode');
+  if (sectionListMode) reasons.push('sectionListMode');
+  if (schoolLineageMode) reasons.push('schoolLineageMode');
+  if (personRelationMode) reasons.push('personRelationMode');
+  if (quoteVerifyMode) reasons.push('quoteVerifyMode');
+  if (scriptureExplainMode) reasons.push('scriptureExplainMode');
 
   const scopeParts = [`path=${path}`];
   if (coverageMode) scopeParts.push('mode=coverage');
+  if (sectionListMode) scopeParts.push('mode=sectionList');
+  if (schoolLineageMode) scopeParts.push('mode=schoolLineage');
+  if (personRelationMode) scopeParts.push('mode=personRelation');
+  if (quoteVerifyMode) scopeParts.push('mode=quoteVerify');
+  if (scriptureExplainMode) scopeParts.push('mode=scriptureExplain');
   scopeParts.push(
     collections.length
       ? `collections=${collections.join(',')}`
@@ -91,6 +152,11 @@ export function routeCbetaQuery(input: RouteInput): CbetaRouteDecision {
     juanNo: null,
     cbetaRefNeedle: null,
     coverageMode,
+    sectionListMode,
+    schoolLineageMode,
+    personRelationMode,
+    quoteVerifyMode,
+    scriptureExplainMode,
     scopeNote: scopeParts.join('; '),
     reasons,
   };

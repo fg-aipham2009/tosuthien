@@ -13,6 +13,9 @@ const emit = defineEmits<{
 }>()
 
 function onKey(e: KeyboardEvent) {
+  // Vietnamese / CJK IME: Enter confirms composition — do not send mid-compose
+  // (otherwise the committed syllable is dropped → “thiếu chữ”).
+  if (e.isComposing || e.keyCode === 229) return
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
     emit('send')
