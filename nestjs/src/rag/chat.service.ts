@@ -42,6 +42,7 @@ import {
 } from './rag-answer-style';
 import {
   needsVnDialogueBackshift,
+  needsVnPassageStartBackshift,
   stitchChunkTexts,
 } from './cbeta/cbeta-expand.util';
 
@@ -1495,8 +1496,9 @@ export class ChatService {
   }
 
   /**
-   * Expand each hit with neighboring OCR pages (asymmetric -1 / +2).
-   * If the window opens on Đáp:/Sư bảo without Hỏi:, backshift one more page (Test 2).
+   * Expand each hit with neighboring OCR pages (asymmetric).
+   * Backshift while the window opens mid-passage / mid-Đáp so PHẦN 1 can
+   * quote head→tail instead of a page-cut middle.
    */
   private async expandHitsWithNeighborPages(
     hits: PassageHit[],
@@ -1506,8 +1508,8 @@ export class ChatService {
         if (hit.pageNum == null) return hit;
 
         const center = hit.pageNum;
-        // Top 2 hits: wider forward window; others same bias (teaching often trails).
-        const back = 1;
+        // Top hits: more prior context so quotes can start at scene/HỎI openers.
+        const back = hitIndex < 3 ? 2 : 1;
         const forward = hitIndex < 2 ? 2 : 1;
         let pageStart = Math.max(1, center - back);
         let pageEnd = center + forward;
@@ -1529,12 +1531,18 @@ export class ChatService {
         };
         ingest(neighbors);
 
-        const firstPage = Math.min(...(byPage.size ? byPage.keys() : [center]));
-        const firstBody = (byPage.get(firstPage) ?? []).join('\n\n');
-        if (
-          needsVnDialogueBackshift(firstBody) &&
-          pageStart > 1
-        ) {
+        // Up to 2 extra prior pages when the window still opens mid-passage.
+        for (let attempt = 0; attempt < 2 && pageStart > 1; attempt++) {
+          const firstPage = Math.min(
+            ...(byPage.size ? byPage.keys() : [center]),
+          );
+          const firstBody = (byPage.get(firstPage) ?? []).join('\n\n');
+          if (
+            !needsVnDialogueBackshift(firstBody) &&
+            !needsVnPassageStartBackshift(firstBody)
+          ) {
+            break;
+          }
           pageStart -= 1;
           neighbors = await this.fetchPagesAround(
             hit.sourceFile,
@@ -1629,7 +1637,9 @@ export class ChatService {
       const windowBonus =
         pageMarkers > 1 ? Math.min(16_000, (pageMarkers - 1) * 3_200) : 0;
       const body = this.trimPassageAtSentence(h.content, maxChars + windowBonus);
-      const block = `${header}\n${body}`;
+      const block = `${header}
+QUY TẮC TRÍCH: mỗi "…" phải mở từ đầu đoạn / HỎI: / câu mở cảnh trong block dưới — CẤM mở khúc giữa (nên/thì/mà/và…).
+${body}`;
       if (used + block.length > MAX_CONTEXT_CHARS) break;
 
       blocks.push(block);

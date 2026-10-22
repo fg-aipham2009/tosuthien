@@ -61,7 +61,11 @@ PHẦN 1 — NGUYÊN VĂN (answer chính) — RẤT DÀI, ĐỦ ĐẦU–ĐUÔI,
 - Mục tiêu độ dài: mỗi khối trích thường 16–50 câu (hoặc cả chuỗi HỎI–ĐÁP / cả phân đoạn) nếu block còn đủ chữ. CẤM trả lời kiểu 1–3 câu ngắn khi ngữ cảnh còn dài hơn.
 - CHỈ được COPY nguyên văn trong NGOẶC KÉP "…" từ block ngữ cảnh.
 - TUYỆT ĐỐI: không chế thêm chữ, không paraphrase, không tóm tắt, không rút ngắn, không cắt giữa câu / giữa ĐÁP / giữa đoạn chuyện.
-- CẤM bắt đầu trích giữa câu hoặc giữa đoạn đang nối trang (vd. không mở bằng "nên canh ba…" nếu ngữ cảnh còn phần trước trên [Trang] liền kề). Hãy lùi về đầu đoạn/đầu cảnh có sẵn trong block rồi copy liền mạch đến hết ý.
+- MỞ ĐẦU KHỐI (BẮT BUỘC — lỗi hay gặp): mỗi "…" phải bắt đầu ở ĐẦU ĐOẠN / ĐẦU CẢNH có trong block:
+  · Ưu tiên dòng HỎI: / Khách hỏi / đầu thoại; hoặc câu mở chuyện (Một hôm / Bấy giờ / Khi ấy / Lục Tổ…); hoặc câu đầu ngay sau [Trang N].
+  · CẤM mở bằng từ nối giữa câu: nên / thì / mà / và / rằng / để / cho / của / là / được / đã / sẽ / cũng / nhưng…
+  · CẤM mở bằng nửa câu đang nối trang (vd. "nên canh ba…" / "…Đáp:" không có HỎI phía trước trong cùng khối).
+  · Nếu block có phần trước cùng phân đoạn trên [Trang] liền kề: PHẢI lùi về đó, copy LIỀN MẠCH từ đầu đoạn → hết ý (đầu–giữa–cuối), không nhảy vào khúc giữa.
 - Lấy CÀNG DÀI CÀNG TỐT khi đoạn vẫn cùng trả lời câu hỏi: cả đoạn, cả chuỗi HỎI–ĐÁP, cả cụm liên tục qua nhiều [Trang N] nếu cùng một phân đoạn. Ưu tiên copy gần hết nội dung liên quan trong block hơn là chọn vài câu đẹp.
 - Mỗi khối trích kèm ngay dưới: — (Tên kinh, tr.X) — trang chính = [Trang N] chứa câu then chốt của đoạn. Nếu copy liền nhiều trang, tách thành nhiều khối "…" + — (…, tr.X) theo từng trang, vẫn giữ thứ tự đầu→đuôi.
 - Nhãn — (Tên kinh, tr.X) phải khớp dòng "Trích dẫn: …" trong block ngữ cảnh (cùng tên sách + trang có trong block).
@@ -96,6 +100,7 @@ Ví dụ SAI:
 - "Dựa vào đoạn trích dẫn thì…"
 - Phần 1 chỉ 1–3 câu ngắn / cắt nửa đoạn trong khi block còn đủ đầu–đuôi
 - Bắt đầu bằng câu đang nối trang (“nên canh ba…”) dù ngữ cảnh có phần trước
+- Mở "…" bằng "thì / mà / và / rằng…" (khúc giữa) trong khi block còn HỎI: hoặc câu mở cảnh phía trên
 - Tóm tắt hoặc chỉ chọn “câu then chốt” thay vì copy cả đoạn liên quan`;
 
 function buildKinhLongRules(): string {
@@ -479,7 +484,7 @@ export class LlmService {
 ${intentBlock}
 Ngữ cảnh: mỗi block có [KINH]/[NGỮ LỤC] và dòng "Trích dẫn: …".
 1) Đọc "Ý hỏi đã chuẩn hóa" (nếu có). Nếu có KHÓA SÁCH → chỉ trích / ghi nhãn đúng sách đó. Nếu không khóa mà câu hỏi nêu tên một kinh → mở đầu PHẦN 1 bằng đoạn RẤT DÀI đủ đầu–đuôi từ đúng kinh đó.
-2) PHẦN NGUYÊN VĂN (ưu tiên dài gấp đôi mức tối thiểu cũ): COPY càng nhiều chữ liên quan càng tốt — cả đoạn/cảnh/HỎI–ĐÁP, nối nhiều [Trang] nếu cùng phân đoạn. Mục tiêu khoảng 8–16 khối trích / nguồn khi ngữ cảnh đủ. CẤM mở giữa câu đang nối trang. CẤM trả lời ngắn khi block còn dài. Mỗi khối — (Tên kinh, tr.X) đúng [Trang N] và đúng sách trong block. TUYỆT ĐỐI không chế / không cắt / không paraphrase / không tóm tắt / không đổi tên sách.
+2) PHẦN NGUYÊN VĂN (ưu tiên dài + đủ đầu–đuôi): COPY càng nhiều chữ liên quan càng tốt — cả đoạn/cảnh/HỎI–ĐÁP, nối nhiều [Trang] nếu cùng phân đoạn. Mục tiêu khoảng 8–16 khối trích / nguồn khi ngữ cảnh đủ. Mỗi "…" BẮT ĐẦU ở đầu đoạn/HỎI/câu mở cảnh trong block — CẤM mở giữa câu / giữa Đáp / bằng "nên|thì|mà|và|rằng…". CẤM trả lời ngắn khi block còn dài. Mỗi khối — (Tên kinh, tr.X) đúng [Trang N] và đúng sách trong block. TUYỆT ĐỐI không chế / không cắt / không paraphrase / không tóm tắt / không đổi tên sách.
 3) Nếu đã có nguyên văn: dòng ${AI_INTERPRETATION_MARKER} rồi diễn giải đủ ý (khoảng 10–20 câu) — NỀN = câu hỏi + phần 1; PHỤ = kiến thức nền nếu giúp phong phú. Giọng tự nhiên; CẤM "dựa vào đoạn trích…".
 ${context}`;
 

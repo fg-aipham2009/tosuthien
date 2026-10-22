@@ -55,6 +55,42 @@ export function needsVnDialogueBackshift(firstPageText: string): boolean {
   return VN_ANSWER_OPEN.test(head);
 }
 
+/** Strip optional [Trang N] marker before inspecting passage head. */
+function vnPassageHead(text: string): string {
+  return (text || '')
+    .replace(/^\[Trang\s+\d+\]\s*/i, '')
+    .trim()
+    .slice(0, 400);
+}
+
+/** Clean section / narrative openers — do not backshift further. */
+const VN_CLEAN_OPEN =
+  /^(?:\*{0,2}\d*[\.)]\s*)?(?:Chương|CHƯƠNG|Mục|Phẩm|Kệ|Bài|Lục Tổ|Huệ Năng|Tổ\s|Đức Phật|Phật|Một hôm|Khi ấy|Bấy giờ|Ngày|Đêm|Hôm|Trong|Có\s|Xin|Thưa|Vân|Ngài)/u;
+
+/**
+ * True when the window opens mid-passage (continuation words / mid-answer),
+ * so we should fetch one more prior page for a full head→tail quote.
+ */
+export function needsVnPassageStartBackshift(firstPageText: string): boolean {
+  const head = vnPassageHead(firstPageText);
+  if (!head) return false;
+  if (VN_QUESTION_OPEN.test(head)) return false;
+  if (VN_CLEAN_OPEN.test(head)) return false;
+  if (needsVnDialogueBackshift(head)) return true;
+  // Continuation / mid-clause openers common in OCR page splits.
+  // Use (?=\s|…) — JS \\b is unreliable on Vietnamese letters even with /u.
+  if (
+    /^(?:nên|thì|mà|và|rằng|để|cho|với|của|là|được|đã|sẽ|cũng|nhưng|hoặc|nữa|rồi|này|ấy|đó|như vậy|như thế)(?=[\s,.!?;:…""''”’)]|$)/iu.test(
+      head,
+    )
+  ) {
+    return true;
+  }
+  // Opens with closing-quote / ellipsis / lowercase after prior-page cut.
+  if (/^[…\.…,"”')]/.test(head)) return true;
+  return false;
+}
+
 export interface StitchPart {
   text: string;
   /** CBETA linehead / page marker inserted before this part when joining. */
