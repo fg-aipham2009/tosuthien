@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import { routeCbetaQuery } from './cbeta-router';
 import {
   extractScripturePhraseNeedles,
+  extractScriptureTitleCues,
   isCbetaQuoteVerifyIntent,
   isCbetaScriptureExplainIntent,
 } from './cbeta-scripture-intent.util';
@@ -56,6 +57,59 @@ describe('scripture / quote intents', () => {
       'Giải thích 應無所住而生其心 trong Kim Cang',
     );
     assert.ok(needles.some((n) => n.includes('應無所住')));
+  });
+
+  it('routes treatise attribution probes to scriptureExplain', () => {
+    const q =
+      '「眾因緣生法」trong Trung luận — lời Phật hay kệ Long Thọ?';
+    assert.equal(isCbetaScriptureExplainIntent(q), true);
+    const d = routeCbetaQuery({ question: q });
+    assert.equal(d.scriptureExplainMode, true);
+  });
+
+  it('maps Pháp Hoa vernacular to 法華 title cues', () => {
+    const cues = extractScriptureTitleCues(
+      'Kinh Pháp Hoa nói「唯有一佛乘」nghĩa là gì?',
+    );
+    assert.ok(cues.includes('法華'));
+  });
+});
+
+describe('selectEvidenceHits title cues', () => {
+  it('prefers 法華經 over unrelated 經 when question says Pháp Hoa', () => {
+    const hits: CbetaChunkHit[] = [
+      {
+        id: 'lotus',
+        workCode: 'T09n0262',
+        collection: 'T',
+        titleZh: '妙法蓮華經',
+        juanNo: 1,
+        juanLabel: null,
+        chunkIndex: 0,
+        contentZh: '唯有一佛乘息處故說二',
+        score: 800,
+        cbetaRefStart: '0026a29',
+      },
+      {
+        id: 'other',
+        workCode: 'T85n2871',
+        collection: 'T',
+        titleZh: '大通方廣懺悔滅罪莊嚴成佛經',
+        juanNo: 1,
+        juanLabel: null,
+        chunkIndex: 0,
+        contentZh: '唯有一佛乘某某',
+        score: 950,
+        cbetaRefStart: '0001a01',
+      },
+    ];
+    const selected = selectEvidenceHits(
+      hits,
+      'Kinh Pháp Hoa nói「唯有一佛乘」nghĩa là gì theo nguyên văn?',
+      baseDecision({ scriptureExplainMode: true }),
+    );
+    assert.equal(selected.length, 1);
+    assert.equal(selected[0].workCode, 'T09n0262');
   });
 });
 

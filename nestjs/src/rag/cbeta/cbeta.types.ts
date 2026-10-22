@@ -75,6 +75,32 @@ export interface CbetaCitation {
   cbetaRefStart: string | null;
   /** CBETA Online reader URL (no internal chunk id in label). */
   url: string | null;
+  /**
+   * Optional quote/passage locator metadata (CBETA_QUOTE_LEVEL_CITATIONS).
+   * Omitted when flag off or mapping unavailable — never fabricated.
+   */
+  chunkStartLocator?: string | null;
+  chunkEndLocator?: string | null;
+  quoteStartLocator?: string | null;
+  quoteEndLocator?: string | null;
+  locatorPrecision?: 'passage' | 'quote_approx' | 'unavailable';
+  evidenceId?: string;
+  workId?: string;
+  juan?: number | null;
+}
+
+/** Per-work outcome when multi-work retrieval is enabled. */
+export type CbetaWorkDiagStatus =
+  | 'ok'
+  | 'work_not_indexed'
+  | 'no_matching_passage'
+  | 'filtered_by_ranking'
+  | 'removed_by_context_budget';
+
+export interface CbetaWorkDiagnostic {
+  workCode: string;
+  status: CbetaWorkDiagStatus;
+  hitCount: number;
 }
 
 export interface CbetaEntityHit {
@@ -98,6 +124,8 @@ export interface CbetaRetrieveResult {
   entities?: CbetaEntityHit[];
   worksScanned?: string[];
   passes?: number;
+  /** Present when CBETA_MULTI_WORK_RETRIEVAL ran independent per-work queries. */
+  workDiagnostics?: CbetaWorkDiagnostic[];
 }
 
 /** VN/other → Hán search rewrite (hhtech) before CBETA retrieve. */

@@ -43,7 +43,17 @@ const DOC_WIDE_RE =
 
 /** Gloss / translate a quoted phrase — not a succession listing. */
 const GLOSS_RE =
-  /có nghĩa gì|nghĩa là gì|what does .{0,40} mean|translate|dịch\s*(ra|nghĩa)|giải nghĩa|Chữ\s*['「「'].+['」』"]\s*chỉ|chỉ số lượng bao nhiêu/i;
+  /có nghĩa gì|nghĩa là gì|what does .{0,40} mean|translate|dịch\s*(ra|nghĩa)|giải nghĩa|Chữ\s*['「「'].+['」』"]\s*chỉ|chỉ số lượng bao nhiêu|tối đa\s*\d+\s*câu|in\s+(?:at\s+most\s+)?\d+\s*sentences?/i;
+
+/**
+ * Gloss/count questions that embed a 法嗣 heading as the *object of translation*,
+ * not a request to enumerate successors.
+ */
+export function isCbetaGlossOnlyQuestion(question: string): boolean {
+  const q = (question || '').normalize('NFC').trim();
+  if (!q) return false;
+  return GLOSS_RE.test(q);
+}
 
 /**
  * True when the user asks about successors / 法嗣 of a focal person
@@ -52,7 +62,7 @@ const GLOSS_RE =
 export function isCbetaPersonRelationQuestion(question: string): boolean {
   const q = (question || '').normalize('NFC').trim();
   if (!q) return false;
-  if (GLOSS_RE.test(q)) return false;
+  if (isCbetaGlossOnlyQuestion(q)) return false;
   // Fabrication / absence probes use normal retrieve + denial — not list extract.
   if (/FakeMaster|完全虛構|假造|XYZABC|T99n9999|hư\s*cấu/i.test(q)) {
     return false;
@@ -138,6 +148,27 @@ export function extractPersonRelationNeedles(question: string): string[] {
     if (out.length >= 8) break;
   }
   return out;
+}
+
+/**
+ * Short gloss for questions that ask what「…法嗣N人」means / how many「N人」.
+ * Deterministic — no successor dump, no LLM required.
+ */
+export function formatFasuccessorHeadingGloss(question: string): string | null {
+  if (!isCbetaGlossOnlyQuestion(question)) return null;
+  const q = (question || '').normalize('NFC');
+  const m = q.match(
+    /([\u3400-\u9fff]{2,24}(?:禪師|和尚)?)?法嗣([一二三四五六七八九十\d]+)人/,
+  );
+  if (!m) return null;
+  const subject = (m[1] || '').trim();
+  const countLabel = `${m[2]}人`;
+  const n = parseChineseCountLabel(countLabel);
+  if (n == null) return null;
+  const who = subject ? `của ${subject}` : '';
+  const line1 = `「法嗣${countLabel}」${who ? who + ' ' : ''}nghĩa là có ${n} vị pháp tự (đệ tử nối pháp).`;
+  const line2 = `Chữ「${countLabel}」chỉ số lượng ${n}.`;
+  return `${line1} ${line2}`;
 }
 
 export function parseChineseCountLabel(label: string): number | null {

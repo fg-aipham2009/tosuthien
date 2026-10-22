@@ -391,8 +391,9 @@ export class LlmService {
         '',
       10,
     );
-    // Fail over to the next chat endpoint quickly when hhtech hangs.
-    return Number.isFinite(n) && n > 0 ? n : 60_000;
+    // Scripture explain (Āgama multi-step, etc.) often needs >60s of streaming.
+    // Override via CBETA_CHAT_TIMEOUT_MS; default allows a full grounded answer.
+    return Number.isFinite(n) && n > 0 ? n : 240_000;
   }
 
   private rewriteCacheSize(): number {
@@ -916,7 +917,22 @@ STRICT RETRY: Previous draft failed the language/quality gate. Write ONLY answer
       let buffer = '';
 
       while (true) {
-        const { done, value } = await reader.read();
+        let done: boolean;
+        let value: Uint8Array | undefined;
+        try {
+          ({ done, value } = await reader.read());
+        } catch (err: unknown) {
+          if (
+            err instanceof Error &&
+            (err.name === 'AbortError' ||
+              /operation was aborted/i.test(err.message))
+          ) {
+            throw new Error(
+              `Claude API stream timeout after ${ms}ms [${endpoint.provider} model=${endpoint.model}]`,
+            );
+          }
+          throw err;
+        }
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });

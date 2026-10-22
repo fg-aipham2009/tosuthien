@@ -9,9 +9,11 @@ import {
 } from './cbeta-person-relation.util';
 import {
   extractScripturePhraseNeedles,
+  extractScriptureTitleCues,
   isCbetaQuoteVerifyIntent,
   isCbetaScriptureExplainIntent,
   isCbetaTranslateIntent,
+  titleCueAffinity,
 } from './cbeta-scripture-intent.util';
 import {
   verifyAnswerQuotesAgainstEvidence,
@@ -70,8 +72,32 @@ function genrePriority(h: CbetaChunkHit): number {
 }
 
 /**
+ * Collect explicit work IDs from decision + question text.
+ * When non-empty these are hard constraints (no sister-translation substitute).
+ */
+export function explicitWorkCodes(
+  question: string,
+  decision: CbetaRouteDecision,
+): Set<string> {
+  const named = new Set(decision.workCodes);
+  const fromQ =
+    question.match(/\b[TXAJHKLSNDtxajhklsnd]\s*\d{1,2}\s*n\s*\d{3,4}[a-zA-Z]?\b/gi) ||
+    [];
+  for (const w of fromQ) {
+    const m = w.match(/([TXAJHKLSNDtxajhklsnd])\s*(\d{1,2})\s*n\s*(\d{3,4})([a-zA-Z]?)/i);
+    if (m) {
+      named.add(
+        `${m[1].toUpperCase()}${m[2]}n${m[3]}${(m[4] || '').toLowerCase()}`,
+      );
+    }
+  }
+  return named;
+}
+
+/**
  * Among phrase matches: prefer work codes named in the question, then best
  * primary genre tier, then top retrieval score (ties kept). No invented max-N.
+ * Explicit work IDs are a hard filter — never fall through to another work.
  */
 function refineScripturePhraseHits(
   phraseHits: CbetaChunkHit[],
@@ -79,15 +105,18 @@ function refineScripturePhraseHits(
   decision: CbetaRouteDecision,
 ): CbetaChunkHit[] {
   const deduped = dedupeByWork(phraseHits);
-  if (deduped.length <= 1) return deduped;
+  if (deduped.length <= 1) {
+    const named = explicitWorkCodes(question, decision);
+    if (named.size && deduped.length === 1 && !named.has(deduped[0].workCode)) {
+      return [];
+    }
+    return deduped;
+  }
 
-  const named = new Set(decision.workCodes);
-  const fromQ =
-    question.match(/T\d{2}n\d{4}[A-Za-z]?/gi) || [];
-  for (const w of fromQ) named.add(w);
+  const named = explicitWorkCodes(question, decision);
   if (named.size) {
-    const constrained = deduped.filter((h) => named.has(h.workCode));
-    if (constrained.length) return constrained;
+    // Hard constraint: empty is honest (no matching passage in named works).
+    return deduped.filter((h) => named.has(h.workCode));
   }
 
   const bestGenre = Math.max(...deduped.map(genrePriority));
@@ -101,19 +130,16 @@ function refineScripturePhraseHits(
   const body = pool.filter((h) => /經\s*$/.test((h.titleZh || '').trim()));
   if (body.length) pool = body;
 
-  // Prefer titles that share CJK tokens with the question (法華/金剛/中論…).
-  const qTokens = [
-    ...new Set((question.match(/[\u3400-\u9fff]{2,8}/g) || []).filter((t) => t.length >= 2)),
-  ];
-  if (qTokens.length) {
-    const affinity = (h: CbetaChunkHit) =>
-      qTokens.reduce(
-        (n, t) => n + ((h.titleZh || '').includes(t) ? t.length : 0),
-        0,
-      );
-    const bestAff = Math.max(...pool.map(affinity));
+  // Prefer titles matching vernacular/CJK scripture cues (Pháp Hoa→法華…).
+  const cues = extractScriptureTitleCues(question);
+  if (cues.length) {
+    const bestAff = Math.max(
+      ...pool.map((h) => titleCueAffinity(h.titleZh || '', cues)),
+    );
     if (bestAff > 0) {
-      const affPool = pool.filter((h) => affinity(h) === bestAff);
+      const affPool = pool.filter(
+        (h) => titleCueAffinity(h.titleZh || '', cues) === bestAff,
+      );
       if (affPool.length) pool = affPool;
     }
   }
@@ -121,6 +147,45 @@ function refineScripturePhraseHits(
   const topScore = Math.max(...pool.map((h) => h.score));
   // Keep score ties only — avoids citing every commentary that reprints a phrase.
   return pool.filter((h) => h.score === topScore);
+}
+
+/**
+ * When 2+ works are named: keep at least one phrase hit per work (if any),
+ * so one work’s phrase cannot hide another requested work.
+ */
+function selectMultiWorkPhraseHits(
+  hits: CbetaChunkHit[],
+  phrases: string[],
+  named: Set<string>,
+): CbetaChunkHit[] {
+  const long = [...phrases]
+    .filter((n) => n.length >= 4)
+    .sort((a, b) => b.length - a.length);
+  const out: CbetaChunkHit[] = [];
+  const seen = new Set<string>();
+  for (const work of named) {
+    const workHits = hits.filter((h) => h.workCode === work);
+    let picked: CbetaChunkHit[] = [];
+    for (const phrase of long) {
+      const exact = workHits.filter((h) => hitHasPhrase(h.contentZh, phrase));
+      if (exact.length) {
+        // Already scoped to one work — keep phrase hits for that work only.
+        picked = dedupeByWork(exact);
+        break;
+      }
+    }
+    if (!picked.length && workHits.length) {
+      // No phrase: still keep best chunk from that work (multi-work coverage).
+      picked = [workHits.slice().sort((a, b) => b.score - a.score)[0]];
+    }
+    for (const h of picked) {
+      if (h && !seen.has(h.id)) {
+        seen.add(h.id);
+        out.push(h);
+      }
+    }
+  }
+  return out;
 }
 
 /** Prefer chunks that contain query CJK / parsed 法嗣 / exact scripture phrases. */
@@ -151,6 +216,11 @@ export function selectEvidenceHits(
     isCbetaTranslateIntent(question);
 
   if (scriptureMode || scripturePhrases.some((p) => p.length >= 6)) {
+    const named = explicitWorkCodes(question, decision);
+    if (named.size >= 2) {
+      const multi = selectMultiWorkPhraseHits(hits, scripturePhrases, named);
+      if (multi.length) return multi;
+    }
     const long = [...scripturePhrases]
       .filter((n) => n.length >= 4)
       .sort((a, b) => b.length - a.length);

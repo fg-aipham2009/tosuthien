@@ -185,9 +185,19 @@ export function useCbetaChat(listEl: Ref<HTMLElement | null>) {
         abort.signal,
       )
     } catch (e) {
-      if ((e as Error).name !== 'AbortError') {
-        error.value = e instanceof Error ? e.message : 'Lỗi hỏi đáp CBETA'
-        assistant.content = assistant.content || 'Xin lỗi, không nhận được câu trả lời.'
+      const err = e instanceof Error ? e : new Error(String(e))
+      const aborted =
+        err.name === 'AbortError' ||
+        /operation was aborted/i.test(err.message)
+      // AbortController cancel (new send / leave page) stays silent.
+      // Server/proxy cuts still surface a clear retry hint when nothing arrived.
+      if (!aborted) {
+        error.value = err.message || 'Lỗi hỏi đáp CBETA'
+        assistant.content =
+          assistant.content || 'Xin lỗi, không nhận được câu trả lời.'
+      } else if (!assistant.content.trim() && abort && !abort.signal.aborted) {
+        error.value =
+          'Hết thời gian chờ khi trả lời câu hỏi dài. Hãy gửi lại — máy chủ đã tăng hạn mức streaming.'
       }
       assistant.streaming = false
     } finally {

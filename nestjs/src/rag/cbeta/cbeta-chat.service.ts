@@ -31,7 +31,9 @@ import {
 } from './cbeta-school-lineage.util';
 import {
   extractPersonRelationNeedles,
+  formatFasuccessorHeadingGloss,
   formatPersonFasuccessorAnswer,
+  isCbetaGlossOnlyQuestion,
   parsePersonFasuccessorBlock,
 } from './cbeta-person-relation.util';
 import {
@@ -43,6 +45,7 @@ import {
   cbetaDiagEnabled,
 } from './cbeta-diag.util';
 import {
+  isCbetaScriptureExplainIntent,
   scriptureGroundingBrief,
 } from './cbeta-scripture-intent.util';
 import {
@@ -58,6 +61,17 @@ import {
   runDoctrinalAttributionGate,
 } from './cbeta-doctrinal-gate.util';
 import { verifyContextualClaims } from './cbeta-context-verify.util';
+import {
+  cbetaQuoteLevelCitationsEnabled,
+  cbetaQuoteVerifyV2Enabled,
+} from './cbeta-feature-flags.util';
+import { repairAnswerQuotesFromEvidence } from './cbeta-quote-align.util';
+import { locateQuoteInHit } from './cbeta-quote-locator.util';
+import {
+  extractAnswerCjkQuotes,
+  verifyAnswerQuotesAgainstEvidence,
+} from './cbeta-claim-verify.util';
+import { extractScripturePhraseNeedles } from './cbeta-scripture-intent.util';
 import type {
   CbetaCitation,
   CbetaChunkHit,
@@ -179,6 +193,62 @@ export class CbetaChatService {
             citations: evidenceCites,
             answer,
             generationRoute: 'sectionList',
+            blocks,
+          }),
+        },
+      };
+    }
+
+    const glossAnswer = formatFasuccessorHeadingGloss(question);
+    if (glossAnswer) {
+      const { answer, aiInterpretation } = this.splitAnswer(glossAnswer);
+      // Prefer chunks that contain the exact 法嗣N人 heading (e.g. T51n2076).
+      const heading =
+        question.match(
+          /([\u3400-\u9fff]{2,40}(?:禪師|和尚)?法嗣[一二三四五六七八九十\d]+人)/u,
+        )?.[1] || '';
+      const headingHits = heading
+        ? used.filter((h) => (h.contentZh || '').includes(heading))
+        : [];
+      // Only cite lamp/register works for 法嗣N人 gloss — never a random X-collection reprint.
+      const dengluHits = headingHits.filter(
+        (h) =>
+          /傳燈|景德|燈錄/.test(h.titleZh || '') ||
+          /^T51n2076/i.test(h.workCode || ''),
+      );
+      const evidenceCites = dengluHits.length
+        ? this.toUiCitations(
+            this.toCitations(
+              selectEvidenceHits(dengluHits, question, decisionMerged),
+            ),
+          )
+        : [];
+      return {
+        answer,
+        aiInterpretation,
+        citations: evidenceCites,
+        entities: retrieval.entities ?? [],
+        meta: {
+          ...this.metaBase(
+            decisionMerged,
+            retrieval,
+            retrievalMs,
+            Date.now() - t0,
+            used.length,
+            rewrite,
+          ),
+          llmMs: 0,
+          coverageAnswer: 'gloss',
+          ...this.maybeDiag({
+            requestId,
+            question,
+            rewrite,
+            decision: decisionMerged,
+            retrieval,
+            used,
+            citations: evidenceCites,
+            answer,
+            generationRoute: 'gloss',
             blocks,
           }),
         },
@@ -339,27 +409,52 @@ export class CbetaChatService {
       }
     }
 
-    const contextual = verifyContextualClaims(
-      question,
-      answer,
-      evidenceHits,
-    );
+    let verifyHits = evidenceHits;
+    let gateApplied = { answer, applied: [] as string[] };
+    if (cbetaQuoteVerifyV2Enabled()) {
+      const v2 = await this.applyQuoteVerifyV2({
+        question,
+        answer,
+        decision: decisionMerged,
+        evidenceHits,
+        retrievalHits: used,
+      });
+      answer = v2.answer;
+      verifyHits = v2.evidenceHits;
+      gateApplied = { answer: v2.answer, applied: v2.applied };
+      if (v2.applied.length) {
+        generationRoute = `${generationRoute}+verify_v2`;
+      }
+    } else {
+      const gate0 = runDoctrinalAttributionGate({
+        question,
+        answer,
+        decision: decisionMerged,
+        evidenceHits: verifyHits,
+      });
+      gateApplied = applyDoctrinalGateToAnswer(answer, gate0);
+      answer = gateApplied.answer;
+      if (gateApplied.applied.length) {
+        generationRoute = `${generationRoute}+gate`;
+      }
+    }
     const gate = runDoctrinalAttributionGate({
       question,
       answer,
       decision: decisionMerged,
-      evidenceHits,
+      evidenceHits: verifyHits,
     });
-    const gateApplied = applyDoctrinalGateToAnswer(answer, gate);
-    answer = gateApplied.answer;
-    if (gateApplied.applied.length) {
-      generationRoute = `${generationRoute}+gate`;
-    }
+    const contextual = verifyContextualClaims(
+      question,
+      answer,
+      verifyHits,
+    );
+    const finalCites = this.toCitations(verifyHits, question);
 
     return {
       answer,
       aiInterpretation,
-      citations: this.toUiCitations(evidenceCites, keepExcerpt),
+      citations: this.toUiCitations(finalCites, keepExcerpt),
       entities: retrieval.entities ?? [],
       meta: {
         ...this.metaBase(
@@ -395,8 +490,8 @@ export class CbetaChatService {
           rewrite,
           decision: decisionMerged,
           retrieval,
-          used: evidenceHits,
-          citations: evidenceCites,
+          used: verifyHits,
+          citations: finalCites,
           answer,
           generationRoute,
           blocks,
@@ -594,31 +689,58 @@ export class CbetaChatService {
     const split = this.splitAnswer(raw);
     let answer = split.answer;
     const aiInterpretation = split.aiInterpretation;
+    let verifyHits = evidenceHits;
+    let gatedApplied: string[] = [];
+    if (cbetaQuoteVerifyV2Enabled()) {
+      const v2 = await this.applyQuoteVerifyV2({
+        question,
+        answer,
+        decision: decisionMerged,
+        evidenceHits,
+        retrievalHits: used,
+      });
+      answer = v2.answer;
+      verifyHits = v2.evidenceHits;
+      gatedApplied = v2.applied;
+    } else {
+      const gate0 = runDoctrinalAttributionGate({
+        question,
+        answer,
+        decision: decisionMerged,
+        evidenceHits,
+      });
+      const gated = applyDoctrinalGateToAnswer(answer, gate0);
+      answer = gated.answer;
+      gatedApplied = gated.applied;
+    }
     const gate = runDoctrinalAttributionGate({
       question,
       answer,
       decision: decisionMerged,
-      evidenceHits,
+      evidenceHits: verifyHits,
     });
-    const gated = applyDoctrinalGateToAnswer(answer, gate);
-    answer = gated.answer;
-    const contextual = verifyContextualClaims(question, answer, evidenceHits);
+    const contextual = verifyContextualClaims(question, answer, verifyHits);
+    const streamCites = this.toUiCitations(
+      this.toCitations(verifyHits, question),
+      decisionMerged.quoteVerifyMode || decisionMerged.scriptureExplainMode,
+    );
     yield {
       type: 'done',
       answer,
       aiInterpretation,
-      citations: uiCitations,
+      citations: streamCites,
       meta: {
         corpus: 'cbeta',
         path: decisionMerged.path,
         entities: retrieval.entities ?? [],
         worksScanned: retrieval.worksScanned ?? [],
+        workDiagnostics: retrieval.workDiagnostics ?? [],
         totalMs: Date.now() - t0,
         queryRewrite: rewrite,
         doctrinalGate: {
           enabled: gate.enabled,
           findings: gate.findings,
-          applied: gated.applied,
+          applied: gatedApplied,
           contextual: {
             speakerHint: contextual.pack.speakerHint,
             sectionHint: contextual.pack.sectionHint,
@@ -839,6 +961,13 @@ export class CbetaChatService {
     decision: CbetaRouteDecision,
     retrieval: CbetaRetrieveResult,
   ): string | null {
+    // Gloss/translate of a quoted 法嗣 heading must not dump the successor list.
+    if (
+      isCbetaGlossOnlyQuestion(question) ||
+      isCbetaScriptureExplainIntent(question)
+    ) {
+      return null;
+    }
     if (!decision.personRelationMode && !decision.cbetaRefNeedle) {
       // Still allow when relation intent was detected via needles in evidence.
       if (
@@ -1103,10 +1232,73 @@ export class CbetaChatService {
       hitCount,
       entityCount: retrieval.entities?.length ?? 0,
       worksScanned: retrieval.worksScanned ?? [],
+      workDiagnostics: retrieval.workDiagnostics ?? [],
       passes: retrieval.passes,
       citationPolicy: 'required' as const,
       queryRewrite: rewrite,
     };
+  }
+
+  /**
+   * VERIFY_V2: align quotes to evidence spans, bounded phrase re-lookup,
+   * then apply the existing doctrinal gate (strip still requires evidence).
+   */
+  private async applyQuoteVerifyV2(input: {
+    question: string;
+    answer: string;
+    decision: CbetaRouteDecision;
+    evidenceHits: CbetaChunkHit[];
+    retrievalHits: CbetaChunkHit[];
+  }): Promise<{
+    answer: string;
+    evidenceHits: CbetaChunkHit[];
+    applied: string[];
+  }> {
+    const applied: string[] = [];
+    let hits = [...input.evidenceHits];
+    const pool = [...input.retrievalHits, ...input.evidenceHits];
+    const byId = new Map(pool.map((h) => [h.id, h]));
+
+    let { answer, repairs } = repairAnswerQuotesFromEvidence(
+      input.answer,
+      [...byId.values()],
+    );
+    if (repairs.some((r) => r.aligned !== r.original)) {
+      applied.push('align_quotes_to_evidence');
+    }
+
+    let { unsupportedQuotes } = verifyAnswerQuotesAgainstEvidence(answer, hits);
+    if (unsupportedQuotes.length) {
+      const extra = await this.retrieve.lookupPhrasesBounded(
+        unsupportedQuotes.filter((q) => q.length >= 4),
+        input.decision.workCodes,
+      );
+      if (extra.length) {
+        for (const h of extra) byId.set(h.id, h);
+        hits = [...hits];
+        for (const h of extra) {
+          if (!hits.some((x) => x.id === h.id)) hits.push(h);
+        }
+        applied.push('bounded_phrase_rellookup');
+        const repaired2 = repairAnswerQuotesFromEvidence(answer, [
+          ...byId.values(),
+        ]);
+        answer = repaired2.answer;
+        if (repaired2.repairs.some((r) => r.aligned !== r.original)) {
+          applied.push('align_quotes_after_rellookup');
+        }
+      }
+    }
+
+    const gate = runDoctrinalAttributionGate({
+      question: input.question,
+      answer,
+      decision: input.decision,
+      evidenceHits: hits,
+    });
+    const gated = applyDoctrinalGateToAnswer(answer, gate);
+    applied.push(...gated.applied);
+    return { answer: gated.answer, evidenceHits: hits, applied };
   }
 
   private intentBrief(
@@ -1195,7 +1387,14 @@ export class CbetaChatService {
     return lines.join('\n');
   }
 
-  private toCitations(hits: CbetaChunkHit[]): CbetaCitation[] {
+  private toCitations(
+    hits: CbetaChunkHit[],
+    question?: string,
+  ): CbetaCitation[] {
+    const phrases = question
+      ? extractScripturePhraseNeedles(question).filter((p) => p.length >= 4)
+      : [];
+    const quoteLevel = cbetaQuoteLevelCitationsEnabled();
     return hits.map((h) => {
       const genre = inferCbetaGenre({
         titleZh: h.titleZh,
@@ -1204,7 +1403,7 @@ export class CbetaChatService {
       });
       const base = this.retrieve.citationLabel(h);
       const label = genre !== '其他' ? `${base} · [${genre}]` : base;
-      return {
+      const cite: CbetaCitation = {
         chunkId: h.id,
         workCode: h.workCode,
         collection: h.collection,
@@ -1218,6 +1417,29 @@ export class CbetaChatService {
         cbetaRefStart: h.cbetaRefStart,
         url: this.retrieve.cbetaOnlineUrl(h.workCode, h.cbetaRefStart),
       };
+      if (quoteLevel) {
+        let loc = null as ReturnType<typeof locateQuoteInHit>;
+        for (const p of phrases) {
+          loc = locateQuoteInHit(h, p);
+          if (loc) break;
+        }
+        cite.workId = h.workCode;
+        cite.juan = h.juanNo;
+        cite.evidenceId = h.id;
+        cite.chunkStartLocator = h.cbetaRefStart;
+        cite.chunkEndLocator = h.cbetaRefStart;
+        if (loc) {
+          cite.quoteStartLocator = loc.quoteStartLocator;
+          cite.quoteEndLocator = loc.quoteEndLocator;
+          cite.locatorPrecision = loc.locatorPrecision;
+          cite.quote = loc.evidenceSpan;
+        } else {
+          cite.quoteStartLocator = h.cbetaRefStart;
+          cite.quoteEndLocator = h.cbetaRefStart;
+          cite.locatorPrecision = 'passage';
+        }
+      }
+      return cite;
     });
   }
 

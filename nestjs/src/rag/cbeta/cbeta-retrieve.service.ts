@@ -40,13 +40,19 @@ import {
   cbetaRefCovers,
   normalizeCbetaRef,
 } from './cbeta-ref-range.util';
-import { extractScripturePhraseNeedles } from './cbeta-scripture-intent.util';
+import {
+  extractScripturePhraseNeedles,
+  extractScriptureTitleCues,
+  titleCueAffinity,
+} from './cbeta-scripture-intent.util';
+import { cbetaMultiWorkRetrievalEnabled } from './cbeta-feature-flags.util';
 import type {
   CbetaChunkHit,
   CbetaDeepProgress,
   CbetaEntityHit,
   CbetaRetrieveResult,
   CbetaRouteDecision,
+  CbetaWorkDiagnostic,
 } from './cbeta.types';
 
 /** Classic RRF rank constant (Cormack et al.). */
@@ -167,8 +173,130 @@ export class CbetaRetrieveService {
   /**
    * Phrase-first + optional locator retrieve for scripture explain / quote verify.
    * No 法嗣 succession boosting.
+   * When CBETA_MULTI_WORK_RETRIEVAL=1 and 2+ work codes: independent per-work
+   * retrieve + merge (no sister-work elimination).
    */
   async retrieveScriptureGrounded(
+    question: string,
+    decision: CbetaRouteDecision,
+    topK?: number,
+    options?: CbetaRetrieveOptions,
+  ): Promise<CbetaRetrieveResult> {
+    if (
+      cbetaMultiWorkRetrievalEnabled() &&
+      decision.workCodes.length >= 2
+    ) {
+      return this.retrieveScriptureMultiWork(
+        question,
+        decision,
+        topK,
+        options,
+      );
+    }
+    return this.retrieveScriptureGroundedSingle(
+      question,
+      decision,
+      topK,
+      options,
+    );
+  }
+
+  /**
+   * Independent retrieve per explicit work_code, then merge with per-work quota.
+   */
+  private async retrieveScriptureMultiWork(
+    question: string,
+    decision: CbetaRouteDecision,
+    topK?: number,
+    options?: CbetaRetrieveOptions,
+  ): Promise<CbetaRetrieveResult> {
+    const works = [...decision.workCodes];
+    const k = Math.max(1, topK ?? this.candidatePool());
+    // Fair share: at least one slot per work when hits exist; rest from pool.
+    const perWorkCap = Math.max(1, Math.ceil(k / works.length));
+    const diagnostics: CbetaWorkDiagnostic[] = [];
+    const perWorkHits: CbetaChunkHit[][] = [];
+    let embedError: string | null = null;
+    let searchMode: CbetaRetrieveResult['searchMode'] = 'fts';
+
+    for (const workCode of works) {
+      const indexed = await this.isWorkIndexed(workCode);
+      if (!indexed) {
+        diagnostics.push({
+          workCode,
+          status: 'work_not_indexed',
+          hitCount: 0,
+        });
+        perWorkHits.push([]);
+        continue;
+      }
+      const single: CbetaRouteDecision = {
+        ...decision,
+        workCodes: [workCode],
+      };
+      const part = await this.retrieveScriptureGroundedSingle(
+        question,
+        single,
+        perWorkCap,
+        options,
+      );
+      if (part.embedError) embedError = part.embedError;
+      if (part.searchMode === 'hybrid' || part.searchMode === 'vector') {
+        searchMode = part.searchMode;
+      }
+      const own = part.hits.filter((h) => h.workCode === workCode);
+      perWorkHits.push(own);
+      diagnostics.push({
+        workCode,
+        status: own.length ? 'ok' : 'no_matching_passage',
+        hitCount: own.length,
+      });
+    }
+
+    // Round-robin merge so a high-scoring work cannot wipe another.
+    const queues = perWorkHits.map((list) => [...list]);
+    const merged: CbetaChunkHit[] = [];
+    const seen = new Set<string>();
+    let progress = true;
+    while (progress && merged.length < k) {
+      progress = false;
+      for (const q of queues) {
+        if (merged.length >= k) break;
+        while (q.length) {
+          const h = q.shift()!;
+          if (seen.has(h.id)) continue;
+          seen.add(h.id);
+          merged.push(h);
+          progress = true;
+          break;
+        }
+      }
+    }
+
+    const hits =
+      decision.quoteVerifyMode || decision.scriptureExplainMode
+        ? await this.expandNeighbors(merged)
+        : merged;
+
+    return {
+      hits,
+      searchMode,
+      embedError,
+      worksScanned: works,
+      passes: works.length,
+      workDiagnostics: diagnostics,
+    };
+  }
+
+  private async isWorkIndexed(workCode: string): Promise<boolean> {
+    const rows = await this.db.query<{ n: string }>(
+      `SELECT COUNT(*)::text AS n FROM works WHERE work_code = $1`,
+      [workCode],
+    );
+    return parseInt(rows[0]?.n || '0', 10) > 0;
+  }
+
+  private async retrieveScriptureGroundedSingle(
     question: string,
     decision: CbetaRouteDecision,
     topK?: number,
@@ -188,6 +316,7 @@ export class CbetaRetrieveService {
       const prev = byId.get(h.id);
       if (!prev || h.score > prev.score) byId.set(h.id, h);
     }
+    const titleCues = extractScriptureTitleCues(original);
     const scored = [...byId.values()].map((h) => {
       let boost = 0;
       for (const p of phrases) {
@@ -197,7 +326,7 @@ export class CbetaRetrieveService {
       }
       const title = h.titleZh || '';
       if (
-        /疏|鈔|抄|註|注|講錄|演義|經義|淺釋|句解|略解|通義|還源|幽贊|講義|講記/.test(
+        /疏|鈔|抄|註|注|講錄|演義|經義|淺釋|句解|略解|通義|還源|幽贊|講義|講記|壇經/.test(
           title,
         )
       ) {
@@ -210,6 +339,9 @@ export class CbetaRetrieveService {
         boost += 60;
       }
       if ((h.collection || '').toUpperCase() === 'T') boost += 40;
+      // Vernacular scripture name → matching title (Pháp Hoa → 法華經).
+      const cueAff = titleCueAffinity(title, titleCues);
+      if (cueAff > 0) boost += 220 + cueAff * 20;
       return { ...h, score: h.score + boost };
     });
     scored.sort((a, b) => b.score - a.score);
@@ -221,10 +353,12 @@ export class CbetaRetrieveService {
     const merged = diversifyCbetaHits(
       evidence.length ? [...evidence, ...rest] : scored,
     ).slice(0, k);
-    // Keep neighbors for LLM context, but scripture citation selection
-    // dedupes by phrase+work later — avoid expanding every hit into dozens.
+    // Cross-work scripture: skip neighbor expand (cite noise).
+    // Work-scoped explain (e.g. T02n0099 multi-step): expand same-work neighbors
+    // so karma / parallel passages stay in evidence for verification.
     const hits =
-      decision.quoteVerifyMode || decision.scriptureExplainMode
+      (decision.quoteVerifyMode || decision.scriptureExplainMode) &&
+      !decision.workCodes.length
         ? merged
         : await this.expandNeighbors(merged);
     return {
@@ -234,6 +368,33 @@ export class CbetaRetrieveService {
       worksScanned: [...new Set(hits.map((h) => h.workCode))],
       passes: 1,
     };
+  }
+
+  /**
+   * Bounded phrase lookup (VERIFY_V2): search exact CJK spans inside optional works.
+   */
+  async lookupPhrasesBounded(
+    phrases: string[],
+    workCodes: string[] = [],
+  ): Promise<CbetaChunkHit[]> {
+    const decision: CbetaRouteDecision = {
+      corpus: 'cbeta',
+      resolvedCorpus: 'cbeta',
+      path: 'fast',
+      collections: [],
+      workCodes,
+      juanNo: null,
+      cbetaRefNeedle: null,
+      coverageMode: false,
+      sectionListMode: false,
+      schoolLineageMode: false,
+      personRelationMode: false,
+      quoteVerifyMode: true,
+      scriptureExplainMode: false,
+      scopeNote: 'bounded_phrase_lookup',
+      reasons: ['bounded_phrase_lookup'],
+    };
+    return this.lookupExactPhrases(decision, phrases);
   }
 
   private async lookupExactPhrases(

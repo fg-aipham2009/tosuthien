@@ -6,6 +6,8 @@ import {
   isCbetaPersonRelationIntent,
 } from './cbeta-intent.util';
 import {
+  formatFasuccessorHeadingGloss,
+  isCbetaGlossOnlyQuestion,
   isCbetaPersonRelationQuestion,
   parsePersonFasuccessorBlock,
 } from './cbeta-person-relation.util';
@@ -41,6 +43,25 @@ describe('person relation intent vs coverage', () => {
       "Cụm Hán văn '潭州雲巖曇晟禪師法嗣四人' có nghĩa gì? Chữ '四人' chỉ số lượng bao nhiêu? Chỉ trả lời trong tối đa 2 câu.";
     assert.equal(isCbetaPersonRelationIntent(q), false);
     assert.equal(routeCbetaQuery({ question: q }).personRelationMode, false);
+  });
+});
+
+describe('isCbetaGlossOnlyQuestion', () => {
+  it('detects C3-style gloss of embedded 法嗣 heading', () => {
+    const q =
+      "Cụm Hán văn '潭州雲巖曇晟禪師法嗣四人' có nghĩa gì? Chữ '四人' chỉ số lượng bao nhiêu? Chỉ trả lời trong tối đa 2 câu.";
+    assert.equal(isCbetaGlossOnlyQuestion(q), true);
+  });
+});
+
+describe('formatFasuccessorHeadingGloss', () => {
+  it('answers count without listing successors', () => {
+    const q =
+      "Cụm Hán văn '潭州雲巖曇晟禪師法嗣四人' có nghĩa gì? Chữ '四人' chỉ số lượng bao nhiêu? Chỉ trả lời trong tối đa 2 câu.";
+    const ans = formatFasuccessorHeadingGloss(q);
+    assert.ok(ans);
+    assert.match(ans!, /4/);
+    assert.doesNotMatch(ans!, /洞山良价/);
   });
 });
 
